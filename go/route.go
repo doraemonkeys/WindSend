@@ -214,6 +214,7 @@ func saveFiles(data []byte) {
 	for i := 0; i < int(number); i++ {
 		nameLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
 		name := string(data[4 : 4+nameLen])
+		logrus.Info("receive file: ", name)
 		data = data[4+nameLen:]
 		dataLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
 		data = data[4:]
