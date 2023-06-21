@@ -507,13 +507,14 @@ class _HomePageState extends State<HomePage> {
     switch (type) {
       case 0x00:
         // text
-        final content = decryptedBody.sublist(1);
-        await Clipboard.setData(ClipboardData(text: utf8.decode(content)));
-        //返回 复制成功 + 前40个字节
-        if (content.length > 40) {
-          return '复制成功: ${utf8.decode(content.sublist(0, 40))}';
+        final contentUint8List = decryptedBody.sublist(1);
+        final content = utf8.decode(contentUint8List);
+        await Clipboard.setData(ClipboardData(text: content));
+        //返回 复制成功 + 前15个字符
+        if (content.length > 15) {
+          return '复制成功: ${content.substring(0, 15)}';
         } else {
-          return '复制成功: ${utf8.decode(content)}';
+          return '复制成功: $content';
         }
       case 0x01:
         await _downloadFile(decryptedBody);
@@ -528,11 +529,12 @@ class _HomePageState extends State<HomePage> {
     var fetcher = WebSync(serverConfig.secretKeyHex);
     var contentUint8List = await fetcher.getContentFromWeb();
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
-    //返回 复制成功 + 前40个字节
-    if (contentUint8List.length > 40) {
-      return '复制成功: ${utf8.decode(contentUint8List.sublist(0, 40))}';
+    var content = utf8.decode(contentUint8List);
+    //返回 复制成功 + 前15个字符
+    if (content.length > 15) {
+      return '复制成功: ${content.substring(0, 15)}';
     } else {
-      return '复制成功: ${utf8.decode(contentUint8List)}';
+      return '复制成功: $content';
     }
   }
 
