@@ -22,7 +22,7 @@
 
 ### 下载
 
-github:[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/clipboard-go/releases)
+github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/clipboard-go/releases)
 
 蓝奏云：[clipboard-go 蓝奏云](https://wwxz.lanzouw.com/b03efpa1e) 密码:c1at
 
@@ -33,11 +33,11 @@ github:[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/c
 1. 解压 clipboard-go-amd64-windows.rar 到任意目录
 2. 双击exe文件运行，可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
 
-![image-20230621192706843](E:/Doraemon/Pictures/Typora/2023003/image-20230621192706843.png)
+![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
 
 3. 打开默认配置文件`config.yaml`，复制secretKeyHex(注意不要复制到空格)，手机端需要用到。
 
-<img src="E:/Doraemon/Pictures/Typora/2023003/image-20230621192929505.png" alt="image-20230621192929505" style="zoom: 67%;" />
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049362.png" alt="image-20230621192929505" style="zoom: 67%;" />
 
 4. 查看电脑ipv4，cmd或PowerShell中执行命令：`ipconfig`，找到无线局域网适配器 WLAN的ipv4地址，记录下来。
 
@@ -55,11 +55,11 @@ github:[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/c
 
 3. 第一次新建：IP填web，secretKeyHex填刚才复制的，添加web配置用于手机电脑不在同一局域网传递信息。
 
-<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-21-19-38-02-706_com.example.clipboard.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049453.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
 
 4. 第二次新建：IP填电脑的IP，secretKeyHex填刚才复制的。用于局域网内传递信息。
 
-<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-21-19-49-26-345_com.example.clipboard.png" style="zoom: 33%;" />
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049519.png" style="zoom: 33%;" />
 
 ### 注意事项
 
