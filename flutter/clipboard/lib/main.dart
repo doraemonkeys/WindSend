@@ -510,9 +510,9 @@ class _HomePageState extends State<HomePage> {
         final contentUint8List = decryptedBody.sublist(1);
         final content = utf8.decode(contentUint8List);
         await Clipboard.setData(ClipboardData(text: content));
-        //返回 复制成功 + 前15个字符
-        if (content.length > 15) {
-          return '复制成功: ${content.substring(0, 15)}';
+        //返回 复制成功 + 前20个字符
+        if (content.length > 20) {
+          return '复制成功: ${content.substring(0, 20)}...';
         } else {
           return '复制成功: $content';
         }
@@ -530,9 +530,9 @@ class _HomePageState extends State<HomePage> {
     var contentUint8List = await fetcher.getContentFromWeb();
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
     var content = utf8.decode(contentUint8List);
-    //返回 复制成功 + 前15个字符
-    if (content.length > 15) {
-      return '复制成功: ${content.substring(0, 15)}';
+    //返回 复制成功 + 前20个字符
+    if (content.length > 20) {
+      return '复制成功: ${content.substring(0, 20)}...';
     } else {
       return '复制成功: $content';
     }
