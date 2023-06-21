@@ -28,12 +28,22 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 
 
+手机端如果不知道选择哪个安装就选 app-armeabi-v7a-release.apk 。
+
+
+
 ### PC端
 
 1. 解压 clipboard-go-amd64-windows.rar 到任意目录
 2. 双击exe文件运行，可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
 
 ![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
+
+请点击允许windows网络防火墙：
+
+![image-20230621225600846](E:/Doraemon/Pictures/Typora/2023003/image-20230621225600846.png)
+
+
 
 3. 打开默认配置文件`config.yaml`，复制secretKeyHex(注意不要复制到空格)，手机端需要用到。
 
@@ -53,11 +63,11 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 
 
-3. 第一次新建：IP填web，secretKeyHex填刚才复制的，添加web配置用于手机电脑不在同一局域网传递信息。
+3. 第一次新建：IP填web，Secret Key 填刚才复制的，添加web配置用于手机电脑不在同一局域网传递信息。
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049453.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
 
-4. 第二次新建：IP填电脑的IP，secretKeyHex填刚才复制的。用于局域网内传递信息。
+4. 第二次新建：IP填电脑的IP，Secret Key 填刚才复制的。用于局域网内传递信息。
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049519.png" style="zoom: 33%;" />
 
