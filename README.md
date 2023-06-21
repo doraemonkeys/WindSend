@@ -41,7 +41,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 请点击允许windows网络防火墙：
 
-![image-20230621225600846](E:/Doraemon/Pictures/Typora/2023003/image-20230621225600846.png)
+![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
 
 
 
