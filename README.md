@@ -63,7 +63,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 ### 注意事项
 
-web传递信息的原理是https://ko0.com/网站。
+web传递信息的原理是使用 https://ko0.com/ 网站。
 
 ## 跨平台情况
 
