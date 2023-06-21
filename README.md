@@ -63,7 +63,8 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 ### 注意事项
 
-web传递信息的原理是使用 https://ko0.com/ 网站。
+1. web传递信息的原理是使用 https://ko0.com/ 网站。
+2. 同一局域网下请尽量使用局域网同步剪切板，减少服务器的负载。
 
 ## 跨平台情况
 
