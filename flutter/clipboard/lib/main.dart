@@ -370,13 +370,14 @@ class _HomePageState extends State<HomePage> {
                       );
                     },
                   );
-                  bool operationSuccess = true;
 
                   if (serverConfig.action == 'copy') {
                     try {
-                      await _doCopyAction(serverConfig);
+                      var msg = await _doCopyAction(serverConfig);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
                     } catch (e) {
-                      operationSuccess = false;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(e.toString())),
                       );
@@ -390,8 +391,10 @@ class _HomePageState extends State<HomePage> {
                       serverConfig.pasteType == 'text') {
                     try {
                       await _doPasteTextAction(serverConfig);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('操作成功')),
+                      );
                     } catch (e) {
-                      operationSuccess = false;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(e.toString())),
                       );
@@ -405,8 +408,10 @@ class _HomePageState extends State<HomePage> {
                       serverConfig.pasteType == 'file') {
                     try {
                       await _doPasteFileAction(serverConfig);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('操作成功')),
+                      );
                     } catch (e) {
-                      operationSuccess = false;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(e.toString())),
                       );
@@ -416,11 +421,6 @@ class _HomePageState extends State<HomePage> {
                         Navigator.pop(context);
                       }
                     }
-                  }
-                  if (operationSuccess) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('操作成功')),
-                    );
                   }
                 },
                 onLongPress: () {
@@ -468,10 +468,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  _doCopyAction(ServerConfig serverConfig) async {
+  Future<String> _doCopyAction(ServerConfig serverConfig) async {
     if (serverConfig.ip.toLowerCase() == 'web') {
-      await _doCopyActionWeb(serverConfig);
-      return;
+      return _doCopyActionWeb(serverConfig);
     }
     // /copy post
     final url = Uri.parse(serverConfig.url);
@@ -496,9 +495,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
     if (response.statusCode != 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(response.body)));
-      return;
+      throw Exception('Error: ${response.statusCode}');
     }
     final decryptedBody = crypter.decrypt(response.bodyBytes);
     // -------+--------+---------+--------+---------+
@@ -512,21 +509,31 @@ class _HomePageState extends State<HomePage> {
         // text
         final content = decryptedBody.sublist(1);
         await Clipboard.setData(ClipboardData(text: utf8.decode(content)));
-        break;
+        //返回 复制成功 + 前40个字节
+        if (content.length > 40) {
+          return '复制成功: ${utf8.decode(content.sublist(0, 40))}';
+        } else {
+          return '复制成功: ${utf8.decode(content)}';
+        }
       case 0x01:
         await _downloadFile(decryptedBody);
-
+        return '文件已保存到：$downloadDir';
       default:
         //unknown
-        await Clipboard.setData(
-            const ClipboardData(text: "unknown message type"));
+        throw Exception('Unknown Message Type');
     }
   }
 
-  _doCopyActionWeb(ServerConfig serverConfig) async {
+  Future<String> _doCopyActionWeb(ServerConfig serverConfig) async {
     var fetcher = WebSync(serverConfig.secretKeyHex);
     var contentUint8List = await fetcher.getContentFromWeb();
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
+    //返回 复制成功 + 前40个字节
+    if (contentUint8List.length > 40) {
+      return '复制成功: ${utf8.decode(contentUint8List.sublist(0, 40))}';
+    } else {
+      return '复制成功: ${utf8.decode(contentUint8List)}';
+    }
   }
 
   Future<void> _downloadFile(Uint8List decryptedBody) async {
