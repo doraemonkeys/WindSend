@@ -252,9 +252,9 @@ class _HomePageState extends State<HomePage> {
           ServerConfig(
               ipController.text, secretKeyHexController.text, 'copy', ''),
           ServerConfig(
-              ipController.text, secretKeyHexController.text, 'paste', 'file'),
-          ServerConfig(
               ipController.text, secretKeyHexController.text, 'paste', 'text'),
+          ServerConfig(
+              ipController.text, secretKeyHexController.text, 'paste', 'file'),
         ];
       }
 
