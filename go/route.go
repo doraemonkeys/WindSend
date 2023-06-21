@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -221,8 +222,23 @@ func saveFiles(data []byte) {
 		if err != nil {
 			logrus.Error(err)
 		}
+		// 尝试将图片同步到剪切板(只有一张图片时)
+		if number == 1 && hasImageExt(name) {
+			// 只支持png
+			clipboard.Write(clipboard.FmtImage, data[:dataLen])
+		}
 		data = data[dataLen:]
 	}
+}
+
+func hasImageExt(name string) bool {
+	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp"}
+	for _, ext := range imageExts {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 func pingHandler(c *gin.Context) {
