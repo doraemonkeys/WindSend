@@ -94,26 +94,34 @@ func onReady(quitch chan bool) {
 			return
 		case <-mAutoStart.ClickedCh:
 			GloballCnf.AutoStart = !GloballCnf.AutoStart
-			GloballCnf.SaveAndSet()
-			if mAutoStart.Checked() {
-				mAutoStart.Uncheck()
+			err := GloballCnf.SaveAndSet()
+			if err != nil {
+				logrus.Error("保存配置失败：", err)
+				Inform("保存配置失败：" + err.Error())
 			} else {
-				mAutoStart.Check()
+				if mAutoStart.Checked() {
+					mAutoStart.Uncheck()
+				} else {
+					mAutoStart.Check()
+				}
 			}
 		case <-mSavePath.ClickedCh:
 			path, err := SelectFolderOnWindows()
 			if err != nil {
 				logrus.Error("选择文件夹失败：", err)
 				Inform("选择文件夹失败：" + err.Error())
+			} else {
+				GloballCnf.SavePath = path
+				err := GloballCnf.Save()
+				if err != nil {
+					logrus.Error("保存配置失败：", err)
+					Inform("保存配置失败：" + err.Error())
+				}
 			}
-			GloballCnf.SavePath = path
-			GloballCnf.Save()
-
 		case <-mPasteToWeb.ClickedCh:
 			if clipboarDataType != clipboardWatchDataTypeText {
 				Inform("当前剪切板数据不是文本")
-			}
-			if clipboarDataType == clipboardWatchDataTypeText {
+			} else if clipboarDataType == clipboardWatchDataTypeText {
 				err := PostContentToWeb(clipboardWatchData)
 				if err != nil {
 					logrus.Error("粘贴到Web失败：", err)
