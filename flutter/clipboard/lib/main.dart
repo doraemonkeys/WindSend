@@ -621,15 +621,14 @@ class _HomePageState extends State<HomePage> {
     var bodyUint8List = Uint8List.fromList(type + number);
     for (final file in files) {
       final name = file.path.split('/').last;
-      final nameLen = Uint8List.fromList([
-        name.length >> 24 & 0xff,
-        name.length >> 16 & 0xff,
-        name.length >> 8 & 0xff,
-        name.length & 0xff,
-      ]);
-
       final nameList = utf8.encode(name);
       final nameUint8List = Uint8List.fromList(nameList);
+      final nameLen = Uint8List.fromList([
+        nameUint8List.length >> 24 & 0xff,
+        nameUint8List.length >> 16 & 0xff,
+        nameUint8List.length >> 8 & 0xff,
+        nameUint8List.length & 0xff,
+      ]);
       final data = await file.readAsBytes();
       final dataLen = Uint8List.fromList([
         data.length >> 24 & 0xff,
