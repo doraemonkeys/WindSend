@@ -8,6 +8,7 @@ import (
 var crypter *CbcAESCrypt
 
 const ProgramName = "clipboard-go"
+const ProgramUrl = "https://github.com/Doraemonkeys/clipboard-go"
 
 func init() {
 	cnf := initGlobalConfig()

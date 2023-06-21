@@ -51,7 +51,7 @@ func onReady(quitch chan bool) {
 	// 文件保存路径
 	mSavePath := systray.AddMenuItem("文件保存路径", "文件保存路径")
 
-	mUrl := systray.AddMenuItem("打开官网", "github.com")
+	mUrl := systray.AddMenuItem("打开官网", ProgramUrl)
 	mQuit := systray.AddMenuItem("退出", "Quit the whole app")
 
 	mClearFiles.Disable()
@@ -81,7 +81,7 @@ func onReady(quitch chan bool) {
 			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
 		case <-mUrl.ClickedCh:
-			OpenUrl("https://www.github.com")
+			OpenUrl(ProgramUrl)
 		case <-mSubHide.ClickedCh:
 			systray.Quit()
 			quitch <- false
