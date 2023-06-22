@@ -262,6 +262,7 @@ func HasImageExt(name string) bool {
 }
 
 func pingHandler(c *gin.Context) {
-	// TODO: 身份验证
+	// 身份验证
+	copyAuth(c)
 	c.String(200, "pong")
 }
