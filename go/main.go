@@ -1,6 +1,8 @@
 package main
 
 import (
+	"runtime"
+
 	"github.com/Doraemonkeys/mylog"
 	"github.com/gin-gonic/gin"
 )
@@ -34,6 +36,7 @@ func init() {
 
 // go build -ldflags "-H=windowsgui"
 func main() {
+	runtime.UnlockOSThread()
 	go clipboardWatch()
 	var quitCh = make(chan bool)
 	if GloballCnf.ShowToolbarIcon {

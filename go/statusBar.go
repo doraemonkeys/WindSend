@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"strconv"
 
 	"fyne.io/systray"
@@ -19,7 +20,10 @@ func ShowStatusBar() (quitCh chan bool) {
 		onReady(quitCh)
 	}
 	// onExit 在退出调用systray.Quit()方法时执行
-	go systray.Run(onReady, onExit)
+	go func() {
+		runtime.LockOSThread()
+		systray.Run(onReady, onExit)
+	}()
 	return quitCh
 }
 
