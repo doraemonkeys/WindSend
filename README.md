@@ -16,7 +16,7 @@
 
 ## 如何使用
 
-> **注意**：配置阶段需要确保电脑和手机处于同一网络中。
+> **注意**：配置阶段需要确保电脑和手机处于同一网络中。为避免局域网内ip变化，建议为电脑设置静态ip(通过路由器设置，这里不给出详细步骤)。
 
 
 
@@ -52,30 +52,50 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 4. 查看电脑ipv4，cmd或PowerShell中执行命令：`ipconfig`，找到无线局域网适配器 WLAN的ipv4地址，记录下来。
 
-> 为避免局域网内ip变化，建议为电脑设置静态ip(通过路由器设置，这里不给出详细步骤)。
->
-
 
 
 ### 移动端
 
 1. 安装APP(如果不知道选择哪个安装就选 app-armeabi-v7a-release.apk)。
-2. 打开APP，点击右下角的加号配置(下面会新建两次)。
+2. 打开APP，点击右下角的加号配置。
 
 
 
-3. 第一次新建：IP填web，Secret Key 填刚才复制的，添加web配置用于手机电脑不在同一局域网传递信息。
-
-<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049453.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
-
-4. 第二次新建：IP填电脑的IP，Secret Key 填刚才复制的。用于局域网内传递信息。
+3. IP填电脑的IP，Secret Key 填刚才复制的。
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049519.png" style="zoom: 33%;" />
 
+4. 最后，激动人心的时刻到了，手机随便复制一段文字，打开app点击Paste text，电脑瞬间弹出通知，恭喜你已经成功完成了配置，可以愉快的使用了。
+
+
+
 ### 注意事项
 
-1. web传递信息的原理是使用 https://ko0.com/ 网站。
-2. 同一局域网下请尽量使用局域网同步剪切板，减少服务器的负载。
+1. 一直转圈圈说明你电脑端配置有问题，比如wifi设置了公用网络。
+2. 圈圈不动了说明app正在加密上传，不是卡住了，这是由于我不熟悉app开发，暂时搞不定(手动狗头)。
+3. 出现情况2说明文件比较大，请不要传输大文件，这不是软件设计的初衷。
+
+
+
+### 不在同一网络的解决方案
+
+#### 1. 使用内网穿透软件
+
+如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP，其他工具自行测试。
+
+
+
+#### 2. 使用别人搭好的服务器
+
+本工具内置了一个，只需要新建配置，ip填web，对你没有看错，就是这三个字母web。Secret Key 填刚才电脑上复制的。使用此功能需要在电脑上手动点击软件，复制到剪切板。
+
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049453.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
+
+
+
+web传递信息的原理是使用了 https://ko0.com/ 网站。虽然方便，但希望各位尽量只在紧急情况下使用这个功能，把别人网站搞垮了大家就都没得用了。
+
+
 
 ## 跨平台情况
 
@@ -103,8 +123,16 @@ TODO
 
 ## 展望
 
-计划添加局域网内自动选择ip的功能。
+计划添加局域网内自动选择ip的功能。因为有些人的内网ip一直变化，计划添加局域网内自动选择ip的功能，只要思路是检测当前配置ip电脑服务器是否在线，例如http /ping，如果ping不通就尝试其他常用ip，或者谁提供一下其他思路。(更新估计遥遥无期 doge）
 
 
 
-本人不太熟悉Flutter，希望能有大佬能重构一下dart代码，优化一下界面 :)doge
+本人不太熟悉Flutter，希望能有大佬能重构一下dart代码，优化一下界面，随便帮我实现一下展望的功能 :)doge
+
+
+
+设计协议的代码我可以很快整出来，app端的交互我是真不太好设计，主要是我flutter真不太会。
+
+
+
+所以如果遇到bug，能忍就忍一忍，不能忍了再踢我一脚，就这样，over!
