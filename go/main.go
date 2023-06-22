@@ -17,10 +17,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	var lofCnf = mylog.LogConfig{}
-	lofCnf.MaxLogSize = 1024 * 1024 * 10
-	lofCnf.MaxKeepDays = 100
-	err = mylog.InitGlobalLogger(lofCnf)
+	var logCnf = mylog.LogConfig{}
+	logCnf.MaxLogSize = 1024 * 1024 * 10
+	logCnf.MaxKeepDays = 100
+	logCnf.NoConsole = true
+	logCnf.DisableWriterBuffer = true
+	err = mylog.InitGlobalLogger(logCnf)
 	if err != nil {
 		panic(err)
 	}
