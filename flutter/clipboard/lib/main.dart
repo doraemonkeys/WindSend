@@ -495,7 +495,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
     if (response.statusCode != 200) {
-      throw Exception('Error: ${response.statusCode}');
+      throw Exception(response.body);
     }
     final decryptedBody = crypter.decrypt(response.bodyBytes);
     // -------+--------+---------+--------+---------+
