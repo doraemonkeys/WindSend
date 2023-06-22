@@ -3,7 +3,7 @@ package main
 import (
 	"strconv"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 	"github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
 )
@@ -12,7 +12,9 @@ import (
 // quitCh 返回false表示隐藏状态栏图标
 func ShowStatusBar() (quitCh chan bool) {
 	quitCh = make(chan bool)
-	onExit := func() {}
+	onExit := func() {
+		logrus.Info("退出状态栏图标")
+	}
 	onReady := func() {
 		onReady(quitCh)
 	}
@@ -22,6 +24,8 @@ func ShowStatusBar() (quitCh chan bool) {
 }
 
 var clearFilesCH = make(chan struct{})
+
+//var liveCheckCH = make(chan struct{})
 
 func onReady(quitch chan bool) {
 
@@ -82,6 +86,7 @@ func onReady(quitch chan bool) {
 			mClearFiles.Disable()
 		case <-mUrl.ClickedCh:
 			OpenUrl(ProgramUrl)
+			//logrus.Info("打开官网")
 		case <-mSubHide.ClickedCh:
 			systray.Quit()
 			quitch <- false

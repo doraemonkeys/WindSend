@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -38,6 +40,8 @@ const (
 	ErrorClipboardDataEmpty = "clipboard data empty"
 	// 剪切板数据过大
 	ErrorClipboardDataTooLarge = "clipboard data too large"
+	// 损坏的数据
+	ErrorInvalidData = "invalid data"
 )
 
 var lastRandBytes []byte
@@ -115,11 +119,11 @@ func copyHandler(c *gin.Context) {
 	// 身份验证
 	copyAuth(c)
 
-	// 文件剪切板
+	// 用户选择的文件
 	if len(SelectedFiles) != 0 {
 		err := sendFiles(c)
 		if err != nil {
-			logrus.Error(err)
+			logrus.Error("send files error: ", err)
 		} else {
 			clearFilesCH <- struct{}{}
 		}
@@ -202,7 +206,7 @@ func pasteHandler(c *gin.Context) {
 	case 0x01:
 		// 文件
 		saveFiles(decryptedata[1:])
-		Inform("文件已保存")
+		Inform("文件已保存到：" + GloballCnf.SavePath)
 		c.String(200, "更新成功")
 		return
 	default:
@@ -213,31 +217,41 @@ func pasteHandler(c *gin.Context) {
 	}
 }
 
-func saveFiles(data []byte) {
+func saveFiles(data []byte) error {
 	number := data[0]
 	data = data[1:]
 	for i := 0; i < int(number); i++ {
 		nameLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+		if uint32(len(data)) < 4+nameLen {
+			return errors.New(ErrorInvalidData)
+		}
 		name := string(data[4 : 4+nameLen])
 		logrus.Info("receive file: ", name)
 		data = data[4+nameLen:]
+		if uint32(len(data)) < 4 {
+			return errors.New(ErrorInvalidData)
+		}
 		dataLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
 		data = data[4:]
+		if uint32(len(data)) < dataLen {
+			return errors.New(ErrorInvalidData)
+		}
 		path := filepath.Join(GloballCnf.SavePath, name)
 		err := os.WriteFile(path, data[:dataLen], 0644)
 		if err != nil {
-			logrus.Error(err)
+			return fmt.Errorf("write file error: %w", err)
 		}
 		// 尝试将图片同步到剪切板(只有一张图片时)
-		if number == 1 && hasImageExt(name) && dataLen < 1024*1024*4 {
-			// 只支持png
-			clipboard.Write(clipboard.FmtImage, data[:dataLen])
-		}
+		// if number == 1 && hasImageExt(name) && dataLen < 1024*1024*4 {
+		// 	// 只支持png
+		// 	clipboard.Write(clipboard.FmtImage, data[:dataLen])
+		// }
 		data = data[dataLen:]
 	}
+	return nil
 }
 
-func hasImageExt(name string) bool {
+func HasImageExt(name string) bool {
 	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp"}
 	for _, ext := range imageExts {
 		if strings.HasSuffix(name, ext) {
