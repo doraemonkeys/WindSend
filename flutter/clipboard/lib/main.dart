@@ -567,9 +567,7 @@ class _HomePageState extends State<HomePage> {
     var fetcher = WebSync(serverConfig.secretKeyHex);
     var clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Clipboard is empty')));
-      return;
+      throw Exception('Clipboard is empty');
     }
     await fetcher.postContentToWeb(clipboardData.text!);
   }
@@ -582,9 +580,7 @@ class _HomePageState extends State<HomePage> {
     final url = Uri.parse(serverConfig.url);
     final clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Clipboard is empty')));
-      return;
+      throw Exception('Clipboard is empty');
     }
     // 0x00 text
     final body1 = Uint8List.fromList([0x00]);
@@ -604,9 +600,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
     if (response.statusCode != 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(response.body)));
-      return;
+      throw Exception(response.body);
     }
   }
 
@@ -614,9 +608,7 @@ class _HomePageState extends State<HomePage> {
     final filePicker = await FilePicker.platform.pickFiles(allowMultiple: true);
 
     if (filePicker == null || !filePicker.files.isNotEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No file selected')));
-      return;
+      throw Exception('No file selected');
     }
     // -------+--------+---------+--------+---------+
     // 1 byte | 1 byte |  4 byte | n byte |  4 byte |
@@ -662,9 +654,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
     if (response.statusCode != 200) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(response.body)));
-      return;
+      throw Exception(response.body);
     }
   }
 }
