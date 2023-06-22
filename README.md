@@ -7,7 +7,7 @@
 
 ## 为什么选择clipboard-go
 
-- 安全 - 所有数据使用AES算法加密传递(即使是局域网，有人也希望更安全，比如我)
+- 安全 - 所有数据使用AES算法加密传递(即使是局域网，也有人希望更安全，比如我)
 - 快速 - 使用Golang和Flutter编写，界面简洁，专注于信息传递
 - 全面 - 当设备之间不在同一局域网时，依然可以使用web端同步
 - 开源 - 免费无广告，API全部开放，可选择自己定制app
@@ -35,13 +35,14 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 ### PC端
 
 1. 解压 clipboard-go-amd64-windows.rar 到任意目录
+
 2. 双击exe文件运行，可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
 
-![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
+   ![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
 
-请点击允许windows网络防火墙：
+   请点击允许windows网络防火墙，**注意**勾选公用网络(大胆的勾选，所有内容均已加密)。
 
-![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
+   ![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
 
 
 
@@ -51,7 +52,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 4. 查看电脑ipv4，cmd或PowerShell中执行命令：`ipconfig`，找到无线局域网适配器 WLAN的ipv4地址，记录下来。
 
-> 为避免局域网内ip变化，建议为电脑设置静态ip。
+> 为避免局域网内ip变化，建议为电脑设置静态ip(通过路由器设置，这里不给出详细步骤)。
 >
 
 
