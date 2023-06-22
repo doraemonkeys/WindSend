@@ -27,8 +27,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Flutter App',
-      home: HomePage(title: 'Flutter App'),
+      title: 'clipboard-go',
+      home: HomePage(title: 'clipboard-go'),
     );
   }
 }
