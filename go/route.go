@@ -188,8 +188,9 @@ func pasteHandler(c *gin.Context) {
 		c.String(500, ErrorInvalidAuthData)
 		return
 	}
-	// 文本
-	if decryptedata[0] == 0x00 {
+	switch decryptedata[0] {
+	case 0x00:
+		// 文本
 		clipboard.Write(clipboard.FmtText, decryptedata[1:])
 		if len(decryptedata[1:]) >= 100 {
 			Inform(string(decryptedata[1:99]) + "...")
@@ -198,13 +199,17 @@ func pasteHandler(c *gin.Context) {
 		}
 		c.String(200, "更新成功")
 		return
-	}
-	// 文件
-	if decryptedata[0] == 0x01 {
+	case 0x01:
+		// 文件
 		saveFiles(decryptedata[1:])
 		Inform("文件已保存")
 		c.String(200, "更新成功")
 		return
+	default:
+		msg := "接收到无效的数据"
+		logrus.Error(msg)
+		Inform(msg)
+		c.String(500, ErrorInvalidAuthData)
 	}
 }
 
@@ -224,7 +229,7 @@ func saveFiles(data []byte) {
 			logrus.Error(err)
 		}
 		// 尝试将图片同步到剪切板(只有一张图片时)
-		if number == 1 && hasImageExt(name) {
+		if number == 1 && hasImageExt(name) && dataLen < 1024*1024*4 {
 			// 只支持png
 			clipboard.Write(clipboard.FmtImage, data[:dataLen])
 		}
