@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import 'web.dart';
 
 const downloadDir = '/storage/emulated/0/Download/clips';
+const imageDir = '/storage/emulated/0/Pictures/clips';
 
 void main() {
   runApp(const MyApp());
@@ -54,6 +55,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     // mkdir
     Directory(downloadDir).create(recursive: true);
+    Directory(imageDir).create(recursive: true);
     getApplicationDocumentsDirectory().then((value) => {
           _configPath = path.join(value.path, 'clips'),
           Directory(_configPath!).create(recursive: true),
@@ -82,6 +84,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _serverConfigs.addAll(serverConfigs);
       });
+      updateAutoSelect();
     }
   }
 
@@ -107,6 +110,9 @@ class _HomePageState extends State<HomePage> {
     final secretKeyHexController = TextEditingController(text: secretKeyHex);
     final actionController = TextEditingController(text: action);
     final pasteTypeController = TextEditingController(text: pasteType);
+    final autoSelectController =
+        TextEditingController(text: serverConfig?.autoSelect.toString());
+    final nameController = TextEditingController(text: serverConfig?.name);
     await showDialog(
       context: context,
       builder: (context) {
@@ -118,8 +124,12 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'name'),
+                ),
+                TextFormField(
                   controller: ipController,
-                  decoration: InputDecoration(labelText: 'IP'),
+                  decoration: const InputDecoration(labelText: 'IP'),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'IP cannot be empty';
@@ -129,9 +139,12 @@ class _HomePageState extends State<HomePage> {
                 ),
                 TextFormField(
                   controller: portController,
-                  decoration: InputDecoration(labelText: 'Port'),
+                  decoration: const InputDecoration(labelText: 'Port'),
                   keyboardType: TextInputType.number,
                   validator: (value) {
+                    if (autoSelectController.text == 'true') {
+                      return null;
+                    }
                     if (value == null || value.isEmpty) {
                       return 'Port cannot be empty';
                     }
@@ -142,6 +155,22 @@ class _HomePageState extends State<HomePage> {
                     return null;
                   },
                 ),
+                // auto select
+                TextFormField(
+                  controller: autoSelectController,
+                  decoration: const InputDecoration(
+                      labelText: 'Auto Select (true or false)'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Auto Select cannot be empty';
+                    }
+                    if (value != 'true' && value != 'false') {
+                      return 'Auto Select must be either true or false';
+                    }
+                    return null;
+                  },
+                ),
+
                 TextFormField(
                   controller: secretKeyHexController,
                   decoration:
@@ -206,7 +235,9 @@ class _HomePageState extends State<HomePage> {
                     secretKeyHexController.text,
                     actionController.text,
                     pasteTypeController.text,
+                    autoSelectController.text == 'true',
                     int.parse(portController.text),
+                    nameController.text,
                   );
                   if (isNew) {
                     setState(() {
@@ -230,6 +261,126 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> updateAutoSelect() async {
+    Set<String> checked = Set();
+    for (var i = 0; i < _serverConfigs.length; i++) {
+      var element = _serverConfigs[i];
+      if (!element.autoSelect && !checked.contains(element.secretKeyHex)) {
+        continue;
+      }
+      checked.add(element.secretKeyHex);
+      var crypter = CbcAESCrypt.fromHex(element.secretKeyHex);
+      bool ok = false;
+      if (element.ip.isNotEmpty) {
+        ok = await checkServer(element.pingUrl, crypter, 2);
+      }
+      if (ok) {
+        continue;
+      }
+      String newip = await findServer(element, crypter);
+      if (newip.isNotEmpty && newip != '') {
+        setState(() {
+          for (var j = 0; j < _serverConfigs.length; j++) {
+            if (_serverConfigs[j].secretKeyHex == element.secretKeyHex) {
+              _serverConfigs[j].ip = newip;
+            }
+          }
+        });
+        await _saveServerConfigs();
+      }
+    }
+  }
+
+  Future<String> findServer(ServerConfig cnf, CbcAESCrypt crypter) async {
+    var myIp = await getDeviceIp();
+    if (myIp == '') {
+      return '';
+    }
+    String mask;
+    // always use 255.255.255.0
+    mask = "255.255.255.0";
+    if (mask != "255.255.255.0") {
+      return '';
+    }
+    final StreamController<String> msgController =
+        StreamController<String>.broadcast();
+
+    return await checkServerLoop(msgController, myIp, cnf, crypter);
+  }
+
+  Future<String> getDeviceIp() async {
+    var interfaces = await NetworkInterface.list();
+
+    for (var interface in interfaces) {
+      var name = interface.name.toLowerCase();
+      if (name.contains('wlan') ||
+          name.contains('eth') ||
+          name.contains('en0') ||
+          name.contains('en1') ||
+          name.contains('wl')) {
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            return addr.address;
+          }
+        }
+      }
+    }
+    return '';
+  }
+
+  Future<String> checkServerLoop(StreamController<String> msgController,
+      String myIp, ServerConfig cnf, CbcAESCrypt crypter) async {
+    // 1~254
+    var ipPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
+    for (var i = 1; i < 255; i++) {
+      var ip = '$ipPrefix.$i';
+      checkServer2(msgController, ip, crypter, cnf, 50);
+    }
+    final String ip = await msgController.stream
+        .firstWhere((ip) => ip.isNotEmpty, orElse: () => "");
+    return ip;
+  }
+
+  Future<void> checkServer2(StreamController<String> msgController, String ip,
+      CbcAESCrypt crypter, ServerConfig cnf, int timeout) async {
+    var urlstr = 'http://$ip:${cnf.port}/ping';
+    var ok = await checkServer(urlstr, crypter, timeout);
+    if (ok) {
+      msgController.add(ip);
+    }
+    if (ip.endsWith('.254')) {
+      msgController.add('');
+    }
+  }
+
+  Future<bool> checkServer(
+      String urlstr, CbcAESCrypt crypter, int timeout) async {
+    final url = Uri.parse(urlstr);
+    // body "2006-01-02 15:04:05" + 32位随机字符串(byte)
+    final now = DateTime.now();
+    final nowString = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    final randomBytes =
+        List<int>.generate(32, (_) => Random.secure().nextInt(256));
+    final body = utf8.encode(nowString) + randomBytes;
+    final bodyUint8List = Uint8List.fromList(body);
+    final encryptedBody = crypter.encrypt(bodyUint8List);
+    final response = await http
+        .post(
+      url,
+      body: encryptedBody,
+    )
+        .timeout(
+      Duration(seconds: timeout),
+      onTimeout: () {
+        return http.Response('timeout', 408);
+      },
+    );
+    if (response.statusCode != 200) {
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _showAddServerConfigDialog() async {
     String? ip;
     String? secretKeyHex;
@@ -237,24 +388,33 @@ class _HomePageState extends State<HomePage> {
     final formKey = GlobalKey<FormState>();
     final ipController = TextEditingController(text: ip);
     final secretKeyHexController = TextEditingController(text: secretKeyHex);
+    final autoSelectController = TextEditingController(text: '');
+    bool autoSelect = false;
 
     saveDefaultServerConfig() async {
-      // 生成3个默认的serverConfig
+      // 生成默认的serverConfig
       final List<ServerConfig> serverConfigs;
+
+      if (autoSelectController.text == 'true') {
+        autoSelect = true;
+      } else {
+        autoSelect = false;
+      }
 
       if (ipController.text.toLowerCase() == 'web') {
         serverConfigs = [
-          ServerConfig('web', secretKeyHexController.text, 'copy', ''),
-          ServerConfig('web', secretKeyHexController.text, 'paste', 'text'),
+          ServerConfig('web', secretKeyHexController.text, 'copy', '', false),
+          ServerConfig(
+              'web', secretKeyHexController.text, 'paste', 'text', false),
         ];
       } else {
         serverConfigs = [
-          ServerConfig(
-              ipController.text, secretKeyHexController.text, 'copy', ''),
-          ServerConfig(
-              ipController.text, secretKeyHexController.text, 'paste', 'text'),
-          ServerConfig(
-              ipController.text, secretKeyHexController.text, 'paste', 'file'),
+          ServerConfig(ipController.text, secretKeyHexController.text, 'copy',
+              '', autoSelect),
+          ServerConfig(ipController.text, secretKeyHexController.text, 'paste',
+              'text', autoSelect),
+          ServerConfig(ipController.text, secretKeyHexController.text, 'paste',
+              'file', autoSelect),
         ];
       }
 
@@ -262,6 +422,7 @@ class _HomePageState extends State<HomePage> {
         _serverConfigs.addAll(serverConfigs);
       });
       await _saveServerConfigs();
+      updateAutoSelect();
       Navigator.of(context).pop();
     }
 
@@ -277,10 +438,28 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   TextFormField(
                     controller: ipController,
-                    decoration: InputDecoration(labelText: 'IP'),
+                    decoration: const InputDecoration(labelText: 'IP'),
                     validator: (value) {
+                      if (autoSelectController.text == 'true') {
+                        return null;
+                      }
                       if (value == null || value.isEmpty) {
                         return 'IP cannot be empty';
+                      }
+                      return null;
+                    },
+                  ),
+                  // auto select
+                  TextFormField(
+                    controller: autoSelectController,
+                    decoration: const InputDecoration(
+                        labelText: 'Auto Select (true or false)'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return null;
+                      }
+                      if (value != 'true' && value != '') {
+                        return 'Auto Select must be either true or false';
                       }
                       return null;
                     },
@@ -307,7 +486,11 @@ class _HomePageState extends State<HomePage> {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                onPressed: saveDefaultServerConfig,
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    await saveDefaultServerConfig();
+                  }
+                },
                 child: const Text('Save'),
               ),
             ],
@@ -318,15 +501,25 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     String generateTitle(ServerConfig cnf) {
-      if (cnf.action == 'copy') {
-        return 'Copy';
-      } else if (cnf.action == 'paste' && cnf.pasteType == 'file') {
-        return 'Paste files';
-      } else if (cnf.action == 'paste' && cnf.pasteType == 'text') {
-        return 'Paste text';
-      } else {
-        return 'Unknown';
+      if (cnf.name.isNotEmpty) {
+        return cnf.name;
       }
+      String title = '';
+      if (cnf.action == 'copy') {
+        title = '复制';
+      } else if (cnf.action == 'paste' && cnf.pasteType == 'file') {
+        title = '传输文件';
+      } else if (cnf.action == 'paste' && cnf.pasteType == 'text') {
+        title = '粘贴';
+      } else {
+        title = '未知';
+      }
+      if (cnf.ip.toLowerCase() == 'web') {
+        title += '[Web]';
+      } else if (!cnf.autoSelect) {
+        title += '[固定IP]';
+      }
+      return title;
     }
 
     return Scaffold(
@@ -517,8 +710,14 @@ class _HomePageState extends State<HomePage> {
           return '复制成功: $content';
         }
       case 0x01:
-        await _downloadFile(decryptedBody);
-        return '文件已保存到：$downloadDir';
+        var dirs = await _downloadFile(decryptedBody);
+        var retMsg = '已保存到:\n';
+        for (var dir in dirs) {
+          retMsg += dir;
+          retMsg += '\n';
+        }
+        retMsg = retMsg.substring(0, retMsg.length - 1);
+        return retMsg;
       default:
         //unknown
         throw Exception('Unknown Message Type');
@@ -538,7 +737,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _downloadFile(Uint8List decryptedBody) async {
+  Future<Set<String>> _downloadFile(Uint8List decryptedBody) async {
+    var ret = <String>{};
     final number = decryptedBody[1];
     var curIndex = 2;
     for (var i = 0; i < number; i++) {
@@ -557,10 +757,23 @@ class _HomePageState extends State<HomePage> {
       curIndex += 4;
       final data = decryptedBody.sublist(curIndex, curIndex + dataLen);
       curIndex += dataLen;
-
-      final file = File('$downloadDir/$name');
+      String filePath;
+      if (!Platform.isAndroid) {
+        var dir = await getApplicationDocumentsDirectory();
+        filePath = '${dir.path}/$name';
+      } else {
+        if (hasImageExtension(name)) {
+          filePath = '$imageDir/$name';
+          ret.add(imageDir);
+        } else {
+          filePath = '$downloadDir/$name';
+          ret.add(downloadDir);
+        }
+      }
+      final file = File(filePath);
       await file.writeAsBytes(data);
     }
+    return ret;
   }
 
   _doPasteTextActionWeb(ServerConfig serverConfig) async {
@@ -660,18 +873,22 @@ class _HomePageState extends State<HomePage> {
 }
 
 class ServerConfig {
-  final String ip;
+  String ip;
   final int port;
   final String secretKeyHex;
   final String action;
   final String pasteType;
+  bool autoSelect = false;
+  final String name;
 
   ServerConfig(
     this.ip,
     this.secretKeyHex,
     this.action,
-    this.pasteType, [
+    this.pasteType,
+    this.autoSelect, [
     this.port = 6777,
+    this.name = '',
   ]);
 
   factory ServerConfig.fromJson(Map<String, dynamic> json) {
@@ -680,7 +897,9 @@ class ServerConfig {
       json['secretKeyHex'] as String,
       json['action'] as String,
       json['pasteType'] as String,
+      json['autoSelect'] as bool,
       json['port'] as int,
+      json['name'] as String,
     );
   }
 
@@ -691,8 +910,27 @@ class ServerConfig {
       'secretKeyHex': secretKeyHex,
       'action': action,
       'pasteType': pasteType,
+      'autoSelect': autoSelect,
+      'name': name,
     };
   }
 
   String get url => 'http://$ip:$port/$action';
+  String get pingUrl => 'http://$ip:$port/ping';
+}
+
+bool hasImageExtension(String name) {
+  final ext = name.split('.').last;
+  var extList = [
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'bmp',
+    'webp',
+    'svg',
+    'ico',
+    'tif'
+  ];
+  return extList.contains(ext);
 }
