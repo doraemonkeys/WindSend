@@ -37,7 +37,7 @@ const (
 	// 过期的验证数据
 	ErrorExpiredAuthData = "expired auth data"
 	// 剪切板数据为空
-	ErrorClipboardDataEmpty = "clipboard data empty"
+	ErrorClipboardDataEmpty = "你还没有复制任何内容"
 	// 剪切板数据过大
 	ErrorClipboardDataTooLarge = "clipboard data too large"
 	// 损坏的数据
