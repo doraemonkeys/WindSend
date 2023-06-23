@@ -11,8 +11,9 @@
 - 快速 - 使用Golang和Flutter编写，界面简洁，专注于信息传递
 - 全面 - 局域网内自动选择ip，当设备之间不在同一网段时，依然可以使用web端同步
 - 开源 - 免费无广告，API全部开放，可选择自己定制app
+- 轻量 - 内存占用仅有10M左右，基本无CPU消耗
 
-
+![image-20230624004834312](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306240114619.png)
 
 ## 如何使用
 
