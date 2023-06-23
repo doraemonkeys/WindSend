@@ -9,14 +9,14 @@
 
 - 安全 - 所有数据使用AES算法加密传递(即使是局域网，也有人希望更安全，比如我)
 - 快速 - 使用Golang和Flutter编写，界面简洁，专注于信息传递
-- 全面 - 当设备之间不在同一局域网时，依然可以使用web端同步
+- 全面 - 局域网内自动选择ip，当设备之间不在同一网段时，依然可以使用web端同步
 - 开源 - 免费无广告，API全部开放，可选择自己定制app
 
 
 
 ## 如何使用
 
-> **注意**：配置阶段需要确保电脑和手机处于同一网络中。为避免局域网内ip变化，建议为电脑设置静态ip(通过路由器设置，这里不给出详细步骤)。
+> **注意**：配置阶段需要确保电脑和手机处于同一网络中。
 
 
 
@@ -36,21 +36,27 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 1. 解压 clipboard-go-amd64-windows.rar 到任意目录
 
-2. 双击exe文件运行，可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
+2. 双击exe文件运行：
 
-   ![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
-
-   请点击允许windows网络防火墙，**注意**勾选公用网络(大胆的勾选，所有内容均已加密)。
+      请点击允许windows网络防火墙，**注意**勾选公用网络(大胆的勾选，所有内容均已加密)。
 
    ![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
+
+   可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
+   
+   ![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
+
+   如果你忘记勾选公用网络，请到Windows防火墙手动设置，或者确保你正在使用专用网络。
+
+   ![image-20230623220546743](E:/Doraemon/Pictures/Typora/2023003/image-20230623220546743.png)
+
+
 
 
 
 3. 打开默认配置文件`config.yaml`，复制secretKeyHex(注意不要复制到空格)，手机端需要用到。
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049362.png" alt="image-20230621192929505" style="zoom: 67%;" />
-
-4. 查看电脑ipv4，cmd或PowerShell中执行命令：`ipconfig`，找到无线局域网适配器 WLAN的ipv4地址，记录下来。
 
 
 
@@ -61,9 +67,9 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 
 
-3. IP填电脑的IP，Secret Key 填刚才复制的。
+3. IP不用填！，Secret Key 填刚才复制的，Auto Select 填true(这表示app将根据密钥自动选择ip)。
 
-<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049519.png" style="zoom: 33%;" />
+<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-23-21-57-15-126-edit_com.example.clipboard.jpg" style="zoom:33%;" />
 
 4. 最后，激动人心的时刻到了，手机随便复制一段文字，打开app点击Paste text，电脑瞬间弹出通知，恭喜你已经成功完成了配置，可以愉快的使用了。
 
@@ -81,7 +87,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 #### 1. 使用内网穿透软件
 
-如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP，其他工具自行测试。
+如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP，Auto Select填false就行了，其他工具自行测试。
 
 
 
@@ -89,7 +95,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 本工具内置了一个，只需要新建配置，ip填web，对你没有看错，就是这三个字母web。Secret Key 填刚才电脑上复制的。使用此功能需要在电脑上手动点击软件，复制到剪切板。
 
-<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049453.png" alt="Screenshot_2023-06-21-19-38-02-706_com.example.clipboard" style="zoom:33%;" />
+<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-23-22-00-49-124_com.example.clipboard.png" style="zoom:33%;" />
 
 
 
@@ -117,17 +123,21 @@ Pc端代码使用Golang编写，代码中主要的库都是跨平台的，但是
 
 ## API
 
+### http POST /copy
+
 TODO
 
+### http POST /paste
 
+TODO
+
+### http POST /ping
+
+TODO
 
 ## 展望
 
-计划添加局域网内自动选择ip的功能。因为有些人的内网ip一直变化，计划添加局域网内自动选择ip的功能，只要思路是检测当前配置ip电脑服务器是否在线，例如http /ping，如果ping不通就尝试其他常用ip，或者谁提供一下其他思路。(更新估计遥遥无期 doge）
-
-
-
-本人不太熟悉Flutter，希望能有大佬能重构一下dart代码，优化一下界面，随便帮我实现一下展望的功能 :)doge
+本人不太熟悉Flutter，希望能有大佬能重构一下dart代码，优化一下界面 :)doge
 
 
 
