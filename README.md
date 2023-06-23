@@ -48,7 +48,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
    如果你忘记勾选公用网络，请到Windows防火墙手动设置，或者确保你正在使用专用网络。
 
-   ![image-20230623220546743](E:/Doraemon/Pictures/Typora/2023003/image-20230623220546743.png)
+   ![image-20230623220546743](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306232208808.png)
 
 
 
@@ -69,7 +69,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 3. IP不用填！，Secret Key 填刚才复制的，Auto Select 填true(这表示app将根据密钥自动选择ip)。
 
-<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-23-21-57-15-126-edit_com.example.clipboard.jpg" style="zoom:33%;" />
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306232208276.jpg" style="zoom:33%;" />
 
 4. 最后，激动人心的时刻到了，手机随便复制一段文字，打开app点击Paste text，电脑瞬间弹出通知，恭喜你已经成功完成了配置，可以愉快的使用了。
 
@@ -95,7 +95,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 本工具内置了一个，只需要新建配置，ip填web，对你没有看错，就是这三个字母web。Secret Key 填刚才电脑上复制的。使用此功能需要在电脑上手动点击软件，复制到剪切板。
 
-<img src="E:/Doraemon/Pictures/Typora/2023003/Screenshot_2023-06-23-22-00-49-124_com.example.clipboard.png" style="zoom:33%;" />
+<img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306232208904.png" style="zoom:33%;" />
 
 
 
