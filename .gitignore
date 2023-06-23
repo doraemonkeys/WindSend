@@ -29,3 +29,4 @@ doc/api/
 bin/*
 go/config.yaml
 go/*.log
+.vscode/*
