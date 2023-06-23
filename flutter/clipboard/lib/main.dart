@@ -458,7 +458,7 @@ class _HomePageState extends State<HomePage> {
                       if (value == null || value.isEmpty) {
                         return null;
                       }
-                      if (value != 'true' && value != '') {
+                      if (value != 'true' && value != '' && value != 'false') {
                         return 'Auto Select must be either true or false';
                       }
                       return null;
