@@ -120,104 +120,106 @@ class _HomePageState extends State<HomePage> {
           title: Text(title),
           content: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'name'),
-                ),
-                TextFormField(
-                  controller: ipController,
-                  decoration: const InputDecoration(labelText: 'IP'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'IP cannot be empty';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: portController,
-                  decoration: const InputDecoration(labelText: 'Port'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (autoSelectController.text == 'true') {
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'name'),
+                  ),
+                  TextFormField(
+                    controller: ipController,
+                    decoration: const InputDecoration(labelText: 'IP'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'IP cannot be empty';
+                      }
                       return null;
-                    }
-                    if (value == null || value.isEmpty) {
-                      return 'Port cannot be empty';
-                    }
-                    final port = int.tryParse(value);
-                    if (port == null || port < 1 || port > 65535) {
-                      return 'Port must be between 1 and 65535';
-                    }
-                    return null;
-                  },
-                ),
-                // auto select
-                TextFormField(
-                  controller: autoSelectController,
-                  decoration: const InputDecoration(
-                      labelText: 'Auto Select (true or false)'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Auto Select cannot be empty';
-                    }
-                    if (value != 'true' && value != 'false') {
-                      return 'Auto Select must be either true or false';
-                    }
-                    return null;
-                  },
-                ),
+                    },
+                  ),
+                  TextFormField(
+                    controller: portController,
+                    decoration: const InputDecoration(labelText: 'Port'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (autoSelectController.text == 'true') {
+                        return null;
+                      }
+                      if (value == null || value.isEmpty) {
+                        return 'Port cannot be empty';
+                      }
+                      final port = int.tryParse(value);
+                      if (port == null || port < 1 || port > 65535) {
+                        return 'Port must be between 1 and 65535';
+                      }
+                      return null;
+                    },
+                  ),
+                  // auto select
+                  TextFormField(
+                    controller: autoSelectController,
+                    decoration: const InputDecoration(
+                        labelText: 'Auto Select (true or false)'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Auto Select cannot be empty';
+                      }
+                      if (value != 'true' && value != 'false') {
+                        return 'Auto Select must be either true or false';
+                      }
+                      return null;
+                    },
+                  ),
 
-                TextFormField(
-                  controller: secretKeyHexController,
-                  decoration:
-                      const InputDecoration(labelText: 'Secret Key (Hex)'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Secret key cannot be empty';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: actionController,
-                  decoration: const InputDecoration(
-                      labelText: 'Action (copy or paste)'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Action cannot be empty';
-                    }
-                    if (value != 'copy' && value != 'paste') {
-                      return 'Action must be either copy or paste';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: pasteTypeController,
-                  decoration: const InputDecoration(
-                      labelText: 'Paste Type (text or file)'),
-                  validator: (value) {
-                    if (actionController.text == 'copy') {
+                  TextFormField(
+                    controller: secretKeyHexController,
+                    decoration:
+                        const InputDecoration(labelText: 'Secret Key (Hex)'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Secret key cannot be empty';
+                      }
                       return null;
-                    }
-                    if (ipController.text.toLowerCase() == 'web' &&
-                        value != 'text') {
-                      return 'on web, paste type must be text';
-                    }
-                    if (value == null || value.isEmpty) {
-                      return 'Paste type cannot be empty';
-                    }
-                    if (value != 'text' && value != 'file') {
-                      return 'Paste type must be either text or file';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                    },
+                  ),
+                  TextFormField(
+                    controller: actionController,
+                    decoration: const InputDecoration(
+                        labelText: 'Action (copy or paste)'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Action cannot be empty';
+                      }
+                      if (value != 'copy' && value != 'paste') {
+                        return 'Action must be either copy or paste';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: pasteTypeController,
+                    decoration: const InputDecoration(
+                        labelText: 'Paste Type (text or file)'),
+                    validator: (value) {
+                      if (actionController.text == 'copy') {
+                        return null;
+                      }
+                      if (ipController.text.toLowerCase() == 'web' &&
+                          value != 'text') {
+                        return 'on web, paste type must be text';
+                      }
+                      if (value == null || value.isEmpty) {
+                        return 'Paste type cannot be empty';
+                      }
+                      if (value != 'text' && value != 'file') {
+                        return 'Paste type must be either text or file';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -281,7 +283,8 @@ class _HomePageState extends State<HomePage> {
       if (newip.isNotEmpty && newip != '') {
         setState(() {
           for (var j = 0; j < _serverConfigs.length; j++) {
-            if (_serverConfigs[j].secretKeyHex == element.secretKeyHex) {
+            if (_serverConfigs[j].secretKeyHex == element.secretKeyHex &&
+                _serverConfigs[j].autoSelect) {
               _serverConfigs[j].ip = newip;
             }
           }
@@ -310,7 +313,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<String> getDeviceIp() async {
     var interfaces = await NetworkInterface.list();
-
+    String expIp = '';
     for (var interface in interfaces) {
       var name = interface.name.toLowerCase();
       if (name.contains('wlan') ||
@@ -320,12 +323,12 @@ class _HomePageState extends State<HomePage> {
           name.contains('wl')) {
         for (var addr in interface.addresses) {
           if (addr.type == InternetAddressType.IPv4) {
-            return addr.address;
+            expIp = addr.address;
           }
         }
       }
     }
-    return '';
+    return expIp;
   }
 
   Future<String> checkServerLoop(StreamController<String> msgController,
