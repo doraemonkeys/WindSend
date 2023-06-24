@@ -46,6 +46,7 @@ func main() {
 	route := gin.New()
 	panicWriter := NewLazyFileWriter("panic.log")
 	route.Use(gin.RecoveryWithWriter(panicWriter))
+	route.NoRoute(notFoundHandler)
 	route.POST("/copy", copyHandler)
 	route.POST("/paste", pasteHandler)
 	route.POST("/ping", pingHandler)

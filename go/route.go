@@ -46,41 +46,42 @@ const (
 
 var lastRandBytes []byte
 
-func copyAuth(c *gin.Context) {
+func copyAuth(c *gin.Context) bool {
 	// 读取
 	encryptedata, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.String(500, ErrorInternal+": "+err.Error())
-		return
+		return false
 	}
 	// 解密
 	decryptedata, err := crypter.Decrypt(encryptedata)
 	if err != nil {
 		c.String(500, ErrorInvalidAuthData+": "+err.Error())
-		return
+		return false
 	}
 	// 验证"2006-01-02 15:04:05" + 32位随机字符串(byte)
 	timeLen := len(TimeFormat)
 	if len(decryptedata) != 32+len(TimeFormat) {
 		c.String(500, ErrorInvalidAuthData)
-		return
+		return false
 	}
 	if lastRandBytes != nil && string(decryptedata[timeLen:]) == string(lastRandBytes) {
 		c.String(500, ErrorInvalidAuthData)
-		return
+		return false
 	}
 
 	// 验证时间
 	t, err := time.Parse(TimeFormat, string(decryptedata[:timeLen]))
 	if err != nil {
 		c.String(500, ErrorInvalidAuthData)
-		return
+		return false
 	}
 	if time.Since(t).Seconds() > MaxTimeDiff {
 		c.String(500, ErrorExpiredAuthData)
-		return
+		return false
 	}
 	lastRandBytes = decryptedata[timeLen:]
+	return true
 }
 
 func sendFiles(c *gin.Context) error {
@@ -117,7 +118,10 @@ func sendFiles(c *gin.Context) error {
 
 func copyHandler(c *gin.Context) {
 	// 身份验证
-	copyAuth(c)
+	ok := copyAuth(c)
+	if !ok {
+		return
+	}
 
 	// 用户选择的文件
 	if len(SelectedFiles) != 0 {
@@ -263,6 +267,14 @@ func HasImageExt(name string) bool {
 
 func pingHandler(c *gin.Context) {
 	// 身份验证
-	copyAuth(c)
+	ok := copyAuth(c)
+	if !ok {
+		return
+	}
 	c.String(200, "pong")
+}
+
+// 404
+func notFoundHandler(c *gin.Context) {
+	c.String(404, "Sorry, I don't know what you're asking for :(")
 }
