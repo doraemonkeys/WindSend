@@ -69,7 +69,7 @@ func onReady(quitch chan bool) {
 			n, err := SelectFiles()
 			if err != nil {
 				logrus.Error("选择文件失败：", err)
-				Inform("选择文件失败：" + err.Error())
+				continue
 			}
 			if filesNum == 0 && n > 0 {
 				mClearFiles.Enable()
@@ -116,15 +116,15 @@ func onReady(quitch chan bool) {
 			path, err := SelectFolderOnWindows()
 			if err != nil {
 				logrus.Error("选择文件夹失败：", err)
-				Inform("选择文件夹失败：" + err.Error())
-			} else {
-				GloballCnf.SavePath = path
-				err := GloballCnf.Save()
-				if err != nil {
-					logrus.Error("保存配置失败：", err)
-					Inform("保存配置失败：" + err.Error())
-				}
+				continue
 			}
+			GloballCnf.SavePath = path
+			err = GloballCnf.Save()
+			if err != nil {
+				logrus.Error("保存配置失败：", err)
+				Inform("保存配置失败：" + err.Error())
+			}
+
 		case <-mPasteToWeb.ClickedCh:
 			if clipboarDataType != clipboardWatchDataTypeText {
 				Inform("当前剪切板数据不是文本")
