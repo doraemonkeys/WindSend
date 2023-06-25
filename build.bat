@@ -11,7 +11,7 @@ cd ../flutter/clipboard
 echo %cd%
 
 @REM 输入version
-set /p version=version:
+set /p version=version:v
 
 @REM 修改 pubspec.yaml 中的版本号 version:
 set versionStr=version: %version%
