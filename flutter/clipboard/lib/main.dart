@@ -1,19 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
+// import 'dart:math';
 // import 'dart:convert';
 // import 'dart:io';
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
-import 'package:intl/intl.dart';
+import 'package:convert/convert.dart';
 import 'web.dart';
+import 'package:dio/dio.dart';
+import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 
 const downloadDir = '/storage/emulated/0/Download/clips';
 const imageDir = '/storage/emulated/0/Pictures/clips';
@@ -337,7 +339,7 @@ class _HomePageState extends State<HomePage> {
     var ipPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
     for (var i = 1; i < 255; i++) {
       var ip = '$ipPrefix.$i';
-      checkServer2(msgController, ip, crypter, cnf, 50);
+      checkServer2(msgController, ip, crypter, cnf, 10);
     }
     final String ip = await msgController.stream
         .firstWhere((ip) => ip.isNotEmpty, orElse: () => "");
@@ -346,7 +348,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> checkServer2(StreamController<String> msgController, String ip,
       CbcAESCrypt crypter, ServerConfig cnf, int timeout) async {
-    var urlstr = 'http://$ip:${cnf.port}/ping';
+    var urlstr = 'https://$ip:${cnf.port}/ping';
     var ok = await checkServer(urlstr, crypter, timeout);
     if (ok) {
       msgController.add(ip);
@@ -358,30 +360,28 @@ class _HomePageState extends State<HomePage> {
 
   Future<bool> checkServer(
       String urlstr, CbcAESCrypt crypter, int timeout) async {
-    final url = Uri.parse(urlstr);
-    // body "2006-01-02 15:04:05" + 32位随机字符串(byte)
-    final now = DateTime.now();
-    final nowString = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    final randomBytes =
-        List<int>.generate(32, (_) => Random.secure().nextInt(256));
-    final body = utf8.encode(nowString) + randomBytes;
-    final bodyUint8List = Uint8List.fromList(body);
-    final encryptedBody = crypter.encrypt(bodyUint8List);
-    final response = await http
-        .post(
-      url,
-      body: encryptedBody,
-    )
-        .timeout(
-      Duration(seconds: timeout),
-      onTimeout: () {
-        return http.Response('timeout', 408);
-      },
-    );
+    var body = utf8.encode('ping');
+    var bodyUint8List = Uint8List.fromList(body);
+    var encryptedBody = crypter.encrypt(bodyUint8List);
+    var client = HttpClient();
+    client.connectionTimeout = Duration(seconds: timeout);
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+    var request = await client.postUrl(Uri.parse(urlstr));
+    request.add(encryptedBody);
+    var response = await request.close();
     if (response.statusCode != 200) {
       return false;
     }
-    return true;
+    // 获取响应的加密body(bytes)
+    var responseBody = await response.fold(BytesBuilder(),
+        (BytesBuilder builder, List<int> data) => builder..add(data));
+    var decryptedBody = crypter.decrypt(responseBody.takeBytes());
+    var decryptedBodyStr = utf8.decode(decryptedBody);
+    if (decryptedBodyStr == 'pong') {
+      return true;
+    }
+    return false;
   }
 
   Future<void> _showAddServerConfigDialog() async {
@@ -668,63 +668,107 @@ class _HomePageState extends State<HomePage> {
     if (serverConfig.ip.toLowerCase() == 'web') {
       return _doCopyActionWeb(serverConfig);
     }
+    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
+    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
+
+    final client = HttpClient();
+
+    // Override the HttpClient's `badCertificateCallback` to always return `true`.
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
     // /copy post
     final url = Uri.parse(serverConfig.url);
-    // body "2006-01-02 15:04:05" + 32位随机字符串(byte)
-    final now = DateTime.now();
-    final nowString = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    final randomBytes =
-        List<int>.generate(32, (_) => Random.secure().nextInt(256));
-    final body = utf8.encode(nowString) + randomBytes;
-    final bodyUint8List = Uint8List.fromList(body);
-    var crypter = CbcAESCrypt.fromHex(serverConfig.secretKeyHex);
-    final encryptedBody = crypter.encrypt(bodyUint8List);
-    final response = await http
-        .post(
-      url,
-      body: encryptedBody,
-    )
-        .timeout(
+    // set headers
+
+    final request = await client.postUrl(url);
+    request.headers.set('token', secretKeyHexHashHex);
+    final response = await request.close().timeout(
       const Duration(seconds: 50),
       onTimeout: () {
         throw TimeoutException('Copy timeout');
       },
     );
     if (response.statusCode != 200) {
-      throw Exception(response.body);
+      throw Exception(await response.transform(utf8.decoder).join());
     }
-    final decryptedBody = crypter.decrypt(response.bodyBytes);
-    // -------+--------+---------+--------+---------+
-    // 1 byte | 1 byte |  4 byte | n byte |  4 byte |
-    // -------+--------+---------+--------+---------+
-    //  type  | number | nameLen |  name  | dataLen |
-
-    final type = decryptedBody[0];
-    switch (type) {
-      case 0x00:
-        // text
-        final contentUint8List = decryptedBody.sublist(1);
-        final content = utf8.decode(contentUint8List);
-        await Clipboard.setData(ClipboardData(text: content));
-        //返回 复制成功 + 前20个字符
-        if (content.length > 20) {
-          return '复制成功: ${content.substring(0, 20)}...';
+    var dataType = response.headers['data-type']![0];
+    if (dataType == 'text') {
+      final content = await response.transform(utf8.decoder).join();
+      await Clipboard.setData(ClipboardData(text: content));
+      //返回 复制成功 + 前20个字符
+      if (content.length > 20) {
+        return '复制成功: ${content.substring(0, 20)}...';
+      }
+      return '复制成功: $content';
+    }
+    if (dataType == 'files') {
+      final fileCount = int.parse(response.headers['file-count']![0]);
+      if (fileCount == 0) {
+        throw Exception('No file to copy');
+      }
+      if (fileCount == 1) {
+        final fileName =
+            utf8.decode(response.headers['file-name']![0].codeUnits);
+        // var file = File('$downloadDir/$fileName');
+        String filePath;
+        if (hasImageExtension(fileName)) {
+          filePath = '$imageDir/$fileName';
         } else {
-          return '复制成功: $content';
+          filePath = '$downloadDir/$fileName';
         }
-      case 0x01:
-        var dirs = await _downloadFile(decryptedBody);
-        var retMsg = '已保存到:\n';
-        for (var dir in dirs) {
-          retMsg += dir;
-          retMsg += '\n';
-        }
-        retMsg = retMsg.substring(0, retMsg.length - 1);
-        return retMsg;
-      default:
-        //unknown
-        throw Exception('Unknown Message Type');
+        var file = File(filePath);
+        await response.pipe(file.openWrite());
+        return "已保存到: $filePath";
+      }
+      var body = await response.transform(utf8.decoder).join();
+      var fileNames = body.split('\n');
+      return await _downloadFiles(serverConfig, fileNames, secretKeyHexHashHex);
     }
+    throw Exception('Unknown data type: $dataType');
+  }
+
+  Future<String> _downloadFiles(ServerConfig serverConfig,
+      List<String> winFilePaths, String secretKeyHexHashHex) async {
+    final client = HttpClient();
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+    Set<String> pathSet = {};
+    // 异步下载每个文件
+    final futures = <Future>[];
+    for (var winFilePath in winFilePaths) {
+      if (winFilePath.isEmpty) {
+        continue;
+      }
+      final url = Uri.parse(serverConfig.downloadUrl);
+      final request = await client.postUrl(url);
+      request.headers.set('token', secretKeyHexHashHex);
+      request.add(utf8.encode(winFilePath));
+      String filePath;
+      winFilePath = winFilePath.replaceAll('\\', '/');
+      var fileName = winFilePath.split('/').last;
+      if (hasImageExtension(fileName)) {
+        filePath = '$imageDir/$fileName';
+        pathSet.add(imageDir);
+      } else {
+        filePath = '$downloadDir/$fileName';
+        pathSet.add(downloadDir);
+      }
+      final future = _downloadFile(serverConfig, filePath, request);
+      futures.add(future);
+    }
+    await Future.wait(futures);
+    var paths = pathSet.join('\n');
+    return '已保存到:\n $paths';
+  }
+
+  Future<void> _downloadFile(ServerConfig serverConfig, String filePath,
+      HttpClientRequest request) async {
+    final response = await request.close();
+    if (response.statusCode != 200) {
+      throw Exception(await response.transform(utf8.decoder).join());
+    }
+    var file = File(filePath);
+    await response.pipe(file.openWrite());
   }
 
   Future<String> _doCopyActionWeb(ServerConfig serverConfig) async {
@@ -738,45 +782,6 @@ class _HomePageState extends State<HomePage> {
     } else {
       return '复制成功: $content';
     }
-  }
-
-  Future<Set<String>> _downloadFile(Uint8List decryptedBody) async {
-    var ret = <String>{};
-    final number = decryptedBody[1];
-    var curIndex = 2;
-    for (var i = 0; i < number; i++) {
-      final nameLen = decryptedBody[curIndex] << 24 |
-          decryptedBody[curIndex + 1] << 16 |
-          decryptedBody[curIndex + 2] << 8 |
-          decryptedBody[curIndex + 3];
-      curIndex += 4;
-      final name =
-          utf8.decode(decryptedBody.sublist(curIndex, curIndex + nameLen));
-      curIndex += nameLen;
-      final dataLen = decryptedBody[curIndex] << 24 |
-          decryptedBody[curIndex + 1] << 16 |
-          decryptedBody[curIndex + 2] << 8 |
-          decryptedBody[curIndex + 3];
-      curIndex += 4;
-      final data = decryptedBody.sublist(curIndex, curIndex + dataLen);
-      curIndex += dataLen;
-      String filePath;
-      if (!Platform.isAndroid) {
-        var dir = await getApplicationDocumentsDirectory();
-        filePath = '${dir.path}/$name';
-      } else {
-        if (hasImageExtension(name)) {
-          filePath = '$imageDir/$name';
-          ret.add(imageDir);
-        } else {
-          filePath = '$downloadDir/$name';
-          ret.add(downloadDir);
-        }
-      }
-      final file = File(filePath);
-      await file.writeAsBytes(data);
-    }
-    return ret;
   }
 
   _doPasteTextActionWeb(ServerConfig serverConfig) async {
@@ -793,30 +798,24 @@ class _HomePageState extends State<HomePage> {
       await _doPasteTextActionWeb(serverConfig);
       return;
     }
-    final url = Uri.parse(serverConfig.url);
+
     final clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData == null) {
       throw Exception('Clipboard is empty');
     }
-    // 0x00 text
-    final body1 = Uint8List.fromList([0x00]);
-    final body2 = utf8.encode(clipboardData.text!);
-    final bodyUint8List = Uint8List.fromList(body1 + body2);
-    var crypter = CbcAESCrypt.fromHex(serverConfig.secretKeyHex);
-    final encryptedBody = crypter.encrypt(bodyUint8List);
-    final response = await http
-        .post(
-      url,
-      body: encryptedBody,
-    )
-        .timeout(
-      const Duration(seconds: 50),
-      onTimeout: () {
-        throw TimeoutException('Paste timeout');
-      },
-    );
+    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
+    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
+    final client = HttpClient();
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+    final url = Uri.parse(serverConfig.url);
+    final request = await client.postUrl(url);
+    request.headers.set('token', secretKeyHexHashHex);
+    request.headers.set('data-type', 'text');
+    request.add(utf8.encode(clipboardData.text!));
+    final response = await request.close();
     if (response.statusCode != 200) {
-      throw Exception(response.body);
+      throw Exception(await response.transform(utf8.decoder).join());
     }
   }
 
@@ -826,51 +825,36 @@ class _HomePageState extends State<HomePage> {
     if (filePicker == null || !filePicker.files.isNotEmpty) {
       throw Exception('No file selected');
     }
-    // -------+--------+---------+--------+---------+
-    // 1 byte | 1 byte |  4 byte | n byte |  4 byte |
-    // -------+--------+---------+--------+---------+
-    //  type  | number | nameLen |  name  | dataLen |
+    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
+    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
+    final selectedFiles =
+        filePicker.files.map((file) => File(file.path!)).toList();
 
-    final files = filePicker.files.map((file) => File(file.path!)).toList();
-    final url = Uri.parse(serverConfig.url);
-    final type = Uint8List.fromList([0x01]);
-    final number = Uint8List.fromList([files.length]);
-    var bodyUint8List = Uint8List.fromList(type + number);
-    for (final file in files) {
-      final name = file.path.split('/').last;
-      final nameList = utf8.encode(name);
-      final nameUint8List = Uint8List.fromList(nameList);
-      final nameLen = Uint8List.fromList([
-        nameUint8List.length >> 24 & 0xff,
-        nameUint8List.length >> 16 & 0xff,
-        nameUint8List.length >> 8 & 0xff,
-        nameUint8List.length & 0xff,
-      ]);
-      final data = await file.readAsBytes();
-      final dataLen = Uint8List.fromList([
-        data.length >> 24 & 0xff,
-        data.length >> 16 & 0xff,
-        data.length >> 8 & 0xff,
-        data.length & 0xff,
-      ]);
-      bodyUint8List = Uint8List.fromList(
-          bodyUint8List + nameLen + nameUint8List + dataLen + data);
+    Dio dio = Dio();
+    dio.httpClientAdapter = Http2Adapter(
+      ConnectionManager(
+        /// Ignore bad certificate
+        onClientCreate: (_, config) => config.onBadCertificate = (_) => true,
+      ),
+    );
+
+    dio.options.headers['token'] = secretKeyHexHashHex;
+    dio.options.headers['data-type'] = 'files';
+
+    List<MultipartFile> files = [];
+    for (var file in selectedFiles) {
+      files.add(await MultipartFile.fromFile(file.path));
     }
-    var crypter = CbcAESCrypt.fromHex(serverConfig.secretKeyHex);
-    final encryptedBody = crypter.encrypt(bodyUint8List);
-    final response = await http
-        .post(
-      url,
-      body: encryptedBody,
-    )
-        .timeout(
-      const Duration(seconds: 50),
-      onTimeout: () {
-        throw TimeoutException('Paste timeout');
-      },
+
+    var formData = FormData.fromMap({
+      'files': files,
+    });
+    var response = await dio.post(
+      serverConfig.url,
+      data: formData,
     );
     if (response.statusCode != 200) {
-      throw Exception(response.body);
+      throw Exception(response.data);
     }
   }
 }
@@ -918,8 +902,9 @@ class ServerConfig {
     };
   }
 
-  String get url => 'http://$ip:$port/$action';
-  String get pingUrl => 'http://$ip:$port/ping';
+  String get url => 'https://$ip:$port/$action';
+  String get pingUrl => 'https://$ip:$port/ping';
+  String get downloadUrl => 'https://$ip:$port/download';
 }
 
 bool hasImageExtension(String name) {

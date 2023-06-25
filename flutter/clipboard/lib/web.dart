@@ -20,12 +20,6 @@ class WebSync {
   late String myUrl;
   late Dio dioClient;
 
-  List<int> getSha256(List<int> input) {
-    // var bytes = Uint8List.fromList(input);
-    var digest = sha256.convert(input);
-    return digest.bytes;
-  }
-
   WebSync(this.secretKeyHex) {
     var rkey = getSha256(utf8.encode(secretKeyHex));
     rkey = getSha256(rkey);
@@ -108,4 +102,10 @@ class WebSync {
       throw Exception('post content failed');
     }
   }
+}
+
+List<int> getSha256(List<int> input) {
+  // var bytes = Uint8List.fromList(input);
+  var digest = sha256.convert(input);
+  return digest.bytes;
 }

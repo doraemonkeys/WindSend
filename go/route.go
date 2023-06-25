@@ -1,10 +1,9 @@
 package main
 
 import (
-	"errors"
+	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,15 +18,7 @@ import (
 // post /copy
 // post /paste
 
-// -------+--------+--------+--------+--------+
-// 1 byte | 1 byte | 4 byte | n byte | 4 byte |
-// -------+--------+--------+--------+--------+
-//  type  | number |nameLen |  name  |  data  |
-
 const TimeFormat = "2006-01-02 15:04:05"
-const MaxTimeDiff float64 = 10
-
-const MaxAllowedSize = 1024 * 1024 * 50
 
 const (
 	// 服务器内部错误
@@ -44,81 +35,57 @@ const (
 	ErrorInvalidData = "invalid data"
 )
 
-var lastRandBytes []byte
-
-func copyAuth(c *gin.Context) bool {
-	// 读取
-	encryptedata, err := io.ReadAll(c.Request.Body)
+func commonAuth(c *gin.Context) bool {
+	token := c.GetHeader("token")
+	secretKeyHexHash, err := GetSha256([]byte(GloballCnf.SecretKeyHex))
 	if err != nil {
+		logrus.Error("get sha256 error: ", err)
 		c.String(500, ErrorInternal+": "+err.Error())
 		return false
 	}
-	// 解密
-	decryptedata, err := crypter.Decrypt(encryptedata)
-	if err != nil {
-		c.String(500, ErrorInvalidAuthData+": "+err.Error())
+	secretKeyHexHashHex := hex.EncodeToString(secretKeyHexHash)
+	if token != secretKeyHexHashHex {
+		c.String(401, ErrorInvalidAuthData)
 		return false
 	}
-	// 验证"2006-01-02 15:04:05" + 32位随机字符串(byte)
-	timeLen := len(TimeFormat)
-	if len(decryptedata) != 32+len(TimeFormat) {
-		c.String(500, ErrorInvalidAuthData)
-		return false
-	}
-	if lastRandBytes != nil && string(decryptedata[timeLen:]) == string(lastRandBytes) {
-		c.String(500, ErrorInvalidAuthData)
-		return false
-	}
-
-	// 验证时间
-	t, err := time.Parse(TimeFormat, string(decryptedata[:timeLen]))
-	if err != nil {
-		c.String(500, ErrorInvalidAuthData)
-		return false
-	}
-	if time.Since(t).Seconds() > MaxTimeDiff {
-		c.String(500, ErrorExpiredAuthData)
-		return false
-	}
-	lastRandBytes = decryptedata[timeLen:]
 	return true
 }
 
 func sendFiles(c *gin.Context) error {
-	// 读取文件
-	var rawBody []byte
-	bodyType := byte(0x01)
-	number := byte(len(SelectedFiles))
-	rawBody = append(rawBody, bodyType)
-	rawBody = append(rawBody, number)
-	for i := 0; i < len(SelectedFiles); i++ {
-		name := filepath.Base(SelectedFiles[i])
-		var nameLen uint32 = uint32(len(name))
-		nameLenBytes := []byte{byte(nameLen >> 24), byte(nameLen >> 16), byte(nameLen >> 8), byte(nameLen)}
-		rawBody = append(rawBody, nameLenBytes...)
-		rawBody = append(rawBody, []byte(name)...)
-		data, err := os.ReadFile(SelectedFiles[i])
-		if err != nil {
-			c.String(500, ErrorInternal+": "+err.Error())
-			return err
-		}
-		var dataLen uint32 = uint32(len(data))
-		dataLenBytes := []byte{byte(dataLen >> 24), byte(dataLen >> 16), byte(dataLen >> 8), byte(dataLen)}
-		rawBody = append(rawBody, dataLenBytes...)
-		rawBody = append(rawBody, data...)
+	c.Header("data-type", "files")
+	c.Header("file-count", fmt.Sprintf("%d", len(SelectedFiles)))
+	//c.Header("Content-Type", "application/octet-stream")
+	if len(SelectedFiles) == 1 {
+		fileName := filepath.Base(SelectedFiles[0])
+		c.Writer.Header().Add("file-name", fileName)
+		c.File(SelectedFiles[0])
+		return nil
 	}
-	encryptedBody, err := crypter.Encrypt(rawBody)
-	if err != nil {
-		c.String(500, ErrorInternal+": "+err.Error())
-		return err
-	}
-	c.String(200, string(encryptedBody))
+	// 多个文件
+	body := strings.Join(SelectedFiles, "\n")
+	c.String(200, body)
 	return nil
+}
+
+func downloadHandler(c *gin.Context) {
+	// 身份验证
+	ok := commonAuth(c)
+	if !ok {
+		return
+	}
+	// filePath 在body中
+	filePath, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logrus.Error("read body error: ", err)
+		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	c.File(string(filePath))
 }
 
 func copyHandler(c *gin.Context) {
 	// 身份验证
-	ok := copyAuth(c)
+	ok := commonAuth(c)
 	if !ok {
 		return
 	}
@@ -154,124 +121,102 @@ func copyHandler(c *gin.Context) {
 }
 
 func sendText(c *gin.Context) {
-	bodyType := []byte{0x00}
-	encryptedBody, err := crypter.Encrypt(append(bodyType, clipboardWatchData...))
-	if err != nil {
-		c.String(500, ErrorInternal+": "+err.Error())
-	}
-	c.String(200, string(encryptedBody))
+	c.Header("data-type", "text")
+	c.String(200, string(clipboardWatchData))
 }
 
 func sendImage(c *gin.Context) {
-	bodyType := []byte{0x01}
-	number := []byte{0x01}
+	c.Header("data-type", "files")
+	c.Header("file-count", "1")
 	name := time.Now().Format("20060102150405") + ".png"
-	var nameLen uint32 = uint32(len(name))
-	nameLenBytes := []byte{byte(nameLen >> 24), byte(nameLen >> 16), byte(nameLen >> 8), byte(nameLen)}
-	var dataLen uint32 = uint32(len(clipboardWatchData))
-	dataLenBytes := []byte{byte(dataLen >> 24), byte(dataLen >> 16), byte(dataLen >> 8), byte(dataLen)}
-	rawBody := append(bodyType, number...)
-	rawBody = append(rawBody, nameLenBytes...)
-	rawBody = append(rawBody, []byte(name)...)
-	rawBody = append(rawBody, dataLenBytes...)
-	rawBody = append(rawBody, clipboardWatchData...)
-	encryptedBody, err := crypter.Encrypt(rawBody)
-	if err != nil {
-		c.String(500, ErrorInternal+": "+err.Error())
-	}
-	c.String(200, string(encryptedBody))
+	c.Writer.Header().Add("file-name", name)
+	c.Writer.Header().Add("Content-Type", "application/octet-stream")
+	c.Writer.Write(clipboardWatchData)
+	c.Status(200)
 }
 func pasteHandler(c *gin.Context) {
-	encryptedata, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	decryptedata, err := crypter.Decrypt(encryptedata)
-	if err != nil {
-		c.String(500, ErrorInvalidAuthData+": "+err.Error())
-		return
-	}
-	if len(decryptedata) == 0 {
-		c.String(500, ErrorInvalidAuthData)
-		return
-	}
-	switch decryptedata[0] {
-	case 0x00:
-		// 文本
-		clipboard.Write(clipboard.FmtText, decryptedata[1:])
-		if len(decryptedata[1:]) >= 100 {
-			Inform(string(decryptedata[1:99]) + "...")
-		} else {
-			Inform(string(decryptedata[1:]))
-		}
-		c.String(200, "更新成功")
-		return
-	case 0x01:
-		// 文件
-		saveFiles(decryptedata[1:])
-		Inform("文件已保存到：" + GloballCnf.SavePath)
-		c.String(200, "更新成功")
-		return
-	default:
-		msg := "接收到无效的数据"
-		logrus.Error(msg)
-		Inform(msg)
-		c.String(500, ErrorInvalidAuthData)
-	}
-}
-
-func saveFiles(data []byte) error {
-	number := data[0]
-	data = data[1:]
-	for i := 0; i < int(number); i++ {
-		nameLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
-		if uint32(len(data)) < 4+nameLen {
-			return errors.New(ErrorInvalidData)
-		}
-		name := string(data[4 : 4+nameLen])
-		logrus.Info("receive file: ", name)
-		data = data[4+nameLen:]
-		if uint32(len(data)) < 4 {
-			return errors.New(ErrorInvalidData)
-		}
-		dataLen := uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
-		data = data[4:]
-		if uint32(len(data)) < dataLen {
-			return errors.New(ErrorInvalidData)
-		}
-		path := filepath.Join(GloballCnf.SavePath, name)
-		err := os.WriteFile(path, data[:dataLen], 0644)
-		if err != nil {
-			return fmt.Errorf("write file error: %w", err)
-		}
-		// 尝试将图片同步到剪切板(只有一张图片时)
-		// if number == 1 && hasImageExt(name) && dataLen < 1024*1024*4 {
-		// 	// 只支持png
-		// 	clipboard.Write(clipboard.FmtImage, data[:dataLen])
-		// }
-		data = data[dataLen:]
-	}
-	return nil
-}
-
-func HasImageExt(name string) bool {
-	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp"}
-	for _, ext := range imageExts {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-func pingHandler(c *gin.Context) {
-	// 身份验证
-	ok := copyAuth(c)
+	ok := commonAuth(c)
 	if !ok {
 		return
 	}
-	c.String(200, "pong")
+	// 读取数据类型
+	dataType := c.GetHeader("data-type")
+	if dataType == "text" {
+		pasteText(c)
+		return
+	}
+	if dataType == "files" {
+		pasteFiles(c)
+		return
+	}
+}
+
+func pasteFiles(c *gin.Context) {
+	forms, err := c.MultipartForm()
+	if err != nil {
+		logrus.Error("get multipart form error: ", err)
+		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	files := forms.File["files"]
+	if len(files) == 0 {
+		c.String(500, ErrorInvalidData)
+		return
+	}
+	for _, file := range files {
+		err := c.SaveUploadedFile(file, filepath.Join(GloballCnf.SavePath, file.Filename))
+		if err != nil {
+			logrus.Error("save uploaded file error: ", err)
+			c.String(500, ErrorInternal+": "+err.Error())
+			return
+		}
+	}
+	Inform(fmt.Sprintf("%d个文件已保存到%s", len(files), GloballCnf.SavePath))
+	c.String(200, "更新成功")
+}
+
+func pasteText(c *gin.Context) {
+	content, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logrus.Error("read body error: ", err)
+		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	clipboard.Write(clipboard.FmtText, content)
+	if len(content[1:]) >= 100 {
+		Inform(string(content[:99]) + "...")
+	} else {
+		Inform(string(content[:]))
+	}
+	c.String(200, "更新成功")
+}
+
+func pingHandler(c *gin.Context) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logrus.Error("read body error: ", err)
+		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	decryptedBody, err := crypter.Decrypt(body)
+	if err != nil {
+		logrus.Error("decrypt body error: ", err)
+		c.String(400, ErrorInvalidData)
+		return
+	}
+	if string(decryptedBody) != "ping" {
+		c.String(400, ErrorInvalidData)
+		return
+	}
+	resp := "pong"
+	encryptedResp, err := crypter.Encrypt([]byte(resp))
+	if err != nil {
+		logrus.Error("encrypt body error: ", err)
+		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	// encryptedResp = []byte("pong")
+	c.String(200, string(encryptedResp))
 }
 
 // 404

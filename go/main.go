@@ -3,8 +3,8 @@ package main
 import (
 	"runtime"
 
-	"github.com/Doraemonkeys/mylog"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 var crypter *CbcAESCrypt
@@ -13,25 +13,18 @@ const ProgramName = "clipboard-go"
 const ProgramUrl = "https://github.com/Doraemonkeys/clipboard-go"
 
 func init() {
+	InitGlobalLogger()
 	cnf := initGlobalConfig()
 	var err error
 	crypter, err = NewAESCryptFromHex(cnf.SecretKeyHex)
 	if err != nil {
-		panic(err)
-	}
-	var logCnf = mylog.LogConfig{}
-	logCnf.MaxLogSize = 1024 * 1024 * 10
-	logCnf.MaxKeepDays = 100
-	logCnf.NoConsole = true
-	logCnf.DisableWriterBuffer = true
-	err = mylog.InitGlobalLogger(logCnf)
-	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 	err = InitMyUrl(cnf.SecretKeyHex)
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
+	InitTSLConfig()
 }
 
 // go build -ldflags "-H=windowsgui"
@@ -50,7 +43,13 @@ func main() {
 	route.POST("/copy", copyHandler)
 	route.POST("/paste", pasteHandler)
 	route.POST("/ping", pingHandler)
-	go route.Run(":" + GloballCnf.ServerPort)
+	route.POST("/download", downloadHandler)
+	go func() {
+		err := route.RunTLS(":"+GloballCnf.ServerPort, certFile, keyFile)
+		if err != nil {
+			logrus.Panic(err)
+		}
+	}()
 
 	for {
 		q := <-quitCh
