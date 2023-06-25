@@ -224,14 +224,6 @@ func parseMultiString(multiString []uint16) []string {
 	return ret[1:]
 }
 
-func GetFileSize(path string) (int64, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, err
-	}
-	return info.Size(), nil
-}
-
 // 获取系统默认桌面路径
 func GetDesktopPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -326,4 +318,14 @@ func NewLazyFileWriter(filePath string) *LazyFileWriter {
 
 func NewLazyFileWriterWithFile(filePath string, file *os.File) *LazyFileWriter {
 	return &LazyFileWriter{filePath: filePath, file: file}
+}
+
+func HasImageExt(name string) bool {
+	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp"}
+	for _, ext := range imageExts {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
 }

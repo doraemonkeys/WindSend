@@ -78,13 +78,11 @@ func onReady(quitch chan bool) {
 			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
 		case <-mClearFiles.ClickedCh:
 			SelectedFiles = nil
-			SelectedFilesSize = 0
 			filesNum = 0
 			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
 		case <-clearFilesCH:
 			SelectedFiles = nil
-			SelectedFilesSize = 0
 			filesNum = 0
 			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
