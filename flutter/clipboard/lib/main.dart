@@ -266,10 +266,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> updateAutoSelect() async {
-    Set<String> checked = Set();
+    Set<String> checked = {};
     for (var i = 0; i < _serverConfigs.length; i++) {
       var element = _serverConfigs[i];
-      if (!element.autoSelect && !checked.contains(element.secretKeyHex)) {
+      if (!element.autoSelect || checked.contains(element.secretKeyHex)) {
         continue;
       }
       checked.add(element.secretKeyHex);
@@ -367,7 +367,12 @@ class _HomePageState extends State<HomePage> {
     client.connectionTimeout = Duration(seconds: timeout);
     client.badCertificateCallback =
         (X509Certificate cert, String host, int port) => true;
-    var request = await client.postUrl(Uri.parse(urlstr));
+    HttpClientRequest request;
+    try {
+      request = await client.postUrl(Uri.parse(urlstr));
+    } catch (e) {
+      return false;
+    }
     request.add(encryptedBody);
     var response = await request.close();
     if (response.statusCode != 200) {
@@ -787,7 +792,9 @@ class _HomePageState extends State<HomePage> {
   _doPasteTextActionWeb(ServerConfig serverConfig) async {
     var fetcher = WebSync(serverConfig.secretKeyHex);
     var clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData == null) {
+    if (clipboardData == null ||
+        clipboardData.text == null ||
+        clipboardData.text!.isEmpty) {
       throw Exception('Clipboard is empty');
     }
     await fetcher.postContentToWeb(clipboardData.text!);
@@ -800,7 +807,9 @@ class _HomePageState extends State<HomePage> {
     }
 
     final clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData == null) {
+    if (clipboardData == null ||
+        clipboardData.text == null ||
+        clipboardData.text!.isEmpty) {
       throw Exception('Clipboard is empty');
     }
     var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
