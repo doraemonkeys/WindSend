@@ -28,5 +28,7 @@ doc/api/
 
 bin/*
 go/config.yaml
-go/*.log
+*.log
+*.pem
 .vscode/*
+*.exe

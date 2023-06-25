@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	fyne.io/systray v1.10.0
-	github.com/Doraemonkeys/mylog v0.0.0-20230620053050-9d25f894f1d6
+	github.com/Doraemonkeys/mylog v0.0.0-20230625065536-f6c983328d69
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4
