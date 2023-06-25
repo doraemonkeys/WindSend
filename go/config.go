@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Doraemonkeys/mylog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -31,23 +32,23 @@ func initGlobalConfig() Config {
 		GloballCnf = &cnf
 		err := GloballCnf.SaveAndSet()
 		if err != nil {
-			panic(err)
+			logrus.Panic(err)
 		}
 		return *GloballCnf
 	}
 	file, err := os.Open(configFilePath)
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 	defer file.Close()
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&GloballCnf)
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 	err = GloballCnf.Set()
 	if err != nil {
-		panic(err)
+		logrus.Panic(err)
 	}
 	return *GloballCnf
 }
@@ -129,4 +130,16 @@ func saveConfig(path string, cnf Config) error {
 func generateSecretKeyHex(byteLen int) string {
 	secretKey := randNByte(byteLen)
 	return hex.EncodeToString(secretKey)
+}
+
+func InitGlobalLogger() {
+	var logCnf = mylog.LogConfig{}
+	logCnf.MaxLogSize = 1024 * 1024 * 10
+	logCnf.MaxKeepDays = 100
+	logCnf.NoConsole = true
+	logCnf.DisableWriterBuffer = true
+	err := mylog.InitGlobalLogger(logCnf)
+	if err != nil {
+		panic(err)
+	}
 }
