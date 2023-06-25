@@ -80,6 +80,8 @@ func downloadHandler(c *gin.Context) {
 		c.String(500, ErrorInternal+": "+err.Error())
 		return
 	}
+	filename := filepath.Base(string(filePath))
+	c.Header("file-name", filename)
 	c.File(string(filePath))
 }
 
