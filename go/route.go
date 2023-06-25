@@ -170,6 +170,7 @@ func pasteFiles(c *gin.Context) {
 			c.String(500, ErrorInternal+": "+err.Error())
 			return
 		}
+		logrus.Info("receive file:", file.Filename)
 	}
 	Inform(fmt.Sprintf("%d个文件已保存到%s", len(files), GloballCnf.SavePath))
 	c.String(200, "更新成功")
