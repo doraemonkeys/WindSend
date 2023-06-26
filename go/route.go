@@ -116,6 +116,7 @@ func downloadHandler(c *gin.Context) {
 		c.String(400, ErrorInvalidData+": file path is empty")
 		return
 	}
+	logrus.Info("download file: ", string(filePath))
 	filename := filepath.Base(string(filePath))
 	c.Header("file-name", filename)
 	c.File(string(filePath))
