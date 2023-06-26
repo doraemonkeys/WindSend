@@ -722,6 +722,20 @@ class _HomePageState extends State<HomePage> {
       }
       return '复制成功: $content';
     }
+    if (dataType == 'clip-image') {
+      final imageName =
+          utf8.decode(response.headers['file-name']![0].codeUnits);
+      // var file = File('$downloadDir/$fileName');
+      String filePath;
+      if (hasImageExtension(imageName)) {
+        filePath = '$imageDir/$imageName';
+      } else {
+        filePath = '$downloadDir/$imageName';
+      }
+      var file = File(filePath);
+      await response.pipe(file.openWrite());
+      return "已保存到: $filePath";
+    }
     if (dataType == 'files') {
       final fileCount = int.parse(response.headers['file-count']![0]);
       if (fileCount == 0) {

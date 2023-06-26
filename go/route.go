@@ -165,8 +165,7 @@ func sendText(c *gin.Context) {
 }
 
 func sendImage(c *gin.Context) {
-	c.Header("data-type", "files")
-	c.Header("file-count", "1")
+	c.Header("data-type", "clip-image")
 	name := time.Now().Format("20060102150405") + ".png"
 	c.Writer.Header().Add("file-name", name)
 	c.Writer.Header().Add("Content-Type", "application/octet-stream")
