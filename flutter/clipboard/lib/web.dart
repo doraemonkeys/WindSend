@@ -4,7 +4,6 @@ import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
 
-import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
 import 'package:dio/dio.dart';
@@ -33,15 +32,21 @@ class WebSync {
   }
 
   Future<Uint8List> getContentFromWeb() async {
-    var client = http.Client();
-    var request = http.Request('GET', Uri.parse(myUrl));
-    request.headers['User-Agent'] = userAgent;
-    var response = await client.send(request);
-    var body = await response.stream.toBytes();
+    // var client = http.Client();
+    // var request = http.Request('GET', Uri.parse(myUrl));
+    // request.headers['User-Agent'] = userAgent;
+    // var response = await client.send(request);
+    // var body = await response.stream.toBytes();
+    var headers = {
+      'User-Agent': userAgent,
+    };
+    var response =
+        await dioClient.get(myUrl, options: Options(headers: headers));
+    var body = response.data;
 
     // class[\s]*=[\s]*"txt_view">[\s]*<p>(.+)<\/p>
     var re = RegExp(r'class[\s]*=[\s]*"txt_view">[\s]*<p>(.+)<\/p>');
-    var match = re.firstMatch(utf8.decode(body));
+    var match = re.firstMatch(body);
     if (match == null) {
       throw Exception('can not find content');
     }
