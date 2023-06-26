@@ -276,7 +276,9 @@ class _HomePageState extends State<HomePage> {
       var crypter = CbcAESCrypt.fromHex(element.secretKeyHex);
       bool ok = false;
       if (element.ip.isNotEmpty) {
-        ok = await checkServer(element.pingUrl, element.ip, crypter, 2);
+        var client = HttpClient();
+        ok = await checkServer(client, element.pingUrl, element.ip, crypter, 2);
+        client.close(force: true);
       }
       if (ok) {
         continue;
@@ -335,21 +337,28 @@ class _HomePageState extends State<HomePage> {
 
   Future<String> checkServerLoop(StreamController<String> msgController,
       String myIp, ServerConfig cnf, CbcAESCrypt crypter) async {
+    var client = HttpClient();
     // 1~254
     var ipPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
     for (var i = 1; i < 255; i++) {
       var ip = '$ipPrefix.$i';
-      checkServer2(msgController, ip, crypter, cnf, 10);
+      checkServer2(msgController, client, ip, crypter, cnf, 10);
     }
     final String ip = await msgController.stream
         .firstWhere((ip) => ip.isNotEmpty, orElse: () => "");
+    client.close(force: true);
     return ip;
   }
 
-  Future<void> checkServer2(StreamController<String> msgController, String ip,
-      CbcAESCrypt crypter, ServerConfig cnf, int timeout) async {
+  Future<void> checkServer2(
+      StreamController<String> msgController,
+      HttpClient client,
+      String ip,
+      CbcAESCrypt crypter,
+      ServerConfig cnf,
+      int timeout) async {
     var urlstr = 'https://$ip:${cnf.port}/ping';
-    var ok = await checkServer(urlstr, ip, crypter, timeout);
+    var ok = await checkServer(client, urlstr, ip, crypter, timeout);
     if (ok) {
       msgController.add(ip);
     }
@@ -358,12 +367,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<bool> checkServer(
-      String urlstr, String ip, CbcAESCrypt crypter, int timeout) async {
+  Future<bool> checkServer(HttpClient client, String urlstr, String ip,
+      CbcAESCrypt crypter, int timeout) async {
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
-    var client = HttpClient();
     client.connectionTimeout = Duration(seconds: timeout);
     client.badCertificateCallback =
         (X509Certificate cert, String host, int port) => true;
