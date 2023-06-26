@@ -43,7 +43,7 @@ func main() {
 	route.POST("/copy", copyHandler)
 	route.POST("/paste", pasteHandler)
 	route.POST("/ping", pingHandler)
-	route.POST("/download", downloadHandler)
+	route.GET("/download", downloadHandler)
 	go func() {
 		err := route.RunTLS(":"+GloballCnf.ServerPort, certFile, keyFile)
 		if err != nil {

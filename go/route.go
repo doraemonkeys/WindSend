@@ -82,8 +82,6 @@ func commonAuth(c *gin.Context) bool {
 	} else {
 		myipv4 = c.Request.Host
 	}
-	fmt.Println("myipv4: ", myipv4)
-	fmt.Println("ip: ", ip)
 	if ip != myipv4 {
 		logrus.Error("ip not match: ", ip)
 		c.String(401, ErrorInvalidAuthData+": ip not match, "+ip+" != "+myipv4)
@@ -96,13 +94,6 @@ func sendFiles(c *gin.Context) error {
 	c.Header("data-type", "files")
 	c.Header("file-count", fmt.Sprintf("%d", len(SelectedFiles)))
 	//c.Header("Content-Type", "application/octet-stream")
-	if len(SelectedFiles) == 1 {
-		fileName := filepath.Base(SelectedFiles[0])
-		c.Writer.Header().Add("file-name", fileName)
-		c.File(SelectedFiles[0])
-		return nil
-	}
-	// 多个文件
 	body := strings.Join(SelectedFiles, "\n")
 	c.String(200, body)
 	return nil
@@ -119,6 +110,10 @@ func downloadHandler(c *gin.Context) {
 	if err != nil {
 		logrus.Error("read body error: ", err)
 		c.String(500, ErrorInternal+": "+err.Error())
+		return
+	}
+	if len(filePath) == 0 {
+		c.String(400, ErrorInvalidData+": file path is empty")
 		return
 	}
 	filename := filepath.Base(string(filePath))

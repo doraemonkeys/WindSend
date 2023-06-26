@@ -727,20 +727,6 @@ class _HomePageState extends State<HomePage> {
       if (fileCount == 0) {
         throw Exception('No file to copy');
       }
-      if (fileCount == 1) {
-        final fileName =
-            utf8.decode(response.headers['file-name']![0].codeUnits);
-        // var file = File('$downloadDir/$fileName');
-        String filePath;
-        if (hasImageExtension(fileName)) {
-          filePath = '$imageDir/$fileName';
-        } else {
-          filePath = '$downloadDir/$fileName';
-        }
-        var file = File(filePath);
-        await response.pipe(file.openWrite());
-        return "已保存到: $filePath";
-      }
       var body = await response.transform(utf8.decoder).join();
       var fileNames = body.split('\n');
       return await _downloadFiles(serverConfig, fileNames);
@@ -761,9 +747,11 @@ class _HomePageState extends State<HomePage> {
         continue;
       }
       final url = Uri.parse(serverConfig.downloadUrl);
-      final request = await client.postUrl(url);
+      final request = await client.getUrl(url);
       request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
-      request.add(utf8.encode(winFilePath));
+      final body = utf8.encode(winFilePath);
+      request.headers.add('Content-Length', body.length);
+      request.add(body);
       String filePath;
       winFilePath = winFilePath.replaceAll('\\', '/');
       var fileName = winFilePath.split('/').last;
