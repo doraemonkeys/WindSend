@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-// import 'dart:math';
-// import 'dart:convert';
-// import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
+// import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
@@ -13,9 +11,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
 import 'package:convert/convert.dart';
-import 'web.dart';
+import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_http2_adapter/dio_http2_adapter.dart';
+
+import 'web.dart';
 
 const downloadDir = '/storage/emulated/0/Download/clips';
 const imageDir = '/storage/emulated/0/Pictures/clips';
@@ -276,7 +276,7 @@ class _HomePageState extends State<HomePage> {
       var crypter = CbcAESCrypt.fromHex(element.secretKeyHex);
       bool ok = false;
       if (element.ip.isNotEmpty) {
-        ok = await checkServer(element.pingUrl, crypter, 2);
+        ok = await checkServer(element.pingUrl, element.ip, crypter, 2);
       }
       if (ok) {
         continue;
@@ -349,7 +349,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> checkServer2(StreamController<String> msgController, String ip,
       CbcAESCrypt crypter, ServerConfig cnf, int timeout) async {
     var urlstr = 'https://$ip:${cnf.port}/ping';
-    var ok = await checkServer(urlstr, crypter, timeout);
+    var ok = await checkServer(urlstr, ip, crypter, timeout);
     if (ok) {
       msgController.add(ip);
     }
@@ -359,7 +359,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> checkServer(
-      String urlstr, CbcAESCrypt crypter, int timeout) async {
+      String urlstr, String ip, CbcAESCrypt crypter, int timeout) async {
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
@@ -373,7 +373,17 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       return false;
     }
+    // head
+    final now = DateTime.now().toUtc();
+    final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    final head = utf8.encode('$timestr $ip');
+    final headUint8List = Uint8List.fromList(head);
+    final headEncrypted = crypter.encrypt(headUint8List);
+    final headEncryptedHex = hex.encode(headEncrypted);
+    request.headers.add('time-ip', headEncryptedHex);
+    // body
     request.add(encryptedBody);
+
     var response = await request.close();
     if (response.statusCode != 200) {
       return false;
@@ -673,8 +683,6 @@ class _HomePageState extends State<HomePage> {
     if (serverConfig.ip.toLowerCase() == 'web') {
       return _doCopyActionWeb(serverConfig);
     }
-    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
-    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
 
     final client = HttpClient();
 
@@ -686,7 +694,7 @@ class _HomePageState extends State<HomePage> {
     // set headers
 
     final request = await client.postUrl(url);
-    request.headers.set('token', secretKeyHexHashHex);
+    request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
     final response = await request.close().timeout(
       const Duration(seconds: 50),
       onTimeout: () {
@@ -727,13 +735,13 @@ class _HomePageState extends State<HomePage> {
       }
       var body = await response.transform(utf8.decoder).join();
       var fileNames = body.split('\n');
-      return await _downloadFiles(serverConfig, fileNames, secretKeyHexHashHex);
+      return await _downloadFiles(serverConfig, fileNames);
     }
     throw Exception('Unknown data type: $dataType');
   }
 
-  Future<String> _downloadFiles(ServerConfig serverConfig,
-      List<String> winFilePaths, String secretKeyHexHashHex) async {
+  Future<String> _downloadFiles(
+      ServerConfig serverConfig, List<String> winFilePaths) async {
     final client = HttpClient();
     client.badCertificateCallback =
         (X509Certificate cert, String host, int port) => true;
@@ -746,7 +754,7 @@ class _HomePageState extends State<HomePage> {
       }
       final url = Uri.parse(serverConfig.downloadUrl);
       final request = await client.postUrl(url);
-      request.headers.set('token', secretKeyHexHashHex);
+      request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
       request.add(utf8.encode(winFilePath));
       String filePath;
       winFilePath = winFilePath.replaceAll('\\', '/');
@@ -812,14 +820,12 @@ class _HomePageState extends State<HomePage> {
         clipboardData.text!.isEmpty) {
       throw Exception('Clipboard is empty');
     }
-    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
-    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
     final client = HttpClient();
     client.badCertificateCallback =
         (X509Certificate cert, String host, int port) => true;
     final url = Uri.parse(serverConfig.url);
     final request = await client.postUrl(url);
-    request.headers.set('token', secretKeyHexHashHex);
+    request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
     request.headers.set('data-type', 'text');
     request.add(utf8.encode(clipboardData.text!));
     final response = await request.close();
@@ -834,8 +840,6 @@ class _HomePageState extends State<HomePage> {
     if (filePicker == null || !filePicker.files.isNotEmpty) {
       throw Exception('No file selected');
     }
-    var secretKeyHexHash = getSha256(utf8.encode(serverConfig.secretKeyHex));
-    var secretKeyHexHashHex = hex.encode(secretKeyHexHash);
     final selectedFiles =
         filePicker.files.map((file) => File(file.path!)).toList();
 
@@ -847,7 +851,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    dio.options.headers['token'] = secretKeyHexHashHex;
+    dio.options.headers['time-ip'] = serverConfig.generateTimeipHeadHex();
     dio.options.headers['data-type'] = 'files';
 
     List<MultipartFile> files = [];
@@ -886,6 +890,20 @@ class ServerConfig {
     this.port = 6777,
     this.name = '',
   ]);
+
+  CbcAESCrypt get crypter => CbcAESCrypt.fromHex(secretKeyHex);
+
+  String generateTimeipHeadHex() {
+    // 2006-01-02 15:04:05 192.168.1.1
+    // UTC
+    final now = DateTime.now().toUtc();
+    final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    final head = utf8.encode('$timestr $ip');
+    final headUint8List = Uint8List.fromList(head);
+    final headEncrypted = crypter.encrypt(headUint8List);
+    final headEncryptedHex = hex.encode(headEncrypted);
+    return headEncryptedHex;
+  }
 
   factory ServerConfig.fromJson(Map<String, dynamic> json) {
     return ServerConfig(

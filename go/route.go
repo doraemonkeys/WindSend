@@ -19,6 +19,7 @@ import (
 // post /paste
 
 const TimeFormat = "2006-01-02 15:04:05"
+const MaxTimeDiff float64 = 10
 
 const (
 	// 服务器内部错误
@@ -36,16 +37,56 @@ const (
 )
 
 func commonAuth(c *gin.Context) bool {
-	token := c.GetHeader("token")
-	secretKeyHexHash, err := GetSha256([]byte(GloballCnf.SecretKeyHex))
-	if err != nil {
-		logrus.Error("get sha256 error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
+	timeAndIP := c.GetHeader("time-ip")
+	if timeAndIP == "" {
+		c.String(401, ErrorInvalidAuthData+": time-ip is empty")
 		return false
 	}
-	secretKeyHexHashHex := hex.EncodeToString(secretKeyHexHash)
-	if token != secretKeyHexHashHex {
-		c.String(401, ErrorInvalidAuthData)
+	timeAndIPBytes, err := hex.DecodeString(timeAndIP)
+	if err != nil {
+		logrus.Error("decode time-ip error: ", err)
+		c.String(400, ErrorInvalidAuthData+": "+err.Error())
+		return false
+	}
+	decrypted, err := crypter.Decrypt(timeAndIPBytes)
+	if err != nil {
+		logrus.Error("decrypt time-ip error: ", err)
+		c.String(400, ErrorInvalidAuthData+": "+err.Error())
+		return false
+	}
+	// 2006-01-02 15:04:05 192.168.1.1
+	timeAndIPStr := string(decrypted)
+	timeLen := len(TimeFormat)
+	if len(timeAndIPStr) < timeLen {
+		c.String(400, ErrorInvalidAuthData+": time-ip is too short")
+		return false
+	}
+	timeStr := timeAndIPStr[:timeLen]
+	ip := timeAndIPStr[timeLen+1:]
+	t, err := time.Parse(TimeFormat, timeStr)
+	if err != nil {
+		logrus.Error("parse time error: ", err)
+		c.String(400, ErrorInvalidAuthData)
+		return false
+	}
+	fmt.Println("time: ", t)
+	if time.Since(t).Seconds() > MaxTimeDiff {
+		logrus.Error("time expired: ", t)
+		c.String(401, ErrorExpiredAuthData)
+		return false
+	}
+
+	var myipv4 string
+	if strings.Contains(c.Request.Host, ":") {
+		myipv4 = strings.Split(c.Request.Host, ":")[0]
+	} else {
+		myipv4 = c.Request.Host
+	}
+	fmt.Println("myipv4: ", myipv4)
+	fmt.Println("ip: ", ip)
+	if ip != myipv4 {
+		logrus.Error("ip not match: ", ip)
+		c.String(401, ErrorInvalidAuthData+": ip not match, "+ip+" != "+myipv4)
 		return false
 	}
 	return true
@@ -195,6 +236,10 @@ func pasteText(c *gin.Context) {
 }
 
 func pingHandler(c *gin.Context) {
+	ok := commonAuth(c)
+	if !ok {
+		return
+	}
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		logrus.Error("read body error: ", err)
@@ -219,7 +264,8 @@ func pingHandler(c *gin.Context) {
 		return
 	}
 	// encryptedResp = []byte("pong")
-	c.String(200, string(encryptedResp))
+	c.Writer.Write(encryptedResp)
+	c.Status(200)
 }
 
 // 404
