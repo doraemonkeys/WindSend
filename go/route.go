@@ -69,7 +69,6 @@ func commonAuth(c *gin.Context) bool {
 		c.String(400, ErrorInvalidAuthData)
 		return false
 	}
-	fmt.Println("time: ", t)
 	if time.Since(t).Seconds() > MaxTimeDiff {
 		logrus.Error("time expired: ", t)
 		c.String(401, ErrorExpiredAuthData)
