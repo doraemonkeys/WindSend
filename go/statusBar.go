@@ -43,8 +43,8 @@ func onReady(quitch chan bool) {
 	//mChecked := systray.AddMenuItemCheckbox("Unchecked", "Check Me", true) // 添加菜单项状态选择
 	mClearFiles := systray.AddMenuItem("清空文件", "清空文件")
 
-	mPasteToWeb := systray.AddMenuItem("粘贴[Web]", "粘贴[Web]")  // 添加菜单项
 	mCopyFromWeb := systray.AddMenuItem("复制[Web]", "复制[Web]") // 添加菜单项
+	mPasteToWeb := systray.AddMenuItem("粘贴[Web]", "粘贴[Web]")  // 添加菜单项
 
 	systray.AddSeparator() //添加分割线
 	mHide := systray.AddMenuItem("隐藏图标", "隐藏图标")
