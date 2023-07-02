@@ -644,8 +644,9 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
               onTap: () async {
+                var exited = false;
                 // Show loading spinner
-                showDialog(
+                var dialog = showDialog(
                   context: context,
                   barrierDismissible: false,
                   builder: (BuildContext context) {
@@ -654,6 +655,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 );
+                dialog.whenComplete(() => exited = true);
 
                 if (serverConfig.action == 'copy') {
                   try {
@@ -668,9 +670,9 @@ class _HomePageState extends State<HomePage> {
                       SnackBar(content: Text(e.toString())),
                     );
                   } finally {
-                    if (context.mounted) {
+                    if (context.mounted && !exited) {
                       // Hide loading spinner
-                      Navigator.pop(context);
+                      Navigator.of(context).pop();
                     }
                   }
                 } else if (serverConfig.action == 'paste' &&
@@ -687,9 +689,9 @@ class _HomePageState extends State<HomePage> {
                       SnackBar(content: Text(e.toString())),
                     );
                   } finally {
-                    if (context.mounted) {
+                    if (context.mounted && !exited) {
                       // Hide loading spinner
-                      Navigator.pop(context);
+                      Navigator.of(context).pop();
                     }
                   }
                 } else if (serverConfig.action == 'paste' &&
@@ -706,9 +708,9 @@ class _HomePageState extends State<HomePage> {
                       SnackBar(content: Text(e.toString())),
                     );
                   } finally {
-                    if (context.mounted) {
+                    if (context.mounted && !exited) {
                       // Hide loading spinner
-                      Navigator.pop(context);
+                      Navigator.of(context).pop();
                     }
                   }
                 }
