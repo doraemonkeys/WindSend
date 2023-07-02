@@ -14,6 +14,7 @@ import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_http2_adapter/dio_http2_adapter.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import 'web.dart';
 
@@ -50,7 +51,11 @@ class _HomePageState extends State<HomePage> {
   final _secretKeyHexController = TextEditingController();
   final _actionController = TextEditingController();
   final _pasteTypeController = TextEditingController();
+  late StreamSubscription _intentDataStreamSubscription;
   String? _configPath;
+  List<SharedMediaFile>? _sharedFiles;
+  String? _sharedText;
+  bool _autoSelectIpSuccess = false;
 
   @override
   void initState() {
@@ -64,22 +69,86 @@ class _HomePageState extends State<HomePage> {
           _configPath = path.join(_configPath!, 'server_configs.json'),
           _loadServerConfigs(),
         });
+
+    // For sharing images coming from outside the app while the app is in the memory
+    _intentDataStreamSubscription =
+        ReceiveSharingIntent.getMediaStream().listen(
+      (List<SharedMediaFile> value) {
+        setState(() {
+          if (value.isNotEmpty) {
+            _sharedFiles = value;
+          }
+        });
+      },
+      onError: (err) {
+        errDialog(err);
+      },
+    );
+
+    // For sharing images coming from outside the app while the app is closed
+    ReceiveSharingIntent.getInitialMedia().then((List<SharedMediaFile> value) {
+      setState(() {
+        if (value.isNotEmpty) {
+          _sharedFiles = value;
+        }
+      });
+    });
+
+    // For sharing or opening urls/text coming from outside the app while the app is in the memory
+    _intentDataStreamSubscription =
+        ReceiveSharingIntent.getTextStream().listen((String value) {
+      setState(() {
+        if (value.isNotEmpty) {
+          _sharedText = value;
+        }
+      });
+    }, onError: (err) {
+      errDialog(err);
+    });
+
+    // For sharing or opening urls/text coming from outside the app while the app is closed
+    ReceiveSharingIntent.getInitialText().then((String? value) {
+      setState(() {
+        if (value != null) {
+          _sharedText = value;
+        }
+      });
+    });
+  }
+
+  void errDialog(err) {
+    // 对话框
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('错误'),
+            content: Text(err.toString()),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('确定'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          );
+        });
   }
 
   @override
   void dispose() {
+    super.dispose();
     _ipController.dispose();
     _portController.dispose();
     _secretKeyHexController.dispose();
     _actionController.dispose();
     _pasteTypeController.dispose();
-    super.dispose();
+    _intentDataStreamSubscription.cancel();
   }
 
-  Future<void> _loadServerConfigs() async {
+  void _loadServerConfigs() {
     final file = File('$_configPath');
-    if (await file.exists()) {
-      final contents = await file.readAsString();
+    if (file.existsSync()) {
+      final contents = file.readAsStringSync();
       final jsonList = jsonDecode(contents) as List<dynamic>;
       final serverConfigs =
           jsonList.map((json) => ServerConfig.fromJson(json)).toList();
@@ -90,12 +159,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _saveServerConfigs() async {
+  void _saveServerConfigs() {
     final file = File('$_configPath');
     final jsonList =
         _serverConfigs.map((serverConfig) => serverConfig.toJson()).toList();
     final contents = jsonEncode(jsonList);
-    await file.writeAsString(contents);
+    file.writeAsStringSync(contents);
   }
 
   Future<void> _showConfigDialog({ServerConfig? serverConfig}) async {
@@ -232,7 +301,7 @@ class _HomePageState extends State<HomePage> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () async {
+              onPressed: () {
                 if (formKey.currentState!.validate()) {
                   final newServerConfig = ServerConfig(
                     ipController.text,
@@ -253,7 +322,7 @@ class _HomePageState extends State<HomePage> {
                       _serverConfigs[index] = newServerConfig;
                     });
                   }
-                  await _saveServerConfigs();
+                  _saveServerConfigs();
                   Navigator.of(context).pop();
                 }
               },
@@ -285,6 +354,7 @@ class _HomePageState extends State<HomePage> {
       }
       String newip = await findServer(element, crypter);
       if (newip.isNotEmpty && newip != '') {
+        _autoSelectIpSuccess = true;
         setState(() {
           for (var j = 0; j < _serverConfigs.length; j++) {
             if (_serverConfigs[j].secretKeyHex == element.secretKeyHex &&
@@ -293,7 +363,7 @@ class _HomePageState extends State<HomePage> {
             }
           }
         });
-        await _saveServerConfigs();
+        _saveServerConfigs();
       }
     }
   }
@@ -417,7 +487,7 @@ class _HomePageState extends State<HomePage> {
     final autoSelectController = TextEditingController(text: '');
     bool autoSelect = false;
 
-    saveDefaultServerConfig() async {
+    saveDefaultServerConfig() {
       // 生成默认的serverConfig
       final List<ServerConfig> serverConfigs;
 
@@ -447,9 +517,9 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _serverConfigs.addAll(serverConfigs);
       });
-      await _saveServerConfigs();
-      updateAutoSelect();
+      _saveServerConfigs();
       Navigator.of(context).pop();
+      updateAutoSelect();
     }
 
     await showDialog(
@@ -514,7 +584,7 @@ class _HomePageState extends State<HomePage> {
               TextButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
-                    await saveDefaultServerConfig();
+                    saveDefaultServerConfig();
                   }
                 },
                 child: const Text('Save'),
@@ -524,8 +594,7 @@ class _HomePageState extends State<HomePage> {
         });
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget mainBody(BuildContext context) {
     String generateTitle(ServerConfig cnf) {
       if (cnf.name.isNotEmpty) {
         return cnf.name;
@@ -548,136 +617,287 @@ class _HomePageState extends State<HomePage> {
       return title;
     }
 
+    return ListView.builder(
+      itemCount: _serverConfigs.length,
+      itemBuilder: (context, index) {
+        final serverConfig = _serverConfigs[index];
+        return Column(
+          children: [
+            ListTile(
+              // title 加粗 居中
+              title: Text(
+                generateTitle(serverConfig),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              subtitle: Center(
+                child: Text(
+                  serverConfig.ip,
+                  // style: const TextStyle(fontSize: 12),
+                ),
+              ),
+
+              trailing: IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  _showConfigDialog(serverConfig: serverConfig);
+                },
+              ),
+              onTap: () async {
+                // Show loading spinner
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  },
+                );
+
+                if (serverConfig.action == 'copy') {
+                  try {
+                    var msg = await _doCopyAction(serverConfig);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  } finally {
+                    if (context.mounted) {
+                      // Hide loading spinner
+                      Navigator.pop(context);
+                    }
+                  }
+                } else if (serverConfig.action == 'paste' &&
+                    serverConfig.pasteType == 'text') {
+                  try {
+                    await _doPasteTextAction(serverConfig);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('操作成功')),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  } finally {
+                    if (context.mounted) {
+                      // Hide loading spinner
+                      Navigator.pop(context);
+                    }
+                  }
+                } else if (serverConfig.action == 'paste' &&
+                    serverConfig.pasteType == 'file') {
+                  try {
+                    await _doPasteFileAction(serverConfig);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('操作成功')),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  } finally {
+                    if (context.mounted) {
+                      // Hide loading spinner
+                      Navigator.pop(context);
+                    }
+                  }
+                }
+              },
+              onLongPress: () {
+                // 长按弹出删除
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Delete'),
+                      content: const Text('Are you sure to delete?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _serverConfigs.removeAt(index);
+                            });
+                            _saveServerConfigs();
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+            const Divider(),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<ServerConfig?> _autoSelectServerConfig() async {
+    if (_serverConfigs.isEmpty) {
+      return null;
+    }
+    bool emptyConfig = true;
+    for (var cnf in _serverConfigs) {
+      if (cnf.ip.isNotEmpty &&
+          cnf.ip.toLowerCase() != 'web' &&
+          cnf.action.toLowerCase() == 'paste') {
+        emptyConfig = false;
+        break;
+      }
+    }
+    if (emptyConfig) {
+      return null;
+    }
+    var client = HttpClient();
+    for (var cnf in _serverConfigs) {
+      bool online = false;
+      if (cnf.autoSelect &&
+          cnf.ip.isNotEmpty &&
+          cnf.action.toLowerCase() == 'paste') {
+        online = await checkServer(client, cnf.pingUrl, cnf.ip, cnf.crypter,
+            ServerConfig.defaultPingTimeout);
+      }
+      if (online) {
+        return cnf;
+      }
+    }
+    for (var cnf in _serverConfigs) {
+      bool online = false;
+      if (!cnf.autoSelect &&
+          cnf.ip.isNotEmpty &&
+          cnf.ip.toLowerCase() != 'web' &&
+          cnf.action.toLowerCase() == 'paste') {
+        online = await checkServer(client, cnf.pingUrl, cnf.ip, cnf.crypter,
+            ServerConfig.defaultPingTimeout);
+      }
+      if (online) {
+        return cnf;
+      }
+    }
+    client.close(force: true);
+    return null;
+  }
+
+  void showInfoDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _doShareAction(BuildContext context) async {
+    var cnf = await _autoSelectServerConfig();
+    if (cnf == null) {
+      if (_autoSelectIpSuccess) {
+        return;
+      }
+      // 提示框: 没有可用的服务器
+      if (context.mounted) {
+        showInfoDialog(context, '错误', '没有可用的服务器');
+      }
+      setState(() {
+        _sharedText = null;
+        _sharedFiles = null;
+      });
+      return;
+    }
+    if (_sharedText != null && _sharedText!.isNotEmpty) {
+      try {
+        await _doPasteTextAction(cnf, text: _sharedText!);
+      } catch (e) {
+        if (context.mounted) {
+          showInfoDialog(context, '错误', e.toString());
+        }
+      }
+    }
+    if (_sharedFiles != null && _sharedFiles!.isNotEmpty) {
+      try {
+        await _doPasteFileAction(cnf,
+            filePath: _sharedFiles!.map((f) => f.path).toList());
+      } catch (e) {
+        if (context.mounted) {
+          showInfoDialog(context, '错误', e.toString());
+        }
+      }
+    }
+    setState(() {
+      _sharedText = null;
+      _sharedFiles = null;
+    });
+  }
+
+  Widget mainBody2(BuildContext context) {
+    // 等待提示
+    var waitText = "Loading...";
+
+    if (_sharedText != null && _sharedText!.isNotEmpty) {
+      waitText = "正在粘贴文本...";
+    }
+    if (_sharedFiles != null && _sharedFiles!.isNotEmpty) {
+      waitText = "正在上传文件...";
+    }
+    // 加载动画
+    var waitWidget = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          const CircularProgressIndicator(),
+          const SizedBox(height: 20),
+          Text(waitText),
+        ],
+      ),
+    );
+    return waitWidget;
+  }
+
+  Widget myBody(BuildContext context) {
+    if ((_sharedText != null && _sharedText!.isNotEmpty) ||
+        (_sharedFiles != null && _sharedFiles!.isNotEmpty)) {
+      _doShareAction(context);
+      return mainBody2(context);
+    }
+    return mainBody(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('剪切板同步'),
       ),
-      body: ListView.builder(
-        itemCount: _serverConfigs.length,
-        itemBuilder: (context, index) {
-          final serverConfig = _serverConfigs[index];
-          return Column(
-            children: [
-              ListTile(
-                // title 加粗 居中
-                title: Text(
-                  generateTitle(serverConfig),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                subtitle: Center(
-                  child: Text(
-                    serverConfig.ip,
-                    // style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-
-                trailing: IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () {
-                    _showConfigDialog(serverConfig: serverConfig);
-                  },
-                ),
-                onTap: () async {
-                  // Show loading spinner
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (BuildContext context) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    },
-                  );
-
-                  if (serverConfig.action == 'copy') {
-                    try {
-                      var msg = await _doCopyAction(serverConfig);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(msg)),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
-                    } finally {
-                      if (context.mounted) {
-                        // Hide loading spinner
-                        Navigator.pop(context);
-                      }
-                    }
-                  } else if (serverConfig.action == 'paste' &&
-                      serverConfig.pasteType == 'text') {
-                    try {
-                      await _doPasteTextAction(serverConfig);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('操作成功')),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
-                    } finally {
-                      if (context.mounted) {
-                        // Hide loading spinner
-                        Navigator.pop(context);
-                      }
-                    }
-                  } else if (serverConfig.action == 'paste' &&
-                      serverConfig.pasteType == 'file') {
-                    try {
-                      await _doPasteFileAction(serverConfig);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('操作成功')),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
-                    } finally {
-                      if (context.mounted) {
-                        // Hide loading spinner
-                        Navigator.pop(context);
-                      }
-                    }
-                  }
-                },
-                onLongPress: () {
-                  // 长按弹出删除
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('Delete'),
-                        content: const Text('Are you sure to delete?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              setState(() {
-                                _serverConfigs.removeAt(index);
-                              });
-                              await _saveServerConfigs();
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-              const Divider(),
-            ],
-          );
-        },
-      ),
+      body: myBody(context),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () {
@@ -717,8 +937,8 @@ class _HomePageState extends State<HomePage> {
       final content = await response.transform(utf8.decoder).join();
       await Clipboard.setData(ClipboardData(text: content));
       //返回 复制成功 + 前20个字符
-      if (content.length > 20) {
-        return '复制成功: ${content.substring(0, 20)}...';
+      if (content.length > 40) {
+        return '复制成功: ${content.substring(0, 40)}...';
       }
       return '复制成功: $content';
     }
@@ -799,36 +1019,39 @@ class _HomePageState extends State<HomePage> {
     var contentUint8List = await fetcher.getContentFromWeb();
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
     var content = utf8.decode(contentUint8List);
-    //返回 复制成功 + 前20个字符
-    if (content.length > 20) {
-      return '复制成功: ${content.substring(0, 20)}...';
+    //返回 复制成功
+    if (content.length > 40) {
+      return '复制成功: ${content.substring(0, 40)}...';
     } else {
       return '复制成功: $content';
     }
   }
 
-  _doPasteTextActionWeb(ServerConfig serverConfig) async {
+  _doPasteTextActionWeb(ServerConfig serverConfig, String pasteText) async {
     var fetcher = WebSync(serverConfig.secretKeyHex);
-    var clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData == null ||
-        clipboardData.text == null ||
-        clipboardData.text!.isEmpty) {
-      throw Exception('Clipboard is empty');
-    }
-    await fetcher.postContentToWeb(clipboardData.text!);
+    await fetcher.postContentToWeb(pasteText);
   }
 
-  _doPasteTextAction(ServerConfig serverConfig) async {
-    if (serverConfig.ip.toLowerCase() == 'web') {
-      await _doPasteTextActionWeb(serverConfig);
-      return;
+  _doPasteTextAction(
+    ServerConfig serverConfig, {
+    String? text,
+  }) async {
+    String pasteText;
+    if (text != null && text.isNotEmpty) {
+      pasteText = text;
+    } else {
+      final clipboardData = await Clipboard.getData('text/plain');
+      if (clipboardData == null ||
+          clipboardData.text == null ||
+          clipboardData.text!.isEmpty) {
+        throw Exception('剪切板没有内容');
+      }
+      pasteText = clipboardData.text!;
     }
 
-    final clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData == null ||
-        clipboardData.text == null ||
-        clipboardData.text!.isEmpty) {
-      throw Exception('Clipboard is empty');
+    if (serverConfig.ip.toLowerCase() == 'web') {
+      await _doPasteTextActionWeb(serverConfig, pasteText);
+      return;
     }
     final client = HttpClient();
     client.badCertificateCallback =
@@ -837,22 +1060,27 @@ class _HomePageState extends State<HomePage> {
     final request = await client.postUrl(url);
     request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
     request.headers.set('data-type', 'text');
-    request.add(utf8.encode(clipboardData.text!));
+    request.add(utf8.encode(pasteText));
     final response = await request.close();
     if (response.statusCode != 200) {
       throw Exception(await response.transform(utf8.decoder).join());
     }
   }
 
-  _doPasteFileAction(ServerConfig serverConfig) async {
-    final filePicker = await FilePicker.platform.pickFiles(allowMultiple: true);
-
-    if (filePicker == null || !filePicker.files.isNotEmpty) {
-      throw Exception('No file selected');
+  _doPasteFileAction(ServerConfig serverConfig,
+      {List<String>? filePath}) async {
+    final List<String> selectedFilesPath;
+    if (filePath == null || filePath.isEmpty) {
+      final filePicker =
+          await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (filePicker == null || !filePicker.files.isNotEmpty) {
+        throw Exception('No file selected');
+      }
+      selectedFilesPath = filePicker.files.map((file) => file.path!).toList();
+    } else {
+      selectedFilesPath = filePath;
     }
-    final selectedFiles =
-        filePicker.files.map((file) => File(file.path!)).toList();
-
+    // print("selectedFilesPath: $selectedFilesPath");
     Dio dio = Dio();
     dio.httpClientAdapter = Http2Adapter(
       ConnectionManager(
@@ -865,8 +1093,8 @@ class _HomePageState extends State<HomePage> {
     dio.options.headers['data-type'] = 'files';
 
     List<MultipartFile> files = [];
-    for (var file in selectedFiles) {
-      files.add(await MultipartFile.fromFile(file.path));
+    for (var file in selectedFilesPath) {
+      files.add(await MultipartFile.fromFile(file));
     }
 
     var formData = FormData.fromMap({
@@ -878,6 +1106,10 @@ class _HomePageState extends State<HomePage> {
     );
     if (response.statusCode != 200) {
       throw Exception(response.data);
+    }
+    // delete cache file
+    for (var file in selectedFilesPath) {
+      File(file).delete();
     }
   }
 }
@@ -942,6 +1174,7 @@ class ServerConfig {
   String get url => 'https://$ip:$port/$action';
   String get pingUrl => 'https://$ip:$port/ping';
   String get downloadUrl => 'https://$ip:$port/download';
+  static int defaultPingTimeout = 2;
 }
 
 bool hasImageExtension(String name) {
