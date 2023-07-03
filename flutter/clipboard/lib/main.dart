@@ -670,11 +670,6 @@ class _HomePageState extends State<HomePage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(e.toString())),
                     );
-                  } finally {
-                    if (context.mounted && !exited) {
-                      // Hide loading spinner
-                      Navigator.of(context).pop();
-                    }
                   }
                 } else if (serverConfig.action == 'paste' &&
                     serverConfig.pasteType == 'text') {
@@ -689,11 +684,6 @@ class _HomePageState extends State<HomePage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(e.toString())),
                     );
-                  } finally {
-                    if (context.mounted && !exited) {
-                      // Hide loading spinner
-                      Navigator.of(context).pop();
-                    }
                   }
                 } else if (serverConfig.action == 'paste' &&
                     serverConfig.pasteType == 'file') {
@@ -708,12 +698,11 @@ class _HomePageState extends State<HomePage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(e.toString())),
                     );
-                  } finally {
-                    if (context.mounted && !exited) {
-                      // Hide loading spinner
-                      Navigator.of(context).pop();
-                    }
                   }
+                }
+                if (context.mounted && !exited) {
+                  // Hide loading spinner
+                  Navigator.of(context).pop();
                 }
               },
               onLongPress: () {
