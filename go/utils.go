@@ -131,7 +131,7 @@ func (s *StartHelper) SetAutoStart() error {
 		return fmt.Errorf("获取当前Windows用户的home directory失败: %v", err)
 	}
 	startFile := winUserHomeDir + `\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup` +
-		`\` + ProgramName + `_start.vbs`
+		`\` + s.ExeName + `_start.vbs`
 
 	path, err := os.Getwd()
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *StartHelper) SetAutoStart() error {
 	var content string
 	content += `Set objShell = CreateObject("WScript.Shell")` + "\n"
 	content += `objShell.CurrentDirectory = "` + path + `"` + "\n"
-	content += `objShell.Run "powershell /c ` + ".\\" + ProgramName + `"` + `,0`
+	content += `objShell.Run "powershell /c ` + ".\\" + s.ExeName + `"` + `,0`
 	content = Utf8ToANSI(content)
 	oldContent, err := os.ReadFile(startFile)
 	if err == nil && string(oldContent) == content {
@@ -166,7 +166,7 @@ func (s *StartHelper) UnSetAutoStart() error {
 		return fmt.Errorf("获取当前Windows用户的home directory失败: %v", err)
 	}
 	startFile := winUserHomeDir + `\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup` +
-		`\` + ProgramName + `_start.vbs`
+		`\` + s.ExeName + `_start.vbs`
 
 	if !FileOrDirIsExist(startFile) {
 		return nil
