@@ -346,7 +346,8 @@ class _HomePageState extends State<HomePage> {
       bool ok = false;
       if (element.ip.isNotEmpty) {
         var client = HttpClient();
-        ok = await checkServer(client, element.pingUrl, element.ip, crypter, 2);
+        ok = await checkServer(client, element.pingUrl, element.ip, crypter,
+            ServerConfig.defaultPingTimeout);
         client.close(force: true);
       }
       if (ok) {
@@ -938,7 +939,7 @@ class _HomePageState extends State<HomePage> {
     if (dataType == 'text') {
       final content = await response.transform(utf8.decoder).join();
       await Clipboard.setData(ClipboardData(text: content));
-      //返回 复制成功 + 前20个字符
+      //返回 复制成功
       if (content.length > 40) {
         return '复制成功: ${content.substring(0, 40)}...';
       }
