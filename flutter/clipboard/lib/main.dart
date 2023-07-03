@@ -939,14 +939,10 @@ class _HomePageState extends State<HomePage> {
           utf8.decode(response.headers['file-name']![0].codeUnits);
       // var file = File('$downloadDir/$fileName');
       String filePath;
-      if (hasImageExtension(imageName)) {
-        filePath = '$imageDir/$imageName';
-      } else {
-        filePath = '$downloadDir/$imageName';
-      }
+      filePath = '$imageDir/$imageName';
       var file = File(filePath);
       await response.pipe(file.openWrite());
-      return "已保存到: $filePath";
+      return "1 个文件已保存到:\n$imageDir";
     }
     if (dataType == 'files') {
       final fileCount = int.parse(response.headers['file-count']![0]);
@@ -993,7 +989,7 @@ class _HomePageState extends State<HomePage> {
     }
     await Future.wait(futures);
     var paths = pathSet.join('\n');
-    return '已保存到:\n $paths';
+    return '${winFilePaths.length} 个文件已保存到:\n$paths';
   }
 
   Future<void> _downloadFile(ServerConfig serverConfig, String filePath,
