@@ -221,10 +221,12 @@ func pasteText(c *gin.Context) {
 		return
 	}
 	clipboard.Write(clipboard.FmtText, content)
-	if len(content[1:]) >= 100 {
-		Inform(string(content[:99]) + "...")
+	contentRune := []rune(string(content))
+	showLen := 80
+	if len(contentRune) >= showLen {
+		Inform(string(contentRune[:showLen]) + "...")
 	} else {
-		Inform(string(content[:]))
+		Inform(string(contentRune))
 	}
 	c.String(200, "更新成功")
 }

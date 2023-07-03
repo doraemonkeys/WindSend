@@ -143,10 +143,12 @@ func onReady(quitch chan bool) {
 				Inform("从Web复制失败：" + err.Error())
 			} else {
 				clipboard.Write(clipboard.FmtText, text)
-				if len(text[1:]) >= 100 {
-					Inform(string(text[:99]) + "...")
+				textRune := []rune(string(text))
+				showLen := 80
+				if len(textRune) >= showLen {
+					Inform(string(textRune[:showLen]) + "...")
 				} else {
-					Inform(string(text[:]))
+					Inform(string(textRune))
 				}
 			}
 		case <-mQuit.ClickedCh:
