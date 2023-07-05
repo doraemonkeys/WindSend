@@ -1097,7 +1097,9 @@ class _HomePageState extends State<HomePage> {
     }
     // delete cache file
     for (var file in selectedFilesPath) {
-      File(file).delete();
+      if (file.startsWith('/data/user/0/com.example.clipboard/cache')) {
+        File(file).delete();
+      }
     }
   }
 }
