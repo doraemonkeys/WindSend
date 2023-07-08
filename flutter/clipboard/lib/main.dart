@@ -15,6 +15,7 @@ import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:flutter_toastr/flutter_toastr.dart';
 
 import 'web.dart';
 
@@ -646,6 +647,7 @@ class _HomePageState extends State<HomePage> {
               ),
               onTap: () async {
                 var exited = false;
+                String msg = '';
                 // Show loading spinner
                 var dialog = showDialog(
                   context: context,
@@ -660,49 +662,39 @@ class _HomePageState extends State<HomePage> {
 
                 if (serverConfig.action == 'copy') {
                   try {
-                    var msg = await _doCopyAction(serverConfig);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(msg)),
-                      );
-                    }
+                    msg = await _doCopyAction(serverConfig);
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
+                    msg = e.toString();
                   }
                 } else if (serverConfig.action == 'paste' &&
                     serverConfig.pasteType == 'text') {
                   try {
                     await _doPasteTextAction(serverConfig);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('操作成功')),
-                      );
-                    }
+                    msg = '操作成功';
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
+                    msg = e.toString();
                   }
                 } else if (serverConfig.action == 'paste' &&
                     serverConfig.pasteType == 'file') {
                   try {
                     await _doPasteFileAction(serverConfig);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('操作成功')),
-                      );
-                    }
+                    msg = '操作成功';
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
+                    msg = e.toString();
                   }
                 }
                 if (context.mounted && !exited) {
                   // Hide loading spinner
                   Navigator.of(context).pop();
+                }
+                // if (context.mounted) {
+                //   ScaffoldMessenger.of(context).showSnackBar(
+                //     SnackBar(content: Text(msg)),
+                //   );
+                // }
+                if (context.mounted) {
+                  FlutterToastr.show(msg, context,
+                      duration: 3, position: FlutterToastr.bottom);
                 }
               },
               onLongPress: () {
@@ -929,10 +921,11 @@ class _HomePageState extends State<HomePage> {
       final content = await response.transform(utf8.decoder).join();
       await Clipboard.setData(ClipboardData(text: content));
       //返回 复制成功
+      String successPrefix = '复制成功: \n';
       if (content.length > 40) {
-        return '复制成功: ${content.substring(0, 40)}...';
+        return '$successPrefix${content.substring(0, 40)}...';
       }
-      return '复制成功: $content';
+      return '$successPrefix$content';
     }
     if (dataType == 'clip-image') {
       final imageName =
@@ -1008,10 +1001,11 @@ class _HomePageState extends State<HomePage> {
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
     var content = utf8.decode(contentUint8List);
     //返回 复制成功
+    String successPrefix = '复制成功: \n';
     if (content.length > 40) {
-      return '复制成功: ${content.substring(0, 40)}...';
+      return '$successPrefix${content.substring(0, 40)}...';
     } else {
-      return '复制成功: $content';
+      return '$successPrefix$content';
     }
   }
 
