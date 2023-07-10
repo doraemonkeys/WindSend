@@ -18,6 +18,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
 
 import 'web.dart';
+import 'file.dart';
 
 const downloadDir = '/storage/emulated/0/Download/clips';
 const imageDir = '/storage/emulated/0/Pictures/clips';
@@ -1049,52 +1050,40 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // _doPasteFileAction(ServerConfig serverConfig,
+  //     {List<String>? filePath}) async {
+  //   final List<String> selectedFilesPath;
+  //   if (filePath == null || filePath.isEmpty) {
+  //     final filePicker =
+  //         await FilePicker.platform.pickFiles(allowMultiple: true);
+  //     if (filePicker == null || !filePicker.files.isNotEmpty) {
+  //       throw Exception('No file selected');
+  //     }
+  //     selectedFilesPath = filePicker.files.map((file) => file.path!).toList();
+  //   } else {
+  //     selectedFilesPath = filePath;
+  //   }
+  //   // tcp dail ip:6779
+  //   for (var filepath in selectedFilesPath) {
+  //     print('uploading $filepath');
+  //     var fileUploader = FileUploader(serverConfig.ip, 6779, filepath);
+  //     await fileUploader.upload();
+  //   }
+  //   print('upload done');
+  // }
   _doPasteFileAction(ServerConfig serverConfig,
       {List<String>? filePath}) async {
-    final List<String> selectedFilesPath;
-    if (filePath == null || filePath.isEmpty) {
-      final filePicker =
-          await FilePicker.platform.pickFiles(allowMultiple: true);
-      if (filePicker == null || !filePicker.files.isNotEmpty) {
-        throw Exception('No file selected');
-      }
-      selectedFilesPath = filePicker.files.map((file) => file.path!).toList();
-    } else {
-      selectedFilesPath = filePath;
-    }
-    // print("selectedFilesPath: $selectedFilesPath");
-    Dio dio = Dio();
-    dio.httpClientAdapter = Http2Adapter(
-      ConnectionManager(
-        /// Ignore bad certificate
-        onClientCreate: (_, config) => config.onBadCertificate = (_) => true,
-      ),
+    var task = FileDownloader(
+      serverConfig.ip,
+      6779,
+      'E:\\Doraemon\\Videos\\2021(已备份)\\跨年科学演讲：什么是量子力学？.ts',
+      758534504,
+      downloadDir,
+      threadNum: 20,
     );
+    await task.parallelDownload();
 
-    dio.options.headers['time-ip'] = serverConfig.generateTimeipHeadHex();
-    dio.options.headers['data-type'] = 'files';
-
-    List<MultipartFile> files = [];
-    for (var file in selectedFilesPath) {
-      files.add(await MultipartFile.fromFile(file));
-    }
-
-    var formData = FormData.fromMap({
-      'files': files,
-    });
-    var response = await dio.post(
-      serverConfig.url,
-      data: formData,
-    );
-    if (response.statusCode != 200) {
-      throw Exception(response.data);
-    }
-    // delete cache file
-    for (var file in selectedFilesPath) {
-      if (file.startsWith('/data/user/0/com.example.clipboard/cache')) {
-        File(file).delete();
-      }
-    }
+    print("done");
   }
 }
 
