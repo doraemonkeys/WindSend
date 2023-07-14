@@ -13,16 +13,13 @@ import (
 // quitCh 返回false表示隐藏状态栏图标
 func ShowStatusBar() (quitCh chan bool) {
 	quitCh = make(chan bool)
-	onExit := func() {
-		logrus.Info("退出状态栏图标")
-	}
 	onReady := func() {
 		onReady(quitCh)
 	}
 	// onExit 在退出调用systray.Quit()方法时执行
 	go func() {
 		runtime.LockOSThread()
-		systray.Run(onReady, onExit)
+		systray.Run(onReady, nil)
 	}()
 	return quitCh
 }

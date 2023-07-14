@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -100,7 +101,7 @@ func (cnf Config) Set() error {
 
 func generateDefaultConfig() Config {
 	var cnf Config
-	cnf.ServerPort = "6777"
+	cnf.ServerPort = "6779"
 	cnf.SecretKeyHex = generateSecretKeyHex(32)
 	cnf.ShowToolbarIcon = true
 	cnf.AutoStart = true
@@ -138,8 +139,51 @@ func InitGlobalLogger() {
 	logCnf.MaxKeepDays = 100
 	logCnf.NoConsole = true
 	logCnf.DisableWriterBuffer = true
+	// logCnf.LogLevel = "debug"
 	err := mylog.InitGlobalLogger(logCnf)
 	if err != nil {
 		panic(err)
 	}
+}
+
+const certFile = "./tls/cert.pem"
+const keyFile = "./tls/key.pem"
+
+func InitTSLConfig() {
+	// mkdir tls
+	if !FileOrDirIsExist("./tls") {
+		err := os.Mkdir("./tls", os.ModePerm)
+		if err != nil {
+			logrus.Panic(err)
+		}
+	}
+	// check file
+	if !FileOrDirIsExist(certFile) || !FileOrDirIsExist(keyFile) {
+		rawCert, rawKey, err := GenerateKeyPair()
+		if err != nil {
+			logrus.Panic(err)
+		}
+		err = os.WriteFile(certFile, rawCert, 0644)
+		if err != nil {
+			logrus.Panic(err)
+		}
+		err = os.WriteFile(keyFile, rawKey, 0644)
+		if err != nil {
+			logrus.Panic(err)
+		}
+	}
+}
+
+func GetTSLConfig() (config *tls.Config) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		logrus.Panic(err)
+	}
+	config = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		// 是否跳过证书验证
+		InsecureSkipVerify: true,
+		MinVersion:         tls.VersionTLS12,
+	}
+	return
 }

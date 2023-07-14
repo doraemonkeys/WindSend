@@ -1,22 +1,41 @@
 import 'dart:io';
 import 'dart:convert';
+
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:clipboard/main.dart';
+import 'package:flutter/foundation.dart';
+// import 'package:crypto/crypto.dart';
 
-class UploadHeadInfo {
+class HeadInfo {
   String action;
   String timeIp;
   int fileID;
   int fileSize;
+
+  /// 下载文件时使用
   String path;
+
+  /// 上传文件时使用
   String name;
   int start;
   int end;
+  int dataLen;
+  int opID;
+  int filesCountInThisOp;
 
-  UploadHeadInfo(this.action, this.timeIp, this.fileID, this.fileSize,
-      this.path, this.name, this.start, this.end);
+  HeadInfo(this.action, this.timeIp,
+      {this.fileID = 0,
+      this.fileSize = 0,
+      this.path = '',
+      this.name = '',
+      this.start = 0,
+      this.end = 0,
+      this.dataLen = 0,
+      this.opID = 0,
+      this.filesCountInThisOp = 0});
 
-  UploadHeadInfo.fromJson(Map<String, dynamic> json)
+  HeadInfo.fromJson(Map<String, dynamic> json)
       : action = json['action'],
         timeIp = json['timeIp'],
         fileID = json['fileID'],
@@ -24,7 +43,10 @@ class UploadHeadInfo {
         path = json['path'],
         name = json['name'],
         start = json['start'],
-        end = json['end'];
+        end = json['end'],
+        dataLen = json['dataLen'],
+        opID = json['opID'],
+        filesCountInThisOp = json['filesCountInThisOp'];
 
   Map<String, dynamic> toJson() => {
         'action': action,
@@ -34,92 +56,240 @@ class UploadHeadInfo {
         'path': path,
         'name': name,
         'start': start,
-        'end': end
+        'end': end,
+        'dataLen': dataLen,
+        'opID': opID,
+        'filesCountInThisOp': filesCountInThisOp
       };
+
+  Future<void> writeToConn(SecureSocket conn) async {
+    var headInfojson = jsonEncode(toJson());
+    var headInfoUint8 = utf8.encode(headInfojson);
+    var headInfoUint8Len = headInfoUint8.length;
+    var headInfoUint8LenUint8 = Uint8List(4);
+    headInfoUint8LenUint8.buffer
+        .asByteData()
+        .setUint32(0, headInfoUint8Len, Endian.little);
+    conn.add(headInfoUint8LenUint8);
+    conn.add(headInfoUint8);
+    await conn.flush();
+  }
+
+  Future<void> writeToConnWithBody(SecureSocket conn, List<int> body) async {
+    // dataLen = body.length;
+    if (body.length != dataLen) {
+      throw Exception('body.length != dataLen');
+    }
+    var headInfojson = jsonEncode(toJson());
+    var headInfoUint8 = utf8.encode(headInfojson);
+    var headInfoUint8Len = headInfoUint8.length;
+    var headInfoUint8LenUint8 = Uint8List(4);
+    headInfoUint8LenUint8.buffer
+        .asByteData()
+        .setUint32(0, headInfoUint8Len, Endian.little);
+    conn.add(headInfoUint8LenUint8);
+    conn.add(headInfoUint8);
+    conn.add(body);
+    await conn.flush();
+  }
 }
 
-class DownloadHeadInfo {
-  String action;
-  String timeIp;
-  String path;
-  int start;
-  int end;
+class RespHead {
+  int code;
+  String dataType;
+  String? timeIp;
+  String? msg;
+  List<TargetPaths>? paths;
+  int dataLen = 0;
 
-  DownloadHeadInfo(this.action, this.timeIp, this.path, this.start, this.end);
+  static const String dataTypeFiles = 'files';
+  static const String dataTypeText = 'text';
+  static const String dataTypeImage = 'clip-image';
 
-  DownloadHeadInfo.fromJson(Map<String, dynamic> json)
-      : action = json['action'],
+  RespHead(this.code, this.dataType,
+      {this.timeIp, this.msg, this.paths, this.dataLen = 0});
+
+  RespHead.fromJson(Map<String, dynamic> json)
+      : code = json['code'],
         timeIp = json['timeIp'],
-        path = json['path'],
-        start = json['start'],
-        end = json['end'];
+        msg = json['msg'],
+        // paths = json['paths']?.cast<String>(),
+        dataLen = json['dataLen'],
+        dataType = json['dataType'] {
+    if (json['paths'] != null) {
+      paths = [];
+      json['paths'].forEach((v) {
+        paths!.add(TargetPaths.fromJson(v));
+      });
+    }
+  }
 
   Map<String, dynamic> toJson() => {
-        'action': action,
+        'code': code,
         'timeIp': timeIp,
-        'path': path,
-        'start': start,
-        'end': end
+        'msg': msg,
+        'paths': paths,
+        'dataLen': dataLen,
+        'dataType': dataType
       };
+
+  /// return [head, body]
+  /// 不适用于body过大的情况
+  static Future<(RespHead, List<int>)> readHeadAndBodyFromConn(
+      SecureSocket conn) async {
+    int respHeadLen = 0;
+    int bodyLen = 0;
+    List<int> respContentList = [];
+    RespHead? respHeadInfo;
+    bool isHeadReading = true;
+    await for (var data in conn) {
+      respContentList.addAll(data);
+      // print('addall respContentList.length: ${respContentList.length}');
+      if (isHeadReading) {
+        if (respHeadLen == 0 && respContentList.length >= 4) {
+          respHeadLen =
+              ByteData.sublistView(Uint8List.fromList(respContentList))
+                  .getInt32(0, Endian.little);
+        }
+        if (respHeadLen != 0 && respContentList.length >= respHeadLen + 4) {
+          var respHeadBytes = respContentList.sublist(4, respHeadLen + 4);
+          var respHeadJson = utf8.decode(respHeadBytes);
+          respHeadInfo = RespHead.fromJson(jsonDecode(respHeadJson));
+          // print('respHeadInfo: ${respHeadInfo.toJson().toString()}');
+          if (respHeadInfo.code != 200) {
+            return (respHeadInfo, <int>[]);
+          }
+          bodyLen = respHeadInfo.dataLen;
+          if (bodyLen == 0) {
+            return (respHeadInfo, <int>[]);
+          }
+          // print('respContentList.length: ${respContentList.length}');
+          respContentList = respContentList.sublist(respHeadLen + 4);
+          // print('respContentList.length: ${respContentList.length}');
+          isHeadReading = false;
+        } else {
+          continue;
+        }
+      }
+      if (bodyLen != 0 && respContentList.length >= bodyLen) {
+        var respBody = respContentList.sublist(0, bodyLen);
+        return (respHeadInfo!, respBody);
+      }
+    }
+    throw Exception('readBodyFromConn error');
+  }
+}
+
+class TargetPaths {
+  String path;
+  int size;
+
+  TargetPaths(this.path, this.size);
+
+  TargetPaths.fromJson(Map<String, dynamic> json)
+      : path = json['path'],
+        size = json['size'];
+
+  Map<String, dynamic> toJson() {
+    Map<String, dynamic> data = {};
+    data['path'] = path;
+    data['size'] = size;
+    return data;
+  }
 }
 
 class FileUploader {
-  final String tcpHost;
-  final int tcpPort;
-  final threadNum;
+  ServerConfig cnf;
+  final int threadNum;
   final String filePath;
   static int maxBufferSize = 1024 * 1024 * 30;
+
+  /// 分片大小的最小值
   final int minPartSize = maxBufferSize ~/ 2;
   late int fileID;
+  final int opID;
+  final int filesCountInThisOp;
 
-  FileUploader(this.tcpHost, this.tcpPort, this.filePath,
+  FileUploader(this.cnf, this.filePath, this.opID, this.filesCountInThisOp,
       {this.threadNum = 10}) {
     fileID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-    print('fileID: $fileID');
+    // print('fileID: $fileID');
   }
 
-  Future<void> uploader(RandomAccessFile file, int start, int end) async {
-    print('start: $start, end: $end');
-
-    var conn = await SecureSocket.connect(tcpHost, tcpPort,
+  Future<void> uploader(RandomAccessFile fileAccess, int start, int end) async {
+    var conn = await SecureSocket.connect(cnf.ip, cnf.port,
         onBadCertificate: (X509Certificate certificate) {
       return true;
     });
 
     String filename = filePath.replaceAll('\\', '/').split('/').last;
-    UploadHeadInfo head = UploadHeadInfo('upload', '2021-08-12 12:12:12',
-        fileID, await file.length(), filePath, filename, start, end);
-    var headBytes = utf8.encode(jsonEncode(head));
-    var headLen = headBytes.length;
-    print('headLen: $headLen');
-    print('head: ${jsonEncode(head)}');
-    var headLenBytes = ByteData(4)..setInt32(0, headLen, Endian.little);
-    var header = [
-      headLenBytes.buffer.asUint8List(),
-      headBytes,
-    ];
-    var headerBytes = header.expand((element) => element).toList();
-    conn.add(headerBytes);
-    await conn.flush();
-    // List<int> dataBuffer = [];
 
-    int bufferedSize = 0;
-    while (bufferedSize < end - start) {
-      await file.setPosition(start + bufferedSize);
-      int readSize = min(maxBufferSize, end - start - bufferedSize);
-      var data = await file.read(readSize);
-      bufferedSize += data.length;
+    HeadInfo head = HeadInfo(
+      ServerConfig.pasteFileAction, cnf.generateTimeipHeadHex(),
+      fileID: fileID,
+      fileSize: await fileAccess.length(),
+      // path: filePath,
+      name: filename,
+      start: start,
+      end: end,
+      dataLen: end - start,
+      opID: opID,
+      filesCountInThisOp: filesCountInThisOp,
+    );
+
+    await head.writeToConn(conn);
+
+    int sentSize = 0;
+    while (sentSize < end - start) {
+      await fileAccess.setPosition(start + sentSize);
+      int readSize = min(maxBufferSize, end - start - sentSize);
+      var data = await fileAccess.read(readSize);
+      sentSize += data.length;
       conn.add(data);
     }
+
+    // 下面的代码哪里有问题???
+    // var dataBuffer = Uint8List(maxBufferSize);
+    // int bufferedSize = 0;
+    // while (bufferedSize < end - start) {
+    //   await fileAccess.setPosition(start + bufferedSize);
+    //   int readSize = min(maxBufferSize, end - start - bufferedSize);
+    //   if (readSize == maxBufferSize) {
+    //     var n = await fileAccess.readInto(dataBuffer);
+    //     if (n != maxBufferSize) {
+    //       throw Exception('unexpected readInto n: $n');
+    //     }
+    //     print('dataBuffer.length: ${dataBuffer.length}');
+    //     conn.add(dataBuffer);
+    //   } else {
+    //     var data = await fileAccess.read(readSize);
+    //     if (data.length != readSize) {
+    //       throw Exception('unexpected read n: ${data.length}');
+    //     }
+    //     print('data.length: ${data.length}');
+    //     conn.add(data);
+    //   }
+    //   bufferedSize += readSize;
+    // }
+
     await conn.flush();
-    // await conn.close();
+    await conn.close();
     conn.destroy();
-    await file.close();
-    print('$start - $end upload success');
+    await fileAccess.close();
   }
 
+  // Future<String> calculateMD5(File file) async {
+  //   var md5Hash = md5.convert(await file.readAsBytes());
+  //   var digest = md5Hash.toString();
+  //   return digest;
+  // }
+
   Future<void> upload() async {
-    var file = await File(filePath);
+    var file = File(filePath);
+    // 计算md5
+    // print('filepath: $filePath');
+    // var md5 = await calculateMD5(file);
+    // print('md5: $md5');
     var fileSize = await file.length();
     int partSize = fileSize ~/ threadNum;
     if (partSize < minPartSize) {
@@ -128,7 +298,7 @@ class FileUploader {
         partSize = fileSize;
       }
     }
-    print('fileSize: $fileSize, partSize: $partSize');
+    // print('fileSize: $fileSize, partSize: $partSize');
     var start = 0;
     var end = 0;
     var partNum = 0;
@@ -140,7 +310,7 @@ class FileUploader {
       if (fileSize - end < partSize) {
         end = fileSize;
       }
-      print("part $partNum: $start - $end");
+      // print("part $partNum: $start - $end");
       var fileAccess = await file.open();
       futures.add(uploader(fileAccess, start, end));
       partNum++;
@@ -150,101 +320,104 @@ class FileUploader {
 }
 
 class FileDownloader {
-  final String tcpHost;
-  final int tcpPort;
-  final int chunkSize;
+  ServerConfig cnf;
   final int minPartSize;
-  final String targetFilePath;
-  final int targetFileSize;
+  final TargetPaths paths;
   String fileSavePath;
   int threadNum;
+  int maxChunkSize;
   RandomAccessFile? _fileAccess;
 
   FileDownloader(
-    this.tcpHost,
-    this.tcpPort,
-    this.targetFilePath,
-    this.targetFileSize,
+    this.cnf,
+    this.paths,
     this.fileSavePath, {
-    this.threadNum = 10,
-    this.chunkSize = 1024 * 1024 * 10,
-    this.minPartSize = 1024 * 1024,
+    this.threadNum = 6,
+    this.maxChunkSize = 1024 * 1024 * 50,
+    this.minPartSize = 1024 * 1024 * 2,
   });
 
   Future<void> _writeRangeFile(int start, int end, int partNum) async {
-    print('start: $start, end: $end');
-    var conn = await SecureSocket.connect(tcpHost, tcpPort,
+    var chunkSize = min(maxChunkSize, end - start);
+    // print('chunkSize: $chunkSize');
+    var conn = await SecureSocket.connect(cnf.ip, cnf.port,
         onBadCertificate: (X509Certificate certificate) {
       return true;
     });
-    DownloadHeadInfo head = DownloadHeadInfo(
-        'download', '2021-08-12 12:12:12', targetFilePath, start, end);
-    var headBytes = utf8.encode(jsonEncode(head));
-    var headLen = headBytes.length;
-    print('headLen: $headLen');
-    print('head: ${jsonEncode(head)}');
-    var headLenBytes = ByteData(4)..setInt32(0, headLen, Endian.little);
-    var header = [
-      headLenBytes.buffer.asUint8List(),
-      headBytes,
-    ];
-    var headerBytes = header.expand((element) => element).toList();
-    conn.add(headerBytes);
-    await conn.flush();
 
-    await for (var data in conn) {
-      // 一直输出dataLen: 8191
-      print('dataLen: ${data.length}');
+    var head = HeadInfo(
+      ServerConfig.downloadAction,
+      cnf.generateTimeipHeadHex(),
+      path: paths.path,
+      start: start,
+      end: end,
+    );
+    await head.writeToConn(conn);
+
+    void readHead(List<int> data) {
+      var jsonContent = utf8.decode(Uint8List.fromList(data));
+      var respHeader = RespHead.fromJson(jsonDecode(jsonContent));
+      // print('respHeader: ${jsonContent}');
+      if (respHeader.code != 200) {
+        throw Exception(
+            'respone code: ${respHeader.code} msg: ${respHeader.msg}');
+      }
     }
-    await conn.close();
+
+    int respHeadLen = 0;
+    int pos = start;
+    bool isHeadReading = true;
+    Uint8List buf = Uint8List(1024 * 1024);
+    int n = 0;
+    await for (var data in conn) {
+      // buf.addAll(data);
+      buf.setAll(n, data);
+      n += data.length;
+      if (isHeadReading) {
+        if (n >= 4) {
+          respHeadLen =
+              ByteData.sublistView(buf, 0, 4).getInt32(0, Endian.little);
+        }
+        if (respHeadLen != 0 && n >= respHeadLen + 4) {
+          var respHeadBytes = buf.sublist(4, respHeadLen + 4);
+          readHead(respHeadBytes);
+          // var newbuf = List.filled(chunkSize + 1024 * 1024, 0);
+          var newbuf = Uint8List(chunkSize + 1024 * 1024);
+          newbuf.setAll(0, buf.sublist(respHeadLen + 4));
+          buf = newbuf;
+          n -= (respHeadLen + 4);
+          isHeadReading = false;
+        } else {
+          continue;
+        }
+      }
+      if (n >= maxChunkSize) {
+        _fileAccess!.setPositionSync(pos);
+        _fileAccess!.writeFromSync(buf, 0, n);
+        pos += n;
+        n = 0;
+        // print("start $start part $partNum: ${pos - start} / ${end - start}");
+      }
+    }
+    if (buf.isNotEmpty) {
+      _fileAccess!.setPositionSync(pos);
+      _fileAccess!.writeFromSync(buf, 0, n);
+      pos += n;
+      // print("start $start part $partNum: ${pos - start} / ${end - start}");
+    }
     conn.destroy();
-
-    // conn.asBroadcastStream().listen((event) {
-    //   print('event: $event');
-    // });
-
-    // int pos = start;
-    // List<int> buf = List.empty(growable: true);
-    // await conn.forEach((element) {
-    //   buf.addAll(element);
-    //   if (buf.length >= chunkSize) {
-    //     // _fileAccess!.setPositionSync(pos);
-    //     // _fileAccess!.writeFromSync(buf);
-    //     pos += buf.length;
-    //     buf.clear();
-    //     print("start $start part $partNum: ${pos - start} / ${end - start}");
-    //   }
-    // });
-    // if (buf.isNotEmpty) {
-    //   // _fileAccess!.setPositionSync(pos);
-    //   // _fileAccess!.writeFromSync(buf);
-    //   pos += buf.length;
-    //   print("start $start part $partNum: ${pos - start} / ${end - start}");
-    // }
-    // conn.destroy();
-    // print('$start - $end download success');
-    // int pos = start;
-
-    // await for (var data in conn) {
-    //   print('data: ${data.length}');
-    //   pos += data.length;
-    //   if (pos > chunkSize) {
-    //     print("start $start part $partNum: ${pos - start} / ${end - start}");
-    //     pos = 0;
-    //   }
-    // }
-    // await conn.close();
-    // conn.destroy();
-    print('$start - $end download success');
   }
 
   Future<void> parallelDownload() async {
+    var targetFilePath = paths.path;
+    var targetFileSize = paths.size;
     var filename = targetFilePath.replaceAll('\\', '/').split('/').last;
     fileSavePath = fileSavePath.replaceAll('\\', '/');
     if (!fileSavePath.endsWith('/')) {
       fileSavePath += '/';
     }
     var filepath = fileSavePath + filename;
+    filepath = generateUniqueFilepath(filepath);
     var file = File(filepath);
     _fileAccess = await file.open(mode: FileMode.write);
 
@@ -255,7 +428,8 @@ class FileDownloader {
         partSize = targetFileSize;
       }
     }
-    print("size: $targetFileSize, part_size: $partSize");
+
+    // print("size: $targetFileSize, part_size: $partSize");
     var start = 0;
     var end = 0;
     var partNum = 0;
@@ -266,7 +440,7 @@ class FileDownloader {
       if (targetFileSize - end < partSize) {
         end = targetFileSize;
       }
-      print("part $partNum: $start - $end");
+      // print("part $partNum: $start - $end");
       futures.add(_writeRangeFile(start, end, partNum));
       partNum++;
     }

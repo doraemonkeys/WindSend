@@ -2,10 +2,15 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -14,6 +19,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/axgle/mahonia"
@@ -328,4 +334,79 @@ func HasImageExt(name string) bool {
 		}
 	}
 	return false
+}
+
+type Ordered interface {
+	~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 |
+		~uint32 | ~uint64 | ~int
+}
+
+func max[T Ordered](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+func min[T Ordered](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// 产生不冲突的文件路径
+func generateUniqueFilepath(filePath string) string {
+	if _, err := os.Stat(filePath); err != nil {
+		return filePath
+	}
+	dir := filepath.Dir(filePath)
+	name := filepath.Base(filePath)
+	fileExt := filepath.Ext(name)
+	name = name[:len(name)-len(fileExt)]
+	for i := 1; ; i++ {
+		if fileExt != "" {
+			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d).%s", name, i, fileExt))
+		} else {
+			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d)", name, i))
+		}
+		if _, err := os.Stat(filePath); err != nil {
+			return filePath
+		}
+	}
+}
+
+func GenerateKeyPair() (rawCert, rawKey []byte, err error) {
+	// Create private key and self-signed certificate
+	// Adapted from https://golang.org/src/crypto/tls/generate_cert.go
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return
+	}
+	validFor := time.Hour * 24 * 365 * 10 // ten years
+	notBefore := time.Now()
+	notAfter := notBefore.Add(validFor)
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"doraemon"},
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return
+	}
+
+	rawCert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	rawKey = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return
 }

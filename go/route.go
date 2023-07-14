@@ -1,22 +1,19 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
+	"net"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
 )
-
-// 剪切板同步工具
-
-// post /copy
-// post /paste
 
 const TimeFormat = "2006-01-02 15:04:05"
 const MaxTimeDiff float64 = 10
@@ -34,103 +31,230 @@ const (
 	ErrorClipboardDataTooLarge = "clipboard data too large"
 	// 损坏的数据
 	ErrorInvalidData = "invalid data"
+	// 不完整的数据
+	ErrorIncompleteData = "incomplete data"
 )
 
-func commonAuth(c *gin.Context) bool {
-	timeAndIP := c.GetHeader("time-ip")
-	if timeAndIP == "" {
-		c.String(401, ErrorInvalidAuthData+": time-ip is empty")
-		return false
+const (
+	pasteTextAction = "pasteText"
+	pasteFileAction = "pasteFile"
+	copyAction      = "copy"
+	pingAction      = "ping"
+	downloadAction  = "download"
+	webIp           = "web"
+)
+
+type headInfo struct {
+	Action   string `json:"action"`
+	TimeIp   string `json:"timeIp"`
+	FileID   uint32 `json:"fileID"`
+	FileSize int64  `json:"fileSize"`
+	Path     string `json:"path"`
+	Name     string `json:"name"`
+	Start    int64  `json:"start"`
+	End      int64  `json:"end"`
+	DataLen  int64  `json:"dataLen"`
+	// 操作ID
+	OpID uint32 `json:"opID"`
+	// 此次操作想要上传的文件数量
+	FilesCountInThisOp int `json:"filesCountInThisOp"`
+	// Msg      string `json:"msg"`
+}
+
+type RespHead struct {
+	Code int `json:"code"`
+	// TimeIp string   `json:"timeIp"`
+	Msg string `json:"msg"`
+	// 客户端copy时返回的数据类型(text, image, file)
+	DataType string `json:"dataType"`
+	// 如果body有数据，返回数据的长度
+	DataLen int64      `json:"dataLen"`
+	Paths   []pathInfo `json:"paths"`
+}
+
+type pathInfo struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+const (
+	DataTypeText      = "text"
+	DataTypeClipImage = "clip-image"
+	DataTypeFilePaths = "files"
+	DataTypeBinary    = "binary"
+)
+
+var panicWriter = NewLazyFileWriter("panic.log")
+
+func mainProcess(conn net.Conn) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Error("panic:", err)
+			panicWriter.Write([]byte(fmt.Sprintf("%v\n", err)))
+		}
+	}()
+
+	defer conn.Close()
+
+	head, ok := commonAuth(conn)
+	if !ok {
+		return
 	}
-	timeAndIPBytes, err := hex.DecodeString(timeAndIP)
+	logrus.Debugf("head: %+v", head)
+
+	switch head.Action {
+	case pingAction:
+		pingHandler(conn, head)
+		return
+	case pasteTextAction:
+		pasteTextHandler(conn, head)
+		return
+	case pasteFileAction:
+		pasteFileHandler(conn, head)
+		return
+	case copyAction:
+		copyHandler(conn, head)
+		return
+	case downloadAction:
+		downloadHandler(conn, head)
+		return
+	default:
+		respError(conn, "unknown action:"+head.Action)
+		logrus.Error("unknown action:", head.Action)
+		return
+	}
+
+}
+
+func pasteTextHandler(conn net.Conn, head headInfo) {
+	var bodyBuf = make([]byte, head.DataLen)
+	_, err := io.ReadFull(conn, bodyBuf)
 	if err != nil {
-		logrus.Error("decode time-ip error: ", err)
-		c.String(400, ErrorInvalidAuthData+": "+err.Error())
-		return false
+		logrus.Error("read body error: ", err)
+		return
+	}
+	clipboard.Write(clipboard.FmtText, bodyBuf)
+
+	go func() {
+		time.Sleep(time.Millisecond * 200)
+		sendMsg(conn, "粘贴成功")
+	}()
+
+	contentRune := []rune(string(bodyBuf))
+	showLen := 80
+	if len(contentRune) >= showLen {
+		Inform(string(contentRune[:showLen]) + "...")
+	} else {
+		Inform(string(contentRune))
+	}
+
+}
+
+func pingHandler(conn net.Conn, head headInfo) {
+	var bodyBuf = make([]byte, head.DataLen)
+	_, err := io.ReadFull(conn, bodyBuf)
+	if err != nil {
+		logrus.Error("read body error: ", err)
+		return
+	}
+	decryptedBody, err := crypter.Decrypt(bodyBuf)
+	if err != nil {
+		logrus.Error("decrypt body error: ", err)
+		return
+	}
+	if string(decryptedBody) != "ping" {
+		logrus.Error("invalid ping data: ", string(decryptedBody))
+		respError(conn, ErrorInvalidData)
+		return
+	}
+	resp := "pong"
+	encryptedResp, err := crypter.Encrypt([]byte(resp))
+	if err != nil {
+		logrus.Error("encrypt body error: ", err)
+		return
+	}
+	// encryptedResp = []byte("pong")
+	sendMsgWithBody(conn, "验证成功", DataTypeText, encryptedResp)
+}
+
+func commonAuth(conn net.Conn) (headInfo, bool) {
+	const headBufSize = 1024
+	var headBuf [headBufSize]byte
+	var head headInfo
+
+	// 读取json长度
+	var headLen int32
+	if _, err := io.ReadFull(conn, headBuf[:4]); err != nil {
+		return head, false
+	}
+	headLen = int32(binary.LittleEndian.Uint32(headBuf[:4]))
+	if headLen > headBufSize || headLen <= 0 {
+		respError(conn, fmt.Sprintf("invalid head len:%d", headLen))
+		return head, false
+	}
+	// 读取json
+	if _, err := io.ReadFull(conn, headBuf[:headLen]); err != nil {
+		logrus.Error("read head failed, err:", err)
+		return head, false
+	}
+
+	if err := json.Unmarshal(headBuf[:headLen], &head); err != nil {
+		logrus.Error("json unmarshal failed, err:", err)
+		return head, false
+	}
+	if head.TimeIp == "" {
+		respError(conn, "time-ip is empty")
+		return head, false
+	}
+	timeAndIPBytes, err := hex.DecodeString(head.TimeIp)
+	if err != nil {
+		respError(conn, err.Error())
+		return head, false
 	}
 	decrypted, err := crypter.Decrypt(timeAndIPBytes)
 	if err != nil {
-		logrus.Error("decrypt time-ip error: ", err)
-		c.String(400, ErrorInvalidAuthData+": "+err.Error())
-		return false
+		respError(conn, err.Error())
+		return head, false
 	}
-	// 2006-01-02 15:04:05 192.168.1.1
+	// 2006-01-02 15:04:05
 	timeAndIPStr := string(decrypted)
 	timeLen := len(TimeFormat)
 	if len(timeAndIPStr) < timeLen {
-		c.String(400, ErrorInvalidAuthData+": time-ip is too short")
-		return false
+		respError(conn, "time-ip is too short")
+		return head, false
 	}
 	timeStr := timeAndIPStr[:timeLen]
 	ip := timeAndIPStr[timeLen+1:]
 	t, err := time.Parse(TimeFormat, timeStr)
 	if err != nil {
-		logrus.Error("parse time error: ", err)
-		c.String(400, ErrorInvalidAuthData)
-		return false
+		respError(conn, err.Error())
+		return head, false
 	}
 	if time.Since(t).Seconds() > MaxTimeDiff {
-		logrus.Error("time expired: ", t)
-		c.String(401, ErrorExpiredAuthData)
-		return false
+		logrus.Info("time expired: ", t.String())
+		respError(conn, fmt.Sprintf("time expired: %s", t.String()))
+		return head, false
 	}
 
 	var myipv4 string
-	if strings.Contains(c.Request.Host, ":") {
-		myipv4 = strings.Split(c.Request.Host, ":")[0]
+	if strings.Contains(conn.LocalAddr().String(), ":") {
+		myipv4 = strings.Split(conn.LocalAddr().String(), ":")[0]
 	} else {
-		myipv4 = c.Request.Host
+		myipv4 = conn.LocalAddr().String()
 	}
 	if ip != myipv4 {
-		logrus.Error("ip not match: ", ip)
-		c.String(401, ErrorInvalidAuthData+": ip not match, "+ip+" != "+myipv4)
-		return false
+		logrus.Info("ip not match: ", ip, myipv4)
+		respError(conn, fmt.Sprintf("ip not match: %s != %s", ip, myipv4))
+		return head, false
 	}
-	return true
+	return head, true
 }
 
-func sendFiles(c *gin.Context) error {
-	c.Header("data-type", "files")
-	c.Header("file-count", fmt.Sprintf("%d", len(SelectedFiles)))
-	//c.Header("Content-Type", "application/octet-stream")
-	body := strings.Join(SelectedFiles, "\n")
-	c.String(200, body)
-	return nil
-}
-
-func downloadHandler(c *gin.Context) {
-	// 身份验证
-	ok := commonAuth(c)
-	if !ok {
-		return
-	}
-	// filePath 在body中
-	filePath, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		logrus.Error("read body error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	if len(filePath) == 0 {
-		c.String(400, ErrorInvalidData+": file path is empty")
-		return
-	}
-	logrus.Info("download file: ", string(filePath))
-	filename := filepath.Base(string(filePath))
-	c.Header("file-name", filename)
-	c.File(string(filePath))
-}
-
-func copyHandler(c *gin.Context) {
-	// 身份验证
-	ok := commonAuth(c)
-	if !ok {
-		return
-	}
+func copyHandler(conn net.Conn, head headInfo) {
 
 	// 用户选择的文件
 	if len(SelectedFiles) != 0 {
-		err := sendFiles(c)
+		err := sendFiles(conn)
 		if err != nil {
 			logrus.Error("send files error: ", err)
 		} else {
@@ -141,130 +265,128 @@ func copyHandler(c *gin.Context) {
 
 	// 空剪切板
 	if clipboarDataType == clipboardWatchDataEmpty {
-		c.String(500, ErrorClipboardDataEmpty)
+		respError(conn, ErrorClipboardDataEmpty)
 		return
 	}
 
 	// 文本剪切板
 	if clipboarDataType == clipboardWatchDataTypeText {
-		sendText(c)
+		sendText(conn)
 		return
 	}
 
 	// 图片剪切板
 	if clipboarDataType == clipboardWatchDataTypeImage {
-		sendImage(c)
+		sendImage(conn)
 		return
 	}
 }
 
-func sendText(c *gin.Context) {
-	c.Header("data-type", "text")
-	c.String(200, string(clipboardWatchData))
-}
-
-func sendImage(c *gin.Context) {
-	c.Header("data-type", "clip-image")
-	name := time.Now().Format("20060102150405") + ".png"
-	c.Writer.Header().Add("file-name", name)
-	c.Writer.Header().Add("Content-Type", "application/octet-stream")
-	c.Writer.Write(clipboardWatchData)
-	c.Status(200)
-}
-func pasteHandler(c *gin.Context) {
-	ok := commonAuth(c)
-	if !ok {
-		return
-	}
-	// 读取数据类型
-	dataType := c.GetHeader("data-type")
-	if dataType == "text" {
-		pasteText(c)
-		return
-	}
-	if dataType == "files" {
-		pasteFiles(c)
-		return
-	}
-}
-
-func pasteFiles(c *gin.Context) {
-	forms, err := c.MultipartForm()
-	if err != nil {
-		logrus.Error("get multipart form error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	files := forms.File["files"]
-	if len(files) == 0 {
-		c.String(500, ErrorInvalidData)
-		return
-	}
-	for _, file := range files {
-		err := c.SaveUploadedFile(file, filepath.Join(GloballCnf.SavePath, file.Filename))
+func sendFiles(conn net.Conn) error {
+	var resp RespHead
+	resp.Code = 200
+	resp.DataType = DataTypeFilePaths
+	// resp.Paths = SelectedFiles
+	for _, path := range SelectedFiles {
+		fileInfo, err := os.Stat(path)
 		if err != nil {
-			logrus.Error("save uploaded file error: ", err)
-			c.String(500, ErrorInternal+": "+err.Error())
-			return
+			logrus.Error("stat file error: ", err)
+			return err
 		}
-		logrus.Info("receive file:", file.Filename)
+		var pi pathInfo
+		pi.Path = path
+		pi.Size = fileInfo.Size()
+		resp.Paths = append(resp.Paths, pi)
 	}
-	Inform(fmt.Sprintf("%d个文件已保存到%s", len(files), GloballCnf.SavePath))
-	c.String(200, "更新成功")
+	return sendHead(conn, resp)
 }
 
-func pasteText(c *gin.Context) {
-	content, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		logrus.Error("read body error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	clipboard.Write(clipboard.FmtText, content)
-	contentRune := []rune(string(content))
-	showLen := 80
-	if len(contentRune) >= showLen {
-		Inform(string(contentRune[:showLen]) + "...")
-	} else {
-		Inform(string(contentRune))
-	}
-	c.String(200, "更新成功")
+func sendImage(conn net.Conn) {
+	imageName := time.Now().Format("20060102150405") + ".png"
+	sendMsgWithBody(conn, imageName, DataTypeClipImage, clipboardWatchData)
 }
 
-func pingHandler(c *gin.Context) {
-	ok := commonAuth(c)
-	if !ok {
-		return
-	}
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		logrus.Error("read body error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	decryptedBody, err := crypter.Decrypt(body)
-	if err != nil {
-		logrus.Error("decrypt body error: ", err)
-		c.String(400, ErrorInvalidData)
-		return
-	}
-	if string(decryptedBody) != "ping" {
-		c.String(400, ErrorInvalidData)
-		return
-	}
-	resp := "pong"
-	encryptedResp, err := crypter.Encrypt([]byte(resp))
-	if err != nil {
-		logrus.Error("encrypt body error: ", err)
-		c.String(500, ErrorInternal+": "+err.Error())
-		return
-	}
-	// encryptedResp = []byte("pong")
-	c.Writer.Write(encryptedResp)
-	c.Status(200)
+func sendText(conn net.Conn) {
+	sendMsgWithBody(conn, "", DataTypeText, clipboardWatchData)
 }
 
-// 404
-func notFoundHandler(c *gin.Context) {
-	c.String(404, "Sorry, I don't know what you're asking for :(")
+func respError(conn net.Conn, msg string) {
+	var resp RespHead
+	resp.Code = 400
+	resp.Msg = msg
+	respBuf, err := json.Marshal(resp)
+	if err != nil {
+		logrus.Error("json marshal failed, err:", err)
+		return
+	}
+	var headLen = len(respBuf)
+	var headLenBuf [4]byte
+	binary.LittleEndian.PutUint32(headLenBuf[:], uint32(headLen))
+	if _, err := conn.Write(headLenBuf[:]); err != nil {
+		logrus.Error("write head len failed, err:", err)
+		return
+	}
+	if _, err := conn.Write(respBuf); err != nil {
+		logrus.Error("write head failed, err:", err)
+		return
+	}
+}
+
+func sendMsg(conn net.Conn, msg string) error {
+	var resp RespHead
+	resp.Code = 200
+	resp.Msg = msg
+	return sendHead(conn, resp)
+}
+
+func sendHead(conn net.Conn, head RespHead) error {
+	respBuf, err := json.Marshal(head)
+	if err != nil {
+		logrus.Error("json marshal failed, err:", err)
+		return err
+	}
+	// logrus.Debugln("respHead:", string(respBuf))
+	logrus.Debugln("respHead:", head)
+	var headLen = len(respBuf)
+
+	var headLenBuf [4]byte
+	binary.LittleEndian.PutUint32(headLenBuf[:], uint32(headLen))
+	if _, err := conn.Write(headLenBuf[:]); err != nil {
+		logrus.Error("write head len failed, err:", err)
+		return err
+	}
+	if _, err := conn.Write(respBuf); err != nil {
+		logrus.Error("write head failed, err:", err)
+		return err
+	}
+	return nil
+}
+
+func sendMsgWithBody(conn net.Conn, msg string, datatype string, body []byte) {
+	var resp RespHead
+	resp.Code = 200
+	resp.Msg = msg
+	resp.DataType = datatype
+	resp.DataLen = int64(len(body))
+	respBuf, err := json.Marshal(resp)
+	if err != nil {
+		logrus.Error("json marshal failed, err:", err)
+		return
+	}
+	var headLen = len(respBuf)
+	// fmt.Println("headLen:", headLen, "head:", string(respBuf))
+	var headLenBuf [4]byte
+	binary.LittleEndian.PutUint32(headLenBuf[:], uint32(headLen))
+	if _, err := conn.Write(headLenBuf[:]); err != nil {
+		logrus.Error("write head len failed, err:", err)
+		return
+	}
+	if _, err := conn.Write(respBuf); err != nil {
+		logrus.Error("write head failed, err:", err)
+		return
+	}
+	if _, err := conn.Write(body); err != nil {
+		logrus.Error("write body failed, err:", err)
+		return
+	}
 }

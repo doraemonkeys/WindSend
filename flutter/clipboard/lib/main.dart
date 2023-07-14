@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'dart:typed_data';
-// import 'dart:math';
+// import 'dart:typed_data';
+import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -12,8 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
 import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
-import 'package:dio/dio.dart';
-import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
 
@@ -48,15 +47,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _serverConfigs = <ServerConfig>[];
-  final _ipController = TextEditingController();
-  final _portController = TextEditingController();
-  final _secretKeyHexController = TextEditingController();
-  final _actionController = TextEditingController();
-  final _pasteTypeController = TextEditingController();
   late StreamSubscription _intentDataStreamSubscription;
   String? _configPath;
   List<SharedMediaFile>? _sharedFiles;
   String? _sharedText;
+  // 仅用于app启动时自动选择ip的判断，回到主界面后自动变成false
   bool _autoSelectIpSuccess = false;
 
   @override
@@ -139,11 +134,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     super.dispose();
-    _ipController.dispose();
-    _portController.dispose();
-    _secretKeyHexController.dispose();
-    _actionController.dispose();
-    _pasteTypeController.dispose();
     _intentDataStreamSubscription.cancel();
   }
 
@@ -174,15 +164,17 @@ class _HomePageState extends State<HomePage> {
     final title = isNew ? 'New Server Config' : 'Edit Server Config';
     final ip = serverConfig?.ip ?? '';
     final port = serverConfig?.port.toString() ?? '';
+    final threadNum = serverConfig?.threadNum.toString() ?? '';
     final secretKeyHex = serverConfig?.secretKeyHex ?? '';
     final action = serverConfig?.action ?? '';
-    final pasteType = serverConfig?.pasteType ?? '';
+    // final pasteType = serverConfig?.pasteType ?? '';
     final formKey = GlobalKey<FormState>();
     final ipController = TextEditingController(text: ip);
     final portController = TextEditingController(text: port);
     final secretKeyHexController = TextEditingController(text: secretKeyHex);
     final actionController = TextEditingController(text: action);
-    final pasteTypeController = TextEditingController(text: pasteType);
+    // final pasteTypeController = TextEditingController(text: pasteType);
+    final threadNumController = TextEditingController(text: threadNum);
     final autoSelectController =
         TextEditingController(text: serverConfig?.autoSelect.toString());
     final nameController = TextEditingController(text: serverConfig?.name);
@@ -258,35 +250,36 @@ class _HomePageState extends State<HomePage> {
                   ),
                   TextFormField(
                     controller: actionController,
-                    decoration: const InputDecoration(
-                        labelText: 'Action (copy or paste)'),
+                    decoration: const InputDecoration(labelText: 'Action'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Action cannot be empty';
                       }
-                      if (value != 'copy' && value != 'paste') {
-                        return 'Action must be either copy or paste';
+                      if (!ServerConfig.isLegalAction(value)) {
+                        return 'Action is not legal';
                       }
                       return null;
                     },
                   ),
                   TextFormField(
-                    controller: pasteTypeController,
-                    decoration: const InputDecoration(
-                        labelText: 'Paste Type (text or file)'),
+                    controller: threadNumController,
+                    decoration: const InputDecoration(labelText: 'threadNum'),
+                    keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (actionController.text == 'copy') {
-                        return null;
-                      }
-                      if (ipController.text.toLowerCase() == 'web' &&
-                          value != 'text') {
-                        return 'on web, paste type must be text';
+                      if (actionController.text ==
+                          ServerConfig.pasteTextAction) {
+                        if (value != null && value.isNotEmpty && value != '0') {
+                          return 'cannot set threadNum when action is pasteText';
+                        } else {
+                          return null;
+                        }
                       }
                       if (value == null || value.isEmpty) {
-                        return 'Paste type cannot be empty';
+                        return 'threadNum cannot be empty';
                       }
-                      if (value != 'text' && value != 'file') {
-                        return 'Paste type must be either text or file';
+                      final num = int.tryParse(value);
+                      if (num == null || num < 1 || num > 100) {
+                        return 'threadNum must be between 1 and 100';
                       }
                       return null;
                     },
@@ -309,10 +302,10 @@ class _HomePageState extends State<HomePage> {
                     ipController.text,
                     secretKeyHexController.text,
                     actionController.text,
-                    pasteTypeController.text,
                     autoSelectController.text == 'true',
-                    int.parse(portController.text),
-                    nameController.text,
+                    name: nameController.text,
+                    threadNum: int.parse(threadNumController.text),
+                    port: int.parse(portController.text),
                   );
                   if (isNew) {
                     setState(() {
@@ -347,10 +340,13 @@ class _HomePageState extends State<HomePage> {
       var crypter = CbcAESCrypt.fromHex(element.secretKeyHex);
       bool ok = false;
       if (element.ip.isNotEmpty) {
-        var client = HttpClient();
-        ok = await checkServer(client, element.pingUrl, element.ip, crypter,
-            ServerConfig.defaultPingTimeout);
-        client.close(force: true);
+        try {
+          await checkServer(element.ip, element.port, crypter,
+              ServerConfig.defaultPingTimeout);
+          ok = true;
+        } catch (e) {
+          ok = false;
+        }
       }
       if (ok) {
         continue;
@@ -430,8 +426,14 @@ class _HomePageState extends State<HomePage> {
       CbcAESCrypt crypter,
       ServerConfig cnf,
       int timeout) async {
-    var urlstr = 'https://$ip:${cnf.port}/ping';
-    var ok = await checkServer(client, urlstr, ip, crypter, timeout);
+    // var urlstr = 'https://$ip:${cnf.port}/ping';
+    bool ok;
+    try {
+      await checkServer(ip, cnf.port, crypter, timeout);
+      ok = true;
+    } catch (e) {
+      ok = false;
+    }
     if (ok) {
       msgController.add(ip);
     }
@@ -440,44 +442,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<bool> checkServer(HttpClient client, String urlstr, String ip,
-      CbcAESCrypt crypter, int timeout) async {
+  Future<void> checkServer(
+      String ip, int port, CbcAESCrypt crypter, int timeout) async {
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
-    client.connectionTimeout = Duration(seconds: timeout);
-    client.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
-    HttpClientRequest request;
-    try {
-      request = await client.postUrl(Uri.parse(urlstr));
-    } catch (e) {
-      return false;
-    }
-    // head
+    SecureSocket conn;
+
+    conn = await SecureSocket.connect(
+      ip,
+      port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
+      },
+      timeout: Duration(
+        seconds: timeout,
+      ),
+    );
+
+    // print('connected to $ip:$port');
     final now = DateTime.now().toUtc();
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    final head = utf8.encode('$timestr $ip');
-    final headUint8List = Uint8List.fromList(head);
+    final timeIpHead = utf8.encode('$timestr $ip');
+    final headUint8List = Uint8List.fromList(timeIpHead);
     final headEncrypted = crypter.encrypt(headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
-    request.headers.add('time-ip', headEncryptedHex);
-    // body
-    request.add(encryptedBody);
+    var headInfo =
+        HeadInfo('ping', headEncryptedHex, dataLen: encryptedBody.length);
+    // print('headInfoJson: ${jsonEncode(headInfo)}');
 
-    var response = await request.close();
-    if (response.statusCode != 200) {
-      return false;
+    await headInfo.writeToConnWithBody(conn, encryptedBody);
+
+    var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
+    if (respHead.code != 200) {
+      conn.destroy();
+      throw Exception('${respHead.msg}');
     }
-    // 获取响应的加密body(bytes)
-    var responseBody = await response.fold(BytesBuilder(),
-        (BytesBuilder builder, List<int> data) => builder..add(data));
-    var decryptedBody = crypter.decrypt(responseBody.takeBytes());
+    var decryptedBody = crypter.decrypt(Uint8List.fromList(respBody));
     var decryptedBodyStr = utf8.decode(decryptedBody);
-    if (decryptedBodyStr == 'pong') {
-      return true;
+    conn.destroy();
+    if (decryptedBodyStr != 'pong') {
+      throw Exception('pong error');
     }
-    return false;
   }
 
   Future<void> _showAddServerConfigDialog() async {
@@ -500,20 +506,21 @@ class _HomePageState extends State<HomePage> {
         autoSelect = false;
       }
 
-      if (ipController.text.toLowerCase() == 'web') {
+      if (ipController.text == ServerConfig.webIp) {
         serverConfigs = [
-          ServerConfig('web', secretKeyHexController.text, 'copy', '', false),
-          ServerConfig(
-              'web', secretKeyHexController.text, 'paste', 'text', false),
+          ServerConfig(ipController.text, secretKeyHexController.text,
+              ServerConfig.copyAction, false),
+          ServerConfig(ipController.text, secretKeyHexController.text,
+              ServerConfig.pasteTextAction, false),
         ];
       } else {
         serverConfigs = [
-          ServerConfig(ipController.text, secretKeyHexController.text, 'copy',
-              '', autoSelect),
-          ServerConfig(ipController.text, secretKeyHexController.text, 'paste',
-              'text', autoSelect),
-          ServerConfig(ipController.text, secretKeyHexController.text, 'paste',
-              'file', autoSelect),
+          ServerConfig(ipController.text, secretKeyHexController.text,
+              ServerConfig.copyAction, autoSelect),
+          ServerConfig(ipController.text, secretKeyHexController.text,
+              ServerConfig.pasteTextAction, autoSelect),
+          ServerConfig(ipController.text, secretKeyHexController.text,
+              ServerConfig.pasteFileAction, autoSelect),
         ];
       }
 
@@ -598,28 +605,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget mainBody(BuildContext context) {
-    String generateTitle(ServerConfig cnf) {
-      if (cnf.name.isNotEmpty) {
-        return cnf.name;
-      }
-      String title = '';
-      if (cnf.action == 'copy') {
-        title = '复制';
-      } else if (cnf.action == 'paste' && cnf.pasteType == 'file') {
-        title = '传输文件';
-      } else if (cnf.action == 'paste' && cnf.pasteType == 'text') {
-        title = '粘贴';
-      } else {
-        title = '未知';
-      }
-      if (cnf.ip.toLowerCase() == 'web') {
-        title += '[Web]';
-      } else if (!cnf.autoSelect) {
-        title += '[固定IP]';
-      }
-      return title;
-    }
-
     return ListView.builder(
       itemCount: _serverConfigs.length,
       itemBuilder: (context, index) {
@@ -629,7 +614,7 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               // title 加粗 居中
               title: Text(
-                generateTitle(serverConfig),
+                serverConfig.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -661,28 +646,30 @@ class _HomePageState extends State<HomePage> {
                 );
                 dialog.whenComplete(() => exited = true);
 
-                if (serverConfig.action == 'copy') {
+                if (serverConfig.action == ServerConfig.copyAction) {
                   try {
                     msg = await _doCopyAction(serverConfig);
                   } catch (e) {
                     msg = e.toString();
                   }
-                } else if (serverConfig.action == 'paste' &&
-                    serverConfig.pasteType == 'text') {
+                } else if (serverConfig.action ==
+                    ServerConfig.pasteTextAction) {
                   try {
                     await _doPasteTextAction(serverConfig);
                     msg = '操作成功';
                   } catch (e) {
                     msg = e.toString();
                   }
-                } else if (serverConfig.action == 'paste' &&
-                    serverConfig.pasteType == 'file') {
+                } else if (serverConfig.action ==
+                    ServerConfig.pasteFileAction) {
                   try {
                     await _doPasteFileAction(serverConfig);
                     msg = '操作成功';
                   } catch (e) {
                     msg = e.toString();
                   }
+                } else {
+                  msg = '未知操作: ${serverConfig.action}';
                 }
                 if (context.mounted && !exited) {
                   // Hide loading spinner
@@ -736,15 +723,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<ServerConfig?> _autoSelectServerConfig() async {
+  Future<ServerConfig?> _autoSelectServerConfig(String targetAction) async {
     if (_serverConfigs.isEmpty) {
       return null;
     }
+    // 检查是否存在有可用的配置
     bool emptyConfig = true;
     for (var cnf in _serverConfigs) {
-      if (cnf.ip.isNotEmpty &&
-          cnf.ip.toLowerCase() != 'web' &&
-          cnf.action.toLowerCase() == 'paste') {
+      if (cnf.ip.isNotEmpty && cnf.action == ServerConfig.copyAction) {
         emptyConfig = false;
         break;
       }
@@ -752,33 +738,47 @@ class _HomePageState extends State<HomePage> {
     if (emptyConfig) {
       return null;
     }
-    var client = HttpClient();
+    // 自动选择ip的配置优先
     for (var cnf in _serverConfigs) {
       bool online = false;
-      if (cnf.autoSelect &&
-          cnf.ip.isNotEmpty &&
-          cnf.action.toLowerCase() == 'paste') {
-        online = await checkServer(client, cnf.pingUrl, cnf.ip, cnf.crypter,
-            ServerConfig.defaultPingTimeout);
+      if (cnf.autoSelect && cnf.ip.isNotEmpty && cnf.action == targetAction) {
+        try {
+          await checkServer(
+              cnf.ip, cnf.port, cnf.crypter, ServerConfig.defaultPingTimeout);
+          online = true;
+        } catch (e) {
+          online = false;
+        }
       }
       if (online) {
         return cnf;
       }
     }
+    // 固定ip的配置
     for (var cnf in _serverConfigs) {
       bool online = false;
       if (!cnf.autoSelect &&
           cnf.ip.isNotEmpty &&
-          cnf.ip.toLowerCase() != 'web' &&
-          cnf.action.toLowerCase() == 'paste') {
-        online = await checkServer(client, cnf.pingUrl, cnf.ip, cnf.crypter,
-            ServerConfig.defaultPingTimeout);
+          cnf.action == targetAction &&
+          cnf.ip != ServerConfig.webIp) {
+        try {
+          await checkServer(
+              cnf.ip, cnf.port, cnf.crypter, ServerConfig.defaultPingTimeout);
+          online = true;
+        } catch (e) {
+          online = false;
+        }
       }
       if (online) {
         return cnf;
       }
     }
-    client.close(force: true);
+    // web
+    for (var cnf in _serverConfigs) {
+      if (cnf.action == targetAction && cnf.ip == ServerConfig.webIp) {
+        return cnf;
+      }
+    }
     return null;
   }
 
@@ -803,11 +803,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _doShareAction(BuildContext context) async {
-    var cnf = await _autoSelectServerConfig();
+    bool isShareText = false;
+    if (_sharedText != null && _sharedText!.isNotEmpty) {
+      isShareText = true;
+    } else if (_sharedFiles != null && _sharedFiles!.isNotEmpty) {
+      isShareText = false;
+    } else {
+      return;
+    }
+    ServerConfig? cnf;
+    if (isShareText) {
+      cnf = await _autoSelectServerConfig(ServerConfig.pasteTextAction);
+    } else {
+      cnf = await _autoSelectServerConfig(ServerConfig.pasteFileAction);
+    }
+    if (_autoSelectIpSuccess) {
+      return;
+    }
     if (cnf == null) {
-      if (_autoSelectIpSuccess) {
-        return;
-      }
       // 提示框: 没有可用的服务器
       if (context.mounted) {
         showInfoDialog(context, '错误', '没有可用的服务器');
@@ -818,25 +831,25 @@ class _HomePageState extends State<HomePage> {
       });
       return;
     }
-    if (_sharedText != null && _sharedText!.isNotEmpty) {
-      try {
+    String? msg;
+    try {
+      if (isShareText) {
         await _doPasteTextAction(cnf, text: _sharedText!);
-      } catch (e) {
-        if (context.mounted) {
-          showInfoDialog(context, '错误', e.toString());
-        }
-      }
-    }
-    if (_sharedFiles != null && _sharedFiles!.isNotEmpty) {
-      try {
+      } else {
         await _doPasteFileAction(cnf,
             filePath: _sharedFiles!.map((f) => f.path).toList());
-      } catch (e) {
-        if (context.mounted) {
-          showInfoDialog(context, '错误', e.toString());
-        }
+      }
+      msg = '已发送到 ${cnf.ip}';
+      if (context.mounted) {
+        FlutterToastr.show(msg, context,
+            duration: 3, position: FlutterToastr.bottom);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showInfoDialog(context, '错误', e.toString());
       }
     }
+
     setState(() {
       _sharedText = null;
       _sharedFiles = null;
@@ -873,6 +886,7 @@ class _HomePageState extends State<HomePage> {
       _doShareAction(context);
       return mainBody2(context);
     }
+    _autoSelectIpSuccess = false;
     return mainBody(context);
   }
 
@@ -893,33 +907,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<String> _doCopyAction(ServerConfig serverConfig) async {
-    if (serverConfig.ip.toLowerCase() == 'web') {
+    if (serverConfig.ip == ServerConfig.webIp) {
       return _doCopyActionWeb(serverConfig);
     }
-
-    final client = HttpClient();
-
-    // Override the HttpClient's `badCertificateCallback` to always return `true`.
-    client.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
-    // /copy post
-    final url = Uri.parse(serverConfig.url);
-    // set headers
-
-    final request = await client.postUrl(url);
-    request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
-    final response = await request.close().timeout(
-      const Duration(seconds: 50),
-      onTimeout: () {
-        throw TimeoutException('Copy timeout');
+    var conn = await SecureSocket.connect(
+      serverConfig.ip,
+      serverConfig.port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
       },
     );
-    if (response.statusCode != 200) {
-      throw Exception(await response.transform(utf8.decoder).join());
+    var headInfo = HeadInfo(
+      ServerConfig.copyAction,
+      serverConfig.generateTimeipHeadHex(),
+    );
+    await headInfo.writeToConn(conn);
+    var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
+    conn.destroy();
+    if (respHead.code != 200) {
+      throw Exception('server error: ${respHead.msg}');
     }
-    var dataType = response.headers['data-type']![0];
-    if (dataType == 'text') {
-      final content = await response.transform(utf8.decoder).join();
+    if (respHead.dataType == RespHead.dataTypeText) {
+      final content = utf8.decode(respBody);
       await Clipboard.setData(ClipboardData(text: content));
       //返回 复制成功
       String successPrefix = '复制成功: \n';
@@ -928,72 +937,65 @@ class _HomePageState extends State<HomePage> {
       }
       return '$successPrefix$content';
     }
-    if (dataType == 'clip-image') {
-      final imageName =
-          utf8.decode(response.headers['file-name']![0].codeUnits);
+    if (respHead.dataType == RespHead.dataTypeImage) {
+      final imageName = respHead.msg;
       // var file = File('$downloadDir/$fileName');
       String filePath;
       filePath = '$imageDir/$imageName';
       var file = File(filePath);
-      await response.pipe(file.openWrite());
+      await file.writeAsBytes(respBody);
       return "1 个文件已保存到:\n$imageDir";
     }
-    if (dataType == 'files') {
-      final fileCount = int.parse(response.headers['file-count']![0]);
-      if (fileCount == 0) {
-        throw Exception('No file to copy');
-      }
-      var body = await response.transform(utf8.decoder).join();
-      var fileNames = body.split('\n');
-      return await _downloadFiles(serverConfig, fileNames);
+    if (respHead.dataType == RespHead.dataTypeFiles) {
+      return await _downloadFiles2(serverConfig, respHead.paths!);
     }
-    throw Exception('Unknown data type: $dataType');
+    throw Exception('Unknown data type: ${respHead.dataType}');
   }
 
-  Future<String> _downloadFiles(
-      ServerConfig serverConfig, List<String> winFilePaths) async {
-    final client = HttpClient();
-    client.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
-    Set<String> pathSet = {};
-    // 异步下载每个文件
-    final futures = <Future>[];
-    for (var winFilePath in winFilePaths) {
-      if (winFilePath.isEmpty) {
-        continue;
+  Future<String> _downloadFiles2(
+      ServerConfig serverConfig, List<TargetPaths> winFilePaths) async {
+    void startDownload((ServerConfig, List<TargetPaths>) args) async {
+      var (cnf, winFilePaths) = args;
+      var futures = <Future>[];
+      for (var winFilePath in winFilePaths) {
+        var fileName = winFilePath.path.replaceAll('\\', '/').split('/').last;
+        String saveDir;
+        if (hasImageExtension(fileName)) {
+          saveDir = imageDir;
+        } else {
+          saveDir = downloadDir;
+        }
+        var task = FileDownloader(
+          cnf,
+          winFilePath,
+          saveDir,
+          threadNum: cnf.threadNum,
+        );
+        futures.add(task.parallelDownload());
       }
-      final url = Uri.parse(serverConfig.downloadUrl);
-      final request = await client.getUrl(url);
-      request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
-      final body = utf8.encode(winFilePath);
-      request.headers.add('Content-Length', body.length);
-      request.add(body);
-      String filePath;
-      winFilePath = winFilePath.replaceAll('\\', '/');
-      var fileName = winFilePath.split('/').last;
-      if (hasImageExtension(fileName)) {
-        filePath = '$imageDir/$fileName';
-        pathSet.add(imageDir);
-      } else {
-        filePath = '$downloadDir/$fileName';
-        pathSet.add(downloadDir);
-      }
-      final future = _downloadFile(serverConfig, filePath, request);
-      futures.add(future);
+      await Future.wait(futures);
     }
-    await Future.wait(futures);
+
+    // 开启一个isolate
+    await compute(
+      startDownload,
+      (serverConfig, winFilePaths),
+    );
+
+    // 计算保存的目录
+    Set<String> pathSet = {};
+    for (var winFilePath in winFilePaths) {
+      var fileName = winFilePath.path.replaceAll('\\', '/').split('/').last;
+      String saveDir;
+      if (hasImageExtension(fileName)) {
+        saveDir = imageDir;
+      } else {
+        saveDir = downloadDir;
+      }
+      pathSet.add(saveDir);
+    }
     var paths = pathSet.join('\n');
     return '${winFilePaths.length} 个文件已保存到:\n$paths';
-  }
-
-  Future<void> _downloadFile(ServerConfig serverConfig, String filePath,
-      HttpClientRequest request) async {
-    final response = await request.close();
-    if (response.statusCode != 200) {
-      throw Exception(await response.transform(utf8.decoder).join());
-    }
-    var file = File(filePath);
-    await response.pipe(file.openWrite());
   }
 
   Future<String> _doCopyActionWeb(ServerConfig serverConfig) async {
@@ -1032,79 +1034,108 @@ class _HomePageState extends State<HomePage> {
       pasteText = clipboardData.text!;
     }
 
-    if (serverConfig.ip.toLowerCase() == 'web') {
+    if (serverConfig.ip == ServerConfig.webIp) {
       await _doPasteTextActionWeb(serverConfig, pasteText);
       return;
     }
-    final client = HttpClient();
-    client.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
-    final url = Uri.parse(serverConfig.url);
-    final request = await client.postUrl(url);
-    request.headers.set('time-ip', serverConfig.generateTimeipHeadHex());
-    request.headers.set('data-type', 'text');
-    request.add(utf8.encode(pasteText));
-    final response = await request.close();
-    if (response.statusCode != 200) {
-      throw Exception(await response.transform(utf8.decoder).join());
+    var conn = await SecureSocket.connect(
+      serverConfig.ip,
+      serverConfig.port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
+      },
+    );
+    var pasteTextUint8 = utf8.encode(pasteText);
+    var headInfo = HeadInfo(
+        ServerConfig.pasteTextAction, serverConfig.generateTimeipHeadHex(),
+        dataLen: pasteTextUint8.length);
+    await headInfo.writeToConnWithBody(conn, pasteTextUint8);
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    if (respHead.code != 200) {
+      throw Exception(respHead.msg);
     }
   }
 
-  // _doPasteFileAction(ServerConfig serverConfig,
-  //     {List<String>? filePath}) async {
-  //   final List<String> selectedFilesPath;
-  //   if (filePath == null || filePath.isEmpty) {
-  //     final filePicker =
-  //         await FilePicker.platform.pickFiles(allowMultiple: true);
-  //     if (filePicker == null || !filePicker.files.isNotEmpty) {
-  //       throw Exception('No file selected');
-  //     }
-  //     selectedFilesPath = filePicker.files.map((file) => file.path!).toList();
-  //   } else {
-  //     selectedFilesPath = filePath;
-  //   }
-  //   // tcp dail ip:6779
-  //   for (var filepath in selectedFilesPath) {
-  //     print('uploading $filepath');
-  //     var fileUploader = FileUploader(serverConfig.ip, 6779, filepath);
-  //     await fileUploader.upload();
-  //   }
-  //   print('upload done');
-  // }
   _doPasteFileAction(ServerConfig serverConfig,
       {List<String>? filePath}) async {
-    var task = FileDownloader(
-      serverConfig.ip,
-      6779,
-      'E:\\Doraemon\\Videos\\2021(已备份)\\跨年科学演讲：什么是量子力学？.ts',
-      758534504,
-      downloadDir,
-      threadNum: 20,
-    );
-    await task.parallelDownload();
+    final List<String> selectedFilesPath;
+    if (filePath == null || filePath.isEmpty) {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result == null || !result.files.isNotEmpty) {
+        throw Exception('No file selected');
+      }
+      selectedFilesPath = result.files.map((file) => file.path!).toList();
+    } else {
+      selectedFilesPath = filePath;
+    }
+    // print('selectedFilesPath: $selectedFilesPath');
 
-    print("done");
+    void uploadFiles(List<String> filePaths) async {
+      int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
+      for (var filepath in filePaths) {
+        if (serverConfig.threadNum == 0) {
+          throw Exception('threadNum can not be 0');
+        }
+        var fileUploader = FileUploader(
+            serverConfig, filepath, opID, filePaths.length,
+            threadNum: serverConfig.threadNum);
+        await fileUploader.upload();
+      }
+    }
+
+    await compute(uploadFiles, selectedFilesPath);
+
+    // delete cache file
+    for (var file in selectedFilesPath) {
+      if (file.startsWith('/data/user/0/com.doraemon.clipboard/cache')) {
+        File(file).delete();
+      }
+    }
+    // await FilePicker.platform.clearTemporaryFiles();
   }
 }
 
 class ServerConfig {
   String ip;
+  int threadNum;
   final int port;
   final String secretKeyHex;
   final String action;
-  final String pasteType;
+  // final String pasteType;
   bool autoSelect = false;
-  final String name;
+  String name;
 
   ServerConfig(
     this.ip,
     this.secretKeyHex,
     this.action,
-    this.pasteType,
-    this.autoSelect, [
-    this.port = 6777,
+    // this.pasteType,
+    this.autoSelect, {
     this.name = '',
-  ]);
+    this.threadNum = 0,
+    this.port = 6779,
+  }) {
+    if (threadNum == 0) {
+      if (action == ServerConfig.pasteFileAction) {
+        threadNum = 10;
+      } else if (action == ServerConfig.copyAction) {
+        threadNum = 6;
+      }
+    }
+    if (name.isEmpty) {
+      generateTitle();
+    }
+  }
+
+  static bool isLegalAction(String action) {
+    return [pasteTextAction, pasteFileAction, copyAction].contains(action);
+  }
+
+  static String pasteTextAction = 'pasteText';
+  static String pasteFileAction = 'pasteFile';
+  static String copyAction = 'copy';
+  static String downloadAction = 'download';
+  static String webIp = 'web';
 
   CbcAESCrypt get crypter => CbcAESCrypt.fromHex(secretKeyHex);
 
@@ -1125,10 +1156,10 @@ class ServerConfig {
       json['ip'] as String,
       json['secretKeyHex'] as String,
       json['action'] as String,
-      json['pasteType'] as String,
       json['autoSelect'] as bool,
-      json['port'] as int,
-      json['name'] as String,
+      name: json['name'] as String,
+      threadNum: json['threadNum'] as int,
+      port: json['port'] as int,
     );
   }
 
@@ -1138,15 +1169,32 @@ class ServerConfig {
       'port': port,
       'secretKeyHex': secretKeyHex,
       'action': action,
-      'pasteType': pasteType,
+      // 'pasteType': pasteType,
       'autoSelect': autoSelect,
       'name': name,
+      'threadNum': threadNum,
     };
   }
 
-  String get url => 'https://$ip:$port/$action';
-  String get pingUrl => 'https://$ip:$port/ping';
-  String get downloadUrl => 'https://$ip:$port/download';
+  void generateTitle() {
+    String title = '';
+    if (action == copyAction) {
+      title = '复制';
+    } else if (action == pasteFileAction) {
+      title = '传输文件';
+    } else if (action == pasteTextAction) {
+      title = '粘贴';
+    } else {
+      title = '未知';
+    }
+    if (ip == webIp) {
+      title += '[Web]';
+    } else if (!autoSelect) {
+      title += '[固定IP]';
+    }
+    name = title;
+  }
+
   static int defaultPingTimeout = 2;
 }
 

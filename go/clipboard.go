@@ -17,7 +17,7 @@ var clipboarDataType string
 var clipboardWatchData []byte
 
 // 监测剪切板变化
-func clipboardWatch() {
+func clipboardWatcher() {
 	clipboarDataType = clipboardWatchDataEmpty
 	// 剪切板一般不会更新太快，所以不用加锁
 	go func() {
