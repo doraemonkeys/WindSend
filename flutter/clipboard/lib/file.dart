@@ -252,7 +252,7 @@ class FileUploader {
       throw Exception('sentSize: $sentSize, end - start: ${end - start}');
     }
 
-    // 当文件大小太小时, 服务端收不到数据, flush也不行,真是日了狗了
+    // 当文件太小时, 服务端收不到数据, flush也不行,真是日了狗了
     if (sentSize < 1024 * 10) {
       var uselessData = List<int>.filled(1024 * 10 - sentSize, 0);
       conn.add(uselessData);
