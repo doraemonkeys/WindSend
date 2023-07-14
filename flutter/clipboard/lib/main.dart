@@ -51,7 +51,8 @@ class _HomePageState extends State<HomePage> {
   String? _configPath;
   List<SharedMediaFile>? _sharedFiles;
   String? _sharedText;
-  // 仅用于app启动时自动选择ip的判断，回到主界面后自动变成false
+
+  /// 仅用于分享内容唤醒app时的自动选择ip的判断，会自动变成false
   bool _autoSelectIpSuccess = false;
 
   @override
@@ -817,10 +818,11 @@ class _HomePageState extends State<HomePage> {
     } else {
       cnf = await _autoSelectServerConfig(ServerConfig.pasteFileAction);
     }
-    if (_autoSelectIpSuccess) {
-      return;
-    }
     if (cnf == null) {
+      if (_autoSelectIpSuccess) {
+        _autoSelectIpSuccess = false;
+        return;
+      }
       // 提示框: 没有可用的服务器
       if (context.mounted) {
         showInfoDialog(context, '错误', '没有可用的服务器');
@@ -886,7 +888,6 @@ class _HomePageState extends State<HomePage> {
       _doShareAction(context);
       return mainBody2(context);
     }
-    _autoSelectIpSuccess = false;
     return mainBody(context);
   }
 

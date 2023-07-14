@@ -255,6 +255,10 @@ func NewFileWriter(file *os.File, pos int, end int) *FileWriter {
 }
 
 func (fw *FileWriter) Write(p []byte) (n int, err error) {
+	if len(p)+fw.pos > fw.end {
+		logrus.Warnln("write file error, len(p):", len(p), " pos:", fw.pos, " end:", fw.end)
+		p = p[:fw.end-fw.pos]
+	}
 	n, err = fw.file.WriteAt(p, int64(fw.pos))
 	fw.pos += n
 	if fw.pos >= fw.end {

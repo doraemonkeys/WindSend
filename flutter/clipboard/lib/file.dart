@@ -248,6 +248,16 @@ class FileUploader {
       conn.add(data);
     }
 
+    if (sentSize != end - start) {
+      throw Exception('sentSize: $sentSize, end - start: ${end - start}');
+    }
+
+    // 当文件大小太小时, 服务端收不到数据, flush也不行,真是日了狗了
+    if (sentSize < 1024 * 10) {
+      var uselessData = List<int>.filled(1024 * 10 - sentSize, 0);
+      conn.add(uselessData);
+    }
+
     // 下面的代码哪里有问题???
     // var dataBuffer = Uint8List(maxBufferSize);
     // int bufferedSize = 0;
