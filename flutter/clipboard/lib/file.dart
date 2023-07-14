@@ -381,6 +381,9 @@ class FileDownloader {
     int n = 0;
     await for (var data in conn) {
       // buf.addAll(data);
+      if (data.length + n > buf.length) {
+        throw Exception('buffer overflow');
+      }
       buf.setAll(n, data);
       n += data.length;
       if (isHeadReading) {
