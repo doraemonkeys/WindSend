@@ -256,6 +256,11 @@ class FileUploader {
     if (sentSize < 1024 * 100) {
       var uselessData = List<int>.filled(1024 * 100 - sentSize, 0);
       conn.add(uselessData);
+      try {
+        await conn.flush();
+      } catch (e) {
+        // print('flush error: $e');
+      }
     }
 
     // 下面的代码哪里有问题???

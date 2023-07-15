@@ -15,6 +15,8 @@ import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 import 'web.dart';
 import 'file.dart';
@@ -1061,6 +1063,18 @@ class _HomePageState extends State<HomePage> {
       {List<String>? filePath}) async {
     final List<String> selectedFilesPath;
     if (filePath == null || filePath.isEmpty) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      // check permission
+      if (!await Permission.manageExternalStorage.request().isGranted) {
+        throw Exception('需要manageExternalStorage权限');
+      }
+      if (androidInfo.version.sdkInt > 32) {
+        if (!await Permission.photos.request().isGranted ||
+            !await Permission.videos.request().isGranted ||
+            !await Permission.audio.request().isGranted) {
+          throw Exception('需要photos, videos, audio权限');
+        }
+      }
       final result = await FilePicker.platform.pickFiles(allowMultiple: true);
       if (result == null || !result.files.isNotEmpty) {
         throw Exception('No file selected');
