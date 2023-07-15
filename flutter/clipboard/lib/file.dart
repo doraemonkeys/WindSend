@@ -318,6 +318,11 @@ class FileUploader {
     var end = 0;
     var partNum = 0;
     final futures = <Future>[];
+    if (fileSize == 0) {
+      // 空文件
+      var fileAccess = await file.open();
+      futures.add(uploader(fileAccess, start, end));
+    }
     while (end < fileSize) {
       // [start, end)
       start = partNum * partSize;
@@ -330,6 +335,7 @@ class FileUploader {
       futures.add(uploader(fileAccess, start, end));
       partNum++;
     }
+    // print('partNum: $partNum');
     await Future.wait(futures);
   }
 }

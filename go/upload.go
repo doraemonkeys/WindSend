@@ -185,7 +185,8 @@ func NewFileReceiver() *FileReceiver {
 var GlobalFileReceiver = NewFileReceiver()
 
 func pasteFileHandler(conn net.Conn, head headInfo) {
-	if head.End <= head.Start {
+	// head.End == 0 && head.Start == 0 表示文件为空
+	if head.End <= head.Start && !(head.End == 0 && head.Start == 0) {
 		errMsg := fmt.Sprintf("invalid file part, start:%d, end:%d", head.Start, head.End)
 		logrus.Error(errMsg)
 		return
@@ -261,7 +262,7 @@ func (fw *FileWriter) Write(p []byte) (n int, err error) {
 	}
 	n, err = fw.file.WriteAt(p, int64(fw.pos))
 	fw.pos += n
-	if fw.pos >= fw.end {
+	if fw.pos >= fw.end && err == nil {
 		err = io.EOF
 	}
 	return
