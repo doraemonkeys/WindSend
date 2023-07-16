@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -10,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
@@ -22,11 +24,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/axgle/mahonia"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
 	"github.com/wumansgy/goEncrypt/aes"
 	"golang.org/x/net/publicsuffix"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 type CbcAESCrypt struct {
@@ -121,9 +124,15 @@ func NewStartHelper(exeName string) *StartHelper {
 	return &StartHelper{ExeName: exeName}
 }
 
-// GB18030
-func Utf8ToANSI(text string) string {
-	return mahonia.NewEncoder("GB18030").ConvertString(text)
+// GBK is the GBK encoding. It encodes an extension of the GB2312 character set
+// and is also known as Code Page 936.
+func UTF8ToGBK(b []byte) []byte {
+	tfr := transform.NewReader(bytes.NewReader(b), simplifiedchinese.GBK.NewEncoder())
+	d, e := io.ReadAll(tfr)
+	if e != nil {
+		return nil
+	}
+	return d
 }
 
 func (s *StartHelper) SetAutoStart() error {
@@ -146,12 +155,12 @@ func (s *StartHelper) SetAutoStart() error {
 	path = strings.Replace(path, `\`, `\\`, -1)
 
 	var content string
-	content += `Set objShell = CreateObject("WScript.Shell")` + "\n"
-	content += `objShell.CurrentDirectory = "` + path + `"` + "\n"
+	content += `Set objShell = CreateObject("WScript.Shell")` + "\r\n"
+	content += `objShell.CurrentDirectory = "` + path + `"` + "\r\n"
 	content += `objShell.Run "powershell /c ` + ".\\" + s.ExeName + `"` + `,0`
-	content = Utf8ToANSI(content)
+	contentBytes := UTF8ToGBK([]byte(content))
 	oldContent, err := os.ReadFile(startFile)
-	if err == nil && string(oldContent) == content {
+	if err == nil && bytes.Equal(oldContent, contentBytes) {
 		return nil
 	}
 	file, err := os.OpenFile(startFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
@@ -159,7 +168,7 @@ func (s *StartHelper) SetAutoStart() error {
 		return fmt.Errorf("创建文件失败: %v", err)
 	}
 	defer file.Close()
-	_, err = file.WriteString(content)
+	_, err = file.Write(contentBytes)
 	if err != nil {
 		return fmt.Errorf("写入文件失败: %v", err)
 	}

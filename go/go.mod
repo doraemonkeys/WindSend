@@ -5,13 +5,13 @@ go 1.20
 require (
 	fyne.io/systray v1.10.0
 	github.com/Doraemonkeys/mylog v0.0.0-20230625065536-f6c983328d69
-	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/sirupsen/logrus v1.9.3
 	github.com/wumansgy/goEncrypt v1.1.0
 	golang.design/x/clipboard v0.7.0
 	golang.org/x/net v0.10.0
+	golang.org/x/text v0.9.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
