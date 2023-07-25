@@ -138,9 +138,12 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 	}
 	clipboard.Write(clipboard.FmtText, bodyBuf)
 
+	var completionSignal = make(chan struct{})
+
 	go func() {
 		time.Sleep(time.Millisecond * 200)
 		sendMsg(conn, "粘贴成功")
+		completionSignal <- struct{}{}
 	}()
 
 	contentRune := []rune(string(bodyBuf))
@@ -150,7 +153,7 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 	} else {
 		Inform(string(contentRune))
 	}
-
+	<-completionSignal
 }
 
 func pingHandler(conn net.Conn, head headInfo) {
