@@ -68,6 +68,10 @@ func onReady(quitch chan bool) {
 				logrus.Error("选择文件失败：", err)
 				continue
 			}
+			if err == nil && n == 0 {
+				// user canceled
+				continue
+			}
 			if filesNum == 0 && n > 0 {
 				mClearFiles.Enable()
 			}
@@ -110,7 +114,7 @@ func onReady(quitch chan bool) {
 				}
 			}
 		case <-mSavePath.ClickedCh:
-			path, err := SelectFolderOnWindows()
+			path, err := SelectFolderOnWindows(ProgramName)
 			if err != nil {
 				logrus.Error("选择文件夹失败：", err)
 				continue

@@ -5,7 +5,7 @@ var SelectedFiles []string
 // const MaxAllowedSize = 1024 * 1024 * 5000
 
 func SelectFiles() (int, error) {
-	ret, err := SelectMultiFilesOnWindows()
+	ret, err := SelectMultiFilesOnWindows(ProgramName)
 	if err != nil {
 		return 0, err
 	}
