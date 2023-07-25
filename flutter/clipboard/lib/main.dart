@@ -303,7 +303,7 @@ class _HomePageState extends State<HomePage> {
                 if (formKey.currentState!.validate()) {
                   final newServerConfig = ServerConfig(
                     ipController.text,
-                    secretKeyHexController.text,
+                    secretKeyHexController.text.trim(),
                     actionController.text,
                     autoSelectController.text == 'true',
                     name: nameController.text,
@@ -509,20 +509,22 @@ class _HomePageState extends State<HomePage> {
         autoSelect = false;
       }
 
+      var secretKey = secretKeyHexController.text.trim();
+
       if (ipController.text == ServerConfig.webIp) {
         serverConfigs = [
-          ServerConfig(ipController.text, secretKeyHexController.text,
-              ServerConfig.copyAction, false),
-          ServerConfig(ipController.text, secretKeyHexController.text,
+          ServerConfig(
+              ipController.text, secretKey, ServerConfig.copyAction, false),
+          ServerConfig(ipController.text, secretKey,
               ServerConfig.pasteTextAction, false),
         ];
       } else {
         serverConfigs = [
-          ServerConfig(ipController.text, secretKeyHexController.text,
-              ServerConfig.copyAction, autoSelect),
-          ServerConfig(ipController.text, secretKeyHexController.text,
+          ServerConfig(ipController.text, secretKey, ServerConfig.copyAction,
+              autoSelect),
+          ServerConfig(ipController.text, secretKey,
               ServerConfig.pasteTextAction, autoSelect),
-          ServerConfig(ipController.text, secretKeyHexController.text,
+          ServerConfig(ipController.text, secretKey,
               ServerConfig.pasteFileAction, autoSelect),
         ];
       }
@@ -1054,6 +1056,7 @@ class _HomePageState extends State<HomePage> {
         dataLen: pasteTextUint8.length);
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    conn.destroy();
     if (respHead.code != 200) {
       throw Exception(respHead.msg);
     }

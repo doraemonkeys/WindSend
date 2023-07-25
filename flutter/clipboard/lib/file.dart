@@ -176,7 +176,11 @@ class RespHead {
         return (respHeadInfo!, respBody);
       }
     }
-    throw Exception('readBodyFromConn error');
+    var errMsg = 'readHeadAndBodyFromConn error';
+    if (respHeadInfo != null) {
+      errMsg = '$errMsg, respHeadInfo: ${respHeadInfo.toJson().toString()}';
+    }
+    throw Exception(errMsg);
   }
 }
 

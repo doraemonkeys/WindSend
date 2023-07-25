@@ -130,7 +130,10 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 	var bodyBuf = make([]byte, head.DataLen)
 	_, err := io.ReadFull(conn, bodyBuf)
 	if err != nil {
-		logrus.Error("read body error: ", err)
+		// logrus.Error("read body error: ", err)
+		logrus.Errorf("read body error: %v, dataLen:%d, bodyBuf:%s\n", err, head.DataLen, string(bodyBuf))
+		logrus.Info("head:", head)
+		respError(conn, ErrorIncompleteData+": "+err.Error())
 		return
 	}
 	clipboard.Write(clipboard.FmtText, bodyBuf)
