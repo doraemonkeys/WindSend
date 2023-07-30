@@ -147,7 +147,7 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 	}()
 
 	contentRune := []rune(string(bodyBuf))
-	showLen := 80
+	showLen := 60
 	if len(contentRune) >= showLen {
 		Inform(string(contentRune[:showLen]) + "...")
 	} else {
