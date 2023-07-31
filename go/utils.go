@@ -353,7 +353,7 @@ func generateUniqueFilepath(filePath string) string {
 	name = name[:len(name)-len(fileExt)]
 	for i := 1; ; i++ {
 		if fileExt != "" {
-			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d).%s", name, i, fileExt))
+			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d)%s", name, i, fileExt))
 		} else {
 			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d)", name, i))
 		}
@@ -397,4 +397,13 @@ func GenerateKeyPair() (rawCert, rawKey []byte, err error) {
 	rawKey = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 
 	return
+}
+
+func hasSpecificExtNames(name string, extNames ...string) bool {
+	for _, extName := range extNames {
+		if strings.HasSuffix(name, extName) {
+			return true
+		}
+	}
+	return false
 }

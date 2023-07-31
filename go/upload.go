@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.design/x/clipboard"
 )
 
 type FileReceiver struct {
 	file map[uint32]*recvfileInfo
-	Ops  map[uint32]*OpInfo
+	OPs  map[uint32]*OpInfo
 	// 用于保证file和Ops的并发安全
 	lock *sync.Mutex
 }
@@ -30,7 +31,8 @@ type OpInfo struct {
 }
 
 type recvfileInfo struct {
-	file *os.File
+	file     *os.File
+	filePath string
 	// fileID在每次传输一个文件时都是随机的，
 	// 即使再次传输同一个文件，也会重新生成一个fileID
 	fileID   uint32
@@ -66,14 +68,14 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	var Info = &recvfileInfo{file: file, fileID: fileID, expSize: fileSize}
+	var Info = &recvfileInfo{file: file, filePath: filePath, fileID: fileID, expSize: fileSize}
 	Info.partLock = new(sync.Mutex)
 	Info.downChan = make(chan bool, 1)
 	f.file[fileID] = Info
 
 	// check is this opID exist
-	if _, ok := f.Ops[head.OpID]; !ok {
-		f.Ops[head.OpID] = &OpInfo{op: head.OpID, expNum: head.FilesCountInThisOp}
+	if _, ok := f.OPs[head.OpID]; !ok {
+		f.OPs[head.OpID] = &OpInfo{op: head.OpID, expNum: head.FilesCountInThisOp}
 	}
 
 	go f.recvMonitor(fileID, head.OpID, Info.downChan)
@@ -89,24 +91,42 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 	}
 
 	f.lock.Lock()
-	f.file[fileID].file.Close()
+	if success {
+		f.OPs[opID].succNum++
+	} else {
+		f.OPs[opID].failNum++
+	}
+	fileInfo := f.file[fileID]
+	OpInfo := f.OPs[opID]
+	fileInfo.file.Close()
+	fileInfo.file = nil // 防止再次使用
 	// 不管是否下载成功，都要删除，因为下一次传输同一个文件时，fileID是不一样的。
 	delete(f.file, fileID)
-	// fmt.Println("1:", f.Ops[opID].succNum, "1:", f.Ops[opID].failNum, "1:", f.Ops[opID].expNum, "1:", opID)
-	if success {
-		f.Ops[opID].succNum++
-	} else {
-		f.Ops[opID].failNum++
-	}
-	if f.Ops[opID].succNum+f.Ops[opID].failNum == f.Ops[opID].expNum {
-		msg := fmt.Sprintf("%d个文件已保存到 %s", f.Ops[opID].succNum, GloballCnf.SavePath)
-		if f.Ops[opID].failNum > 0 {
-			msg += fmt.Sprintf("\n%d个文件保存失败", f.Ops[opID].failNum)
-		}
-		Inform(msg)
-		delete(f.Ops, opID)
+	// 此次操作已经完成
+	if OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
+		delete(f.OPs, opID)
 	}
 	f.lock.Unlock()
+
+	// 仅接收一张图，且格式为png时(only support png)，粘贴到剪切板
+	if success && OpInfo.expNum == 1 &&
+		fileInfo.expSize < 1024*1024*4 &&
+		hasSpecificExtNames(fileInfo.filePath, ".png") {
+		image, err := os.ReadFile(fileInfo.filePath)
+		if err != nil {
+			logrus.Error("write to clipboard failed:", err)
+		} else {
+			clipboard.Write(clipboard.FmtImage, image)
+		}
+	}
+	// 此次操作已经完成
+	if OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
+		msg := fmt.Sprintf("%d个文件已保存到 %s", OpInfo.succNum, GloballCnf.SavePath)
+		if OpInfo.failNum > 0 {
+			msg += fmt.Sprintf("\n%d个文件保存失败", OpInfo.failNum)
+		}
+		Inform(msg)
+	}
 }
 
 // previousErr是不同连接接收同一个文件时，第一个连接发生的错误(不包括自己)，如果没有错误，则为nil
@@ -178,7 +198,7 @@ func NewFileReceiver() *FileReceiver {
 		lock: new(sync.Mutex),
 	}
 	r.file = make(map[uint32]*recvfileInfo)
-	r.Ops = make(map[uint32]*OpInfo)
+	r.OPs = make(map[uint32]*OpInfo)
 	return r
 }
 
