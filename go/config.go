@@ -104,7 +104,7 @@ func generateDefaultConfig() Config {
 	cnf.ServerPort = "6779"
 	cnf.SecretKeyHex = generateSecretKeyHex(32)
 	cnf.ShowToolbarIcon = true
-	cnf.AutoStart = true
+	cnf.AutoStart = false
 	temp, err := GetDesktopPath()
 	if err != nil {
 		logrus.Error("GetDesktopPath error:", err)
