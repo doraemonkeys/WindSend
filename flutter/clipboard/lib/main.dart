@@ -392,11 +392,13 @@ class _HomePageState extends State<HomePage> {
     String expIp = '';
     for (var interface in interfaces) {
       var name = interface.name.toLowerCase();
-      if (name.contains('wlan') ||
-          name.contains('eth') ||
-          name.contains('en0') ||
-          name.contains('en1') ||
-          name.contains('wl')) {
+      // print('name: $name');
+      if ((name.contains('wlan') ||
+              name.contains('eth') ||
+              name.contains('en0') ||
+              name.contains('en1') ||
+              name.contains('wl')) &&
+          (!name.contains('virtual') && !name.contains('vethernet'))) {
         for (var addr in interface.addresses) {
           if (addr.type == InternetAddressType.IPv4) {
             expIp = addr.address;
@@ -655,6 +657,7 @@ class _HomePageState extends State<HomePage> {
                   try {
                     msg = await _doCopyAction(serverConfig);
                   } catch (e) {
+                    // print(e);
                     msg = e.toString();
                   }
                 } else if (serverConfig.action ==
@@ -947,9 +950,14 @@ class _HomePageState extends State<HomePage> {
       // var file = File('$downloadDir/$fileName');
       String filePath;
       filePath = '$imageDir/$imageName';
+      if (Platform.isWindows) {
+        var downloadDir = await getDownloadsDirectory();
+        filePath = '${downloadDir!.path}/$imageName';
+      }
       var file = File(filePath);
       await file.writeAsBytes(respBody);
-      return "1 个文件已保存到:\n$imageDir";
+      // /xxx/dir/xxx.jpg -> /xxx/dir
+      return "1 个文件已保存到:\n${file.parent.path}";
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
       return await _downloadFiles2(serverConfig, respHead.paths!);
@@ -959,6 +967,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<String> _downloadFiles2(
       ServerConfig serverConfig, List<TargetPaths> winFilePaths) async {
+    var winSaveDir = '';
+    if (Platform.isWindows) {
+      var downloadDir = await getDownloadsDirectory();
+      winSaveDir = downloadDir!.path;
+    }
     void startDownload((ServerConfig, List<TargetPaths>) args) async {
       var (cnf, winFilePaths) = args;
       var futures = <Future>[];
@@ -969,6 +982,9 @@ class _HomePageState extends State<HomePage> {
           saveDir = imageDir;
         } else {
           saveDir = downloadDir;
+        }
+        if (Platform.isWindows) {
+          saveDir = winSaveDir;
         }
         var task = FileDownloader(
           cnf,
@@ -996,6 +1012,10 @@ class _HomePageState extends State<HomePage> {
         saveDir = imageDir;
       } else {
         saveDir = downloadDir;
+      }
+      if (Platform.isWindows) {
+        var downloadDir = await getDownloadsDirectory();
+        saveDir = downloadDir!.path;
       }
       pathSet.add(saveDir);
     }
@@ -1066,16 +1086,18 @@ class _HomePageState extends State<HomePage> {
       {List<String>? filePath}) async {
     final List<String> selectedFilesPath;
     if (filePath == null || filePath.isEmpty) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
       // check permission
-      if (!await Permission.manageExternalStorage.request().isGranted) {
-        throw Exception('需要manageExternalStorage权限');
-      }
-      if (androidInfo.version.sdkInt > 32) {
-        if (!await Permission.photos.request().isGranted ||
-            !await Permission.videos.request().isGranted ||
-            !await Permission.audio.request().isGranted) {
-          throw Exception('需要photos, videos, audio权限');
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (!await Permission.manageExternalStorage.request().isGranted) {
+          throw Exception('需要manageExternalStorage权限');
+        }
+        if (androidInfo.version.sdkInt > 32) {
+          if (!await Permission.photos.request().isGranted ||
+              !await Permission.videos.request().isGranted ||
+              !await Permission.audio.request().isGranted) {
+            throw Exception('需要photos, videos, audio权限');
+          }
         }
       }
       final result = await FilePicker.platform.pickFiles(allowMultiple: true);
