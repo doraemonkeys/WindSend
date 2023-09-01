@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Doraemonkeys/mylog"
+	"github.com/doraemonkeys/mylog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
