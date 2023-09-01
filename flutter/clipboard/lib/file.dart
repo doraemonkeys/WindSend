@@ -72,7 +72,7 @@ class HeadInfo {
         .setUint32(0, headInfoUint8Len, Endian.little);
     conn.add(headInfoUint8LenUint8);
     conn.add(headInfoUint8);
-    await conn.flush();
+    // await conn.flush();
   }
 
   Future<void> writeToConnWithBody(SecureSocket conn, List<int> body) async {
@@ -90,7 +90,7 @@ class HeadInfo {
     conn.add(headInfoUint8LenUint8);
     conn.add(headInfoUint8);
     conn.add(body);
-    await conn.flush();
+    // await conn.flush();
   }
 }
 
@@ -257,15 +257,22 @@ class FileUploader {
     }
 
     // 当文件太小时, 服务端收不到数据, flush也不行,真是日了狗了
-    if (sentSize < 1024 * 100) {
-      var uselessData = List<int>.filled(1024 * 100 - sentSize, 0);
-      conn.add(uselessData);
-      try {
-        await conn.flush();
-      } catch (e) {
-        // print('flush error: $e');
-      }
+    // if (sentSize < 1024 * 100) {
+    //   var uselessData = List<int>.filled(1024 * 100 - sentSize, 0);
+    //   conn.add(uselessData);
+    //   // try {
+    //   //   await conn.flush();
+    //   // } catch (e) {
+    //   //   // print('flush error: $e');
+    //   // }
+    // }
+    await conn.flush();
+
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    if (respHead.code != 200) {
+      throw Exception(respHead.msg);
     }
+    // print('upload success: ${respHead.toJson().toString()}');
 
     // 下面的代码哪里有问题???
     // var dataBuffer = Uint8List(maxBufferSize);
@@ -291,7 +298,6 @@ class FileUploader {
     //   bufferedSize += readSize;
     // }
 
-    await conn.flush();
     await conn.close();
     conn.destroy();
     await fileAccess.close();
@@ -378,6 +384,7 @@ class FileDownloader {
       end: end,
     );
     await head.writeToConn(conn);
+    await conn.flush();
 
     void readHead(List<int> data) {
       var jsonContent = utf8.decode(Uint8List.fromList(data));

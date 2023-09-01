@@ -238,11 +238,13 @@ func pasteFileHandler(conn net.Conn, head headInfo) {
 	n, err := reader.WriteTo(fileWriter)
 	if err != nil && err != io.EOF {
 		logrus.Error("write file error:", err)
+		respError(conn, err.Error())
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
 		return
 	}
 	if n < dataLen {
 		logrus.Errorln("write file error, n:", n, " dataLen:", dataLen)
+		respError(conn, ErrorIncompleteData)
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, errors.New(ErrorIncompleteData))
 		return
 	}
@@ -251,6 +253,7 @@ func pasteFileHandler(conn net.Conn, head headInfo) {
 		logrus.Warnln("write file error, n:", n, "dataLen:", dataLen)
 	}
 	// part written successfully
+	sendMsg(conn, fmt.Sprintf("file part written successfully, fileID:%d, start:%d, end:%d", head.FileID, head.Start, head.End))
 	logrus.Debugln("write file success, fileID:", head.FileID, " start:", head.Start, " end:", head.End)
 	done, errOccurred := GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, nil)
 	if errOccurred {

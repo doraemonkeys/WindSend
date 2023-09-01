@@ -477,6 +477,7 @@ class _HomePageState extends State<HomePage> {
     // print('headInfoJson: ${jsonEncode(headInfo)}');
 
     await headInfo.writeToConnWithBody(conn, encryptedBody);
+    await conn.flush();
 
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
     if (respHead.code != 200) {
@@ -930,6 +931,7 @@ class _HomePageState extends State<HomePage> {
       serverConfig.generateTimeipHeadHex(),
     );
     await headInfo.writeToConn(conn);
+    await conn.flush();
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
     conn.destroy();
     if (respHead.code != 200) {
@@ -1075,6 +1077,7 @@ class _HomePageState extends State<HomePage> {
         ServerConfig.pasteTextAction, serverConfig.generateTimeipHeadHex(),
         dataLen: pasteTextUint8.length);
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
+    await conn.flush();
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
     conn.destroy();
     if (respHead.code != 200) {
