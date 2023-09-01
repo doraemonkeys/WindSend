@@ -44,7 +44,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
    ![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
 
-   可以观察到任务栏下出现app的图标，同时生成了默认配置文件到当前目录。
+   可以观察到任务栏系统托盘里出现app的图标，同时生成了默认配置文件到当前目录。
    
    ![image-20230621192706843](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049312.png)
 
@@ -73,7 +73,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306232208276.jpg" style="zoom:33%;" />
 
-4. 最后，激动人心的时刻到了，手机随便复制一段文字，打开app点击Paste text，电脑瞬间弹出通知，恭喜你已经成功完成了配置，可以愉快的使用了。
+4. 最后，激动人心的时刻到了，手机随便复制一段文字，打开app点击粘贴，电脑瞬间弹出通知，恭喜你已经成功完成了配置，可以愉快的使用了。
 
 
 
