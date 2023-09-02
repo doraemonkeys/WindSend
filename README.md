@@ -36,7 +36,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 ### PC端
 
-1. 解压 clipboard-go-amd64-windows.rar 到任意目录
+1. 解压 **clipboard-go-amd64-windows.zip**(注意文件名，别下载错了) 到任意目录。
 
 2. 双击exe文件运行：
 
