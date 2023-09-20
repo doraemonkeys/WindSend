@@ -368,7 +368,7 @@ class _HomePageState extends State<HomePage> {
         continue;
       }
       var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
-      var f = findServer(cnf, crypter).then((newip) {
+      var future = findServer(cnf, crypter).then((newip) {
         if (newip.isNotEmpty && newip != '') {
           _autoSelectIpSuccess = true;
           setState(() {
@@ -382,7 +382,7 @@ class _HomePageState extends State<HomePage> {
           _saveServerConfigs();
         }
       });
-      findServerFutures.add(f);
+      findServerFutures.add(future);
       if (count == 0) {
         break;
       }
