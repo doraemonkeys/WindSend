@@ -334,40 +334,60 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> updateAutoSelect() async {
     Set<String> checked = {};
+    var result = StreamController<(ServerConfig, bool)>(sync: true);
+    int count = 0;
     for (var i = 0; i < _serverConfigs.length; i++) {
       var element = _serverConfigs[i];
       if (!element.autoSelect || checked.contains(element.secretKeyHex)) {
         continue;
       }
       checked.add(element.secretKeyHex);
-      var crypter = CbcAESCrypt.fromHex(element.secretKeyHex);
-      bool ok = false;
-      if (element.ip.isNotEmpty) {
-        try {
-          await checkServer(element.ip, element.port, crypter,
-              ServerConfig.defaultPingTimeout);
-          ok = true;
-        } catch (e) {
-          ok = false;
+      pingFunc() async {
+        bool ok = false;
+        if (element.ip.isNotEmpty) {
+          try {
+            await checkServer(element.ip, element.port, element.crypter,
+                ServerConfig.defaultPingTimeout);
+            ok = true;
+          } catch (e) {
+            ok = false;
+          }
         }
+        return (element, ok);
       }
+
+      pingFunc().then((value) => result.add(value));
+      count++;
+    }
+    // print('count: $count');
+    var findServerFutures = <Future>[];
+    await for (var r in result.stream) {
+      count--;
+      var (cnf, ok) = r;
       if (ok) {
         continue;
       }
-      String newip = await findServer(element, crypter);
-      if (newip.isNotEmpty && newip != '') {
-        _autoSelectIpSuccess = true;
-        setState(() {
-          for (var j = 0; j < _serverConfigs.length; j++) {
-            if (_serverConfigs[j].secretKeyHex == element.secretKeyHex &&
-                _serverConfigs[j].autoSelect) {
-              _serverConfigs[j].ip = newip;
+      var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
+      var f = findServer(cnf, crypter).then((newip) {
+        if (newip.isNotEmpty && newip != '') {
+          _autoSelectIpSuccess = true;
+          setState(() {
+            for (var j = 0; j < _serverConfigs.length; j++) {
+              if (_serverConfigs[j].secretKeyHex == cnf.secretKeyHex &&
+                  _serverConfigs[j].autoSelect) {
+                _serverConfigs[j].ip = newip;
+              }
             }
-          }
-        });
-        _saveServerConfigs();
+          });
+          _saveServerConfigs();
+        }
+      });
+      findServerFutures.add(f);
+      if (count == 0) {
+        break;
       }
     }
+    await Future.wait(findServerFutures);
   }
 
   Future<String> findServer(ServerConfig cnf, CbcAESCrypt crypter) async {
