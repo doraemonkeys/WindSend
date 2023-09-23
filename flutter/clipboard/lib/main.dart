@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+// import 'dart:isolate';
 // import 'dart:typed_data';
 import 'dart:math';
 
@@ -56,6 +57,9 @@ class _HomePageState extends State<HomePage> {
 
   /// 仅用于分享内容唤醒app时的自动选择ip的判断，会自动变成false
   bool _autoSelectIpSuccess = false;
+
+  /// 正在更新全局的ip
+  bool _autoSelectingAll = false;
 
   @override
   void initState() {
@@ -150,7 +154,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _serverConfigs.addAll(serverConfigs);
       });
-      updateAutoSelect();
+      autoSelectUpdateAll();
     }
   }
 
@@ -332,10 +336,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> updateAutoSelect() async {
+  Future<void> autoSelectUpdateAll() async {
+    _autoSelectingAll = true;
     Set<String> checked = {};
     var result = StreamController<(ServerConfig, bool)>(sync: true);
-    int count = 0;
+    int pingCount = 0;
     for (var i = 0; i < _serverConfigs.length; i++) {
       var element = _serverConfigs[i];
       if (!element.autoSelect || checked.contains(element.secretKeyHex)) {
@@ -357,37 +362,37 @@ class _HomePageState extends State<HomePage> {
       }
 
       pingFunc().then((value) => result.add(value));
-      count++;
+      pingCount++;
     }
-    // print('count: $count');
+    // print('count: $pingCount');
     var findServerFutures = <Future>[];
     await for (var r in result.stream) {
-      count--;
+      pingCount--;
       var (cnf, ok) = r;
-      if (ok) {
-        continue;
-      }
-      var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
-      var future = findServer(cnf, crypter).then((newip) {
-        if (newip.isNotEmpty && newip != '') {
-          _autoSelectIpSuccess = true;
-          setState(() {
+      if (!ok) {
+        var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
+        var future = findServer(cnf, crypter).then((newip) {
+          if (newip.isNotEmpty && newip != '') {
             for (var j = 0; j < _serverConfigs.length; j++) {
               if (_serverConfigs[j].secretKeyHex == cnf.secretKeyHex &&
                   _serverConfigs[j].autoSelect) {
                 _serverConfigs[j].ip = newip;
               }
             }
-          });
-          _saveServerConfigs();
-        }
-      });
-      findServerFutures.add(future);
-      if (count == 0) {
+            _saveServerConfigs();
+          }
+        });
+        findServerFutures.add(future);
+      }
+      if (pingCount == 0) {
         break;
       }
     }
     await Future.wait(findServerFutures);
+    _autoSelectIpSuccess = true;
+    setState(() {});
+    // 在setState之后设置为false(选择文件时保持动画？)
+    _autoSelectingAll = false;
   }
 
   Future<String> findServer(ServerConfig cnf, CbcAESCrypt crypter) async {
@@ -436,10 +441,10 @@ class _HomePageState extends State<HomePage> {
     var ipPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
     for (var i = 1; i < 255; i++) {
       var ip = '$ipPrefix.$i';
-      checkServer2(msgController, client, ip, crypter, cnf, 10);
+      checkServer2(msgController, client, ip, crypter, cnf, 5);
     }
-    final String ip = await msgController.stream
-        .firstWhere((ip) => ip.isNotEmpty, orElse: () => "");
+    final String ip = await msgController.stream.first;
+    // print("first: $ip");
     client.close(force: true);
     return ip;
   }
@@ -459,6 +464,7 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       ok = false;
     }
+    // print('checkServer2: $ip, ok: $ok');
     if (ok) {
       msgController.add(ip);
     }
@@ -469,6 +475,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> checkServer(
       String ip, int port, CbcAESCrypt crypter, int timeout) async {
+    // print('checkServer: $ip:$port');
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
@@ -557,7 +564,7 @@ class _HomePageState extends State<HomePage> {
       });
       _saveServerConfigs();
       Navigator.of(context).pop();
-      updateAutoSelect();
+      autoSelectUpdateAll();
     }
 
     await showDialog(
@@ -674,6 +681,21 @@ class _HomePageState extends State<HomePage> {
                 );
                 dialog.whenComplete(() => exited = true);
 
+                var ipChanged = false;
+                (ipChanged, msg) =
+                    await _pingOrAutoSelectIpWithoutSetState(serverConfig);
+                if (msg != '') {
+                  if (context.mounted && !exited) {
+                    // Hide loading spinner
+                    Navigator.of(context).pop();
+                  }
+                  if (context.mounted) {
+                    FlutterToastr.show(msg, context,
+                        duration: 3, position: FlutterToastr.bottom);
+                  }
+                  return;
+                }
+
                 if (serverConfig.action == ServerConfig.copyAction) {
                   try {
                     msg = await _doCopyAction(serverConfig);
@@ -703,6 +725,9 @@ class _HomePageState extends State<HomePage> {
                 if (context.mounted && !exited) {
                   // Hide loading spinner
                   Navigator.of(context).pop();
+                }
+                if (ipChanged) {
+                  setState(() {});
                 }
                 // if (context.mounted) {
                 //   ScaffoldMessenger.of(context).showSnackBar(
@@ -750,6 +775,44 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  // 返回值: (ip是否改变, 错误信息)
+  Future<(bool, String)> _pingOrAutoSelectIpWithoutSetState(
+      ServerConfig cnf) async {
+    if (cnf.ip.isNotEmpty && cnf.autoSelect) {
+      try {
+        // 等待更新全局ip
+        while (_autoSelectingAll) {
+          // print('waiting for autoSelectingAll');
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+        await checkServer(
+            cnf.ip, cnf.port, cnf.crypter, ServerConfig.defaultPingTimeout);
+        // print('ping ok');
+        return (false, '');
+      } catch (e) {
+        var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
+        // print('ping error: $e');
+        var newip = await findServer(cnf, crypter);
+        // TODO: 开启isolate
+        // print('newip: $newip');
+        if (newip.isNotEmpty && newip != '') {
+          for (var j = 0; j < _serverConfigs.length; j++) {
+            if (_serverConfigs[j].secretKeyHex == cnf.secretKeyHex &&
+                _serverConfigs[j].autoSelect) {
+              _serverConfigs[j].ip = newip;
+            }
+          }
+          _saveServerConfigs();
+          return (true, '');
+        } else {
+          var msg = '没有找到可用的服务器';
+          return (false, msg);
+        }
+      }
+    }
+    return (true, '');
   }
 
   Future<ServerConfig?> _autoSelectServerConfig(String targetAction) async {
