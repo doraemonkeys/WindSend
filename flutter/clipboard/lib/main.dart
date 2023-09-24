@@ -780,6 +780,9 @@ class _HomePageState extends State<HomePage> {
   // 返回值: (ip是否改变, 错误信息)
   Future<(bool, String)> _pingOrAutoSelectIpWithoutSetState(
       ServerConfig cnf) async {
+    if (!cnf.autoSelect) {
+      return (true, '');
+    }
     if (cnf.ip.isNotEmpty && cnf.autoSelect) {
       try {
         // 等待更新全局ip
@@ -792,27 +795,27 @@ class _HomePageState extends State<HomePage> {
         // print('ping ok');
         return (false, '');
       } catch (e) {
-        var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
         // print('ping error: $e');
-        var newip = await findServer(cnf, crypter);
-        // TODO: 开启isolate
-        // print('newip: $newip');
-        if (newip.isNotEmpty && newip != '') {
-          for (var j = 0; j < _serverConfigs.length; j++) {
-            if (_serverConfigs[j].secretKeyHex == cnf.secretKeyHex &&
-                _serverConfigs[j].autoSelect) {
-              _serverConfigs[j].ip = newip;
-            }
-          }
-          _saveServerConfigs();
-          return (true, '');
-        } else {
-          var msg = '没有找到可用的服务器';
-          return (false, msg);
-        }
       }
     }
-    return (true, '');
+    var crypter = CbcAESCrypt.fromHex(cnf.secretKeyHex);
+    // print('ping error: $e');
+    var newip = await findServer(cnf, crypter);
+    // TODO: 开启isolate
+    // print('newip: $newip');
+    if (newip.isNotEmpty && newip != '') {
+      for (var j = 0; j < _serverConfigs.length; j++) {
+        if (_serverConfigs[j].secretKeyHex == cnf.secretKeyHex &&
+            _serverConfigs[j].autoSelect) {
+          _serverConfigs[j].ip = newip;
+        }
+      }
+      _saveServerConfigs();
+      return (true, '');
+    } else {
+      var msg = '没有找到可用的服务器';
+      return (false, msg);
+    }
   }
 
   Future<ServerConfig?> _autoSelectServerConfig(String targetAction) async {
