@@ -26,7 +26,7 @@
 
 github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/clipboard-go/releases)
 
-蓝奏云：[clipboard-go 蓝奏云](https://wwxz.lanzouw.com/b03efpa1e) 密码:c1at
+123云盘：[www.123pan.com](https://www.123pan.com/s/yfFAjv-lymn.html) 提取码:c1at
 
 
 
