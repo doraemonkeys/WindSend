@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:clipboard/main.dart';
+import 'package:wind_send/main.dart';
 import 'package:flutter/foundation.dart';
 // import 'package:crypto/crypto.dart';
 

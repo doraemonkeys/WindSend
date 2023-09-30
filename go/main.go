@@ -9,7 +9,7 @@ import (
 
 var crypter *CbcAESCrypt
 
-const ProgramName = "clipboard-go"
+const ProgramName = "WindSend-S"
 const ProgramUrl = "https://github.com/Doraemonkeys/clipboard-go"
 
 func init() {

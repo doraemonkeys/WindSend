@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
 
 import 'package:flutter/services.dart';
-import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
+import 'package:wind_send/aes_lib2/aes_crypt_null_safe.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';

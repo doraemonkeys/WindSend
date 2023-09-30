@@ -20,7 +20,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <application
-        android:label="clipboard-go"
+        android:label="WindSend"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

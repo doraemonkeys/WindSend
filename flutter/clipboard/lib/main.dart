@@ -11,7 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
-import 'package:clipboard/aes_lib2/aes_crypt_null_safe.dart';
+import 'package:wind_send/aes_lib2/aes_crypt_null_safe.dart';
 import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -35,8 +35,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'clipboard-go',
-      home: HomePage(title: 'clipboard-go'),
+      title: '风传',
+      home: HomePage(title: '风传'),
     );
   }
 }

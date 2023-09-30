@@ -1,11 +1,11 @@
-# clipboard-go
-## clipboard-go是什么
+# 风传 WindSend
+## 风传是什么
 
 一组应用程序，用于在手机和电脑之间安全快速的传递剪切板信息，也支持传输文件或图片(支持windows图片剪切板)。
 
 
 
-## 为什么选择clipboard-go
+## 为什么选择风传
 
 - 安全 - 所有数据均加密传递(即使是局域网，也有人希望更安全，比如我)
 - 简单 - 使用Golang和Flutter编写，界面简洁易上手，开源免费无广告，专注于信息传递
@@ -36,7 +36,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 ### PC端
 
-1. 解压 **clipboard-go-amd64-windows.zip**(注意文件名，别下载错了) 到任意目录。
+1. 解压 **WindSend-S-amd64-windows.zip**(注意文件名，别下载错了) 到任意目录。
 
 2. 双击exe文件运行：
 

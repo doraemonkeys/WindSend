@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "clipboard" "\0"
+            VALUE "FileDescription", "WindSend" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "clipboard" "\0"
+            VALUE "InternalName", "WindSend" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2023 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "clipboard.exe" "\0"
-            VALUE "ProductName", "clipboard" "\0"
+            VALUE "OriginalFilename", "WindSend.exe" "\0"
+            VALUE "ProductName", "WindSend" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
