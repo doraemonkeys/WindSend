@@ -10,8 +10,8 @@ go build -ldflags "-H=windowsgui" -o %ServerProgramName%.exe
 cd ../bin
 md %ServerProgramName%-amd64-windows
 move ../go/%ServerProgramName%.exe %ServerProgramName%-amd64-windows/%ServerProgramName%.exe
+xcopy ..\README.md %ServerProgramName%-amd64-windows /y
 zip -r %ServerProgramName%-amd64-windows.zip %ServerProgramName%-amd64-windows
-
 
 
 cd ../flutter/clipboard
@@ -53,6 +53,7 @@ call flutter build windows --release
 if %errorlevel% equ 0 (
   echo Build Windows Success!
   xcopy /s /y build\windows\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
+  xcopy ..\..\README.md ..\..\bin\%appName%-flutter-amd64-windows\ /y
   cd ..\..\bin
   zip -r %appName%-flutter-client-amd64-windows.zip %appName%-flutter-amd64-windows
 ) else (
