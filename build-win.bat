@@ -16,6 +16,7 @@ call flutter build windows --release
 if %errorlevel% equ 0 (
   echo Build Windows Success!
   xcopy /s /y build\windows\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
+  xcopy ..\..\README.md ..\..\bin\%appName%-flutter-amd64-windows\ /y
   cd ..\..\bin
   zip -r %appName%-flutter-client-amd64-windows.zip %appName%-flutter-amd64-windows
   @REM move build\windows\runner\Release ..\..\bin\clipboard-flutter-amd64-windows
