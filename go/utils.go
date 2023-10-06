@@ -324,24 +324,6 @@ func HasImageExt(name string) bool {
 	return false
 }
 
-type Ordered interface {
-	~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 |
-		~uint32 | ~uint64 | ~int
-}
-
-func max[T Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
-}
-func min[T Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // 产生不冲突的文件路径
 func generateUniqueFilepath(filePath string) string {
 	if _, err := os.Stat(filePath); err != nil {
