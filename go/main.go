@@ -9,8 +9,8 @@ import (
 
 var crypter *CbcAESCrypt
 
-const ProgramName = "WindSend-S"
-const ProgramUrl = "https://github.com/Doraemonkeys/clipboard-go"
+const ProgramName = "WindSend-S-Go"
+const ProgramUrl = "https://github.com/doraemonkeys/WindSend"
 
 func init() {
 	InitGlobalLogger()

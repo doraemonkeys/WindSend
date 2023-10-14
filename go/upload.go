@@ -226,16 +226,16 @@ func pasteFileHandler(conn net.Conn, head headInfo) {
 	var bufSize = max(int(dataLen/8), 4096) // 8 is a magic number
 	// fmt.Println("bufSize:", bufSize)
 	reader := bufio.NewReaderSize(conn, bufSize)
-
 	file, err := GlobalFileReceiver.GetFile(head)
 	if err != nil {
 		logrus.Error("create file error:", err)
 		return
 	}
-
 	fileWriter := NewFileWriter(file, int(head.Start), int(head.End))
-
-	n, err := reader.WriteTo(fileWriter)
+	// fileBufWriter := bufio.NewWriterSize(fileWriter, bufSize)
+	// n, err := io.CopyN(fileWriter, reader, dataLen)
+	n, err := io.CopyN(fileWriter, reader, dataLen)
+	// n, err := reader.WriteTo(fileWriter)
 	if err != nil && err != io.EOF {
 		logrus.Error("write file error:", err)
 		respError(conn, err.Error())
