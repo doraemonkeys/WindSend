@@ -28,6 +28,7 @@ doc/api/
 
 bin/*
 go/config.yaml
+windSend-rs/config.yaml
 *.log
 *.pem
 .vscode/*
