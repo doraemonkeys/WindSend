@@ -17,7 +17,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     if !r.is_err() {
         return;
     }
-    resp_error_msg(conn, "你还没有复制任何内容".to_string())
+    resp_error_msg(conn, &"你还没有复制任何内容".to_string())
         .await
         .ok();
 }
@@ -43,7 +43,7 @@ async fn send_files(conn: &mut TlsStream<TcpStream>) -> ControlFlow<()> {
         }
         let resp = RouteRespHead {
             code: crate::route::resp::SUCCESS_STATUS_CODE,
-            msg: "复制成功".to_string(),
+            msg: &"复制成功".to_string(),
             data_type: RouteDataType::Files,
             data_len: 0,
             paths,
@@ -83,7 +83,7 @@ async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
 
     send_msg_with_body(
         conn,
-        image_name,
+        &image_name,
         RouteDataType::ClipImage,
         &mut_img_buf.into_inner(),
     )
@@ -102,7 +102,7 @@ async fn send_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
     let data_text = data_text.unwrap();
     send_msg_with_body(
         conn,
-        "".to_string(),
+        &"".to_string(),
         RouteDataType::Text,
         data_text.as_bytes(),
     )
@@ -114,7 +114,7 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) 
     // 检查文件是否存在
     if !std::path::Path::new(&head.down_path).exists() {
         error!("file not exists: {}", head.down_path);
-        resp_error_msg(conn, format!("file not exists: {}", head.down_path))
+        resp_error_msg(conn, &format!("file not exists: {}", head.down_path))
             .await
             .ok();
         return;
@@ -127,14 +127,14 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) 
     if file.is_err() {
         let err = file.err().unwrap();
         error!("open file failed, err: {}", err);
-        resp_error_msg(conn, format!("open file failed, err: {}", err))
+        resp_error_msg(conn, &format!("open file failed, err: {}", err))
             .await
             .ok();
         return;
     }
     let resp = RouteRespHead {
         code: crate::route::resp::SUCCESS_STATUS_CODE,
-        msg: "start download".to_string(),
+        msg: &"start download".to_string(),
         data_type: RouteDataType::Binary,
         data_len: head.end - head.start,
         paths: vec![],

@@ -145,7 +145,7 @@ impl FileReceiver {
             already_exist = false;
             let file_path =
                 std::path::Path::new(&crate::config::GLOBAL_CONFIG.lock().unwrap().save_path)
-                    .join(head.file_name.clone());
+                    .join(&head.file_name);
             actual_save_path = generate_unique_filepath(file_path)?;
         }
         debug!("create file: {}", actual_save_path);

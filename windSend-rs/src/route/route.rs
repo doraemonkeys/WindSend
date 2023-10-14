@@ -46,10 +46,10 @@ pub struct RouteHead {
     pub files_count_in_this_op: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RouteRespHead {
+#[derive(Debug, Serialize)]
+pub struct RouteRespHead<'a> {
     pub code: i32,
-    pub msg: String,
+    pub msg: &'a String,
     /// 客户端copy时返回的数据类型(text, image, file)
     #[serde(rename = "dataType")]
     pub data_type: RouteDataType,
@@ -108,7 +108,7 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
         _ => {
             crate::route::resp::resp_error_msg(
                 &mut conn,
-                format!("unknown action: {:?}", head.action),
+                &format!("unknown action: {:?}", head.action),
             )
             .await
             .ok();
@@ -146,7 +146,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
     }
     debug!("head: {:?}", head);
     let time_and_ip_bytes =
-        hex::decode(head.time_ip.clone()).map_err(|e| error!("hex decode failed, err: {}", e))?;
+        hex::decode(&head.time_ip).map_err(|e| error!("hex decode failed, err: {}", e))?;
     let decrypted = crate::config::get_cryptor()
         .map_err(|e| error!("get_cryptor failed, err: {}", e))?
         .decrypt(&time_and_ip_bytes)

@@ -232,7 +232,7 @@ async fn handle_menu_event_copy_from_web() {
     }
     let content = content.unwrap();
     debug!("content: {}", content);
-    let result = config::CLIPBOARD.lock().unwrap().set_text(content.clone());
+    let result = config::CLIPBOARD.lock().unwrap().set_text(&content);
     if result.is_err() {
         error!("set clipboard text error: {}", result.err().unwrap());
         return;

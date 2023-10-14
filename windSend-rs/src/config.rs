@@ -218,11 +218,11 @@ pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::erro
     } else {
         debug!("pkcs8_private_keys");
     }
-    let private_key = rustls::PrivateKey(private_key[0].clone());
+    let private_key = rustls::PrivateKey(private_key.remove(0));
 
     let ca_cert_bytes = std::fs::read(&Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
-    let ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())?;
-    let ca_cert = rustls::Certificate(ca_cert[0].clone());
+    let mut ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())?;
+    let ca_cert = rustls::Certificate(ca_cert.remove(0));
 
     let server_conf = rustls::ServerConfig::builder()
         .with_safe_defaults()
