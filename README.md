@@ -14,7 +14,7 @@
 - 快速 - 使用多线程异步传输文件，充分利用带宽。
 - 轻量 - 不依赖额外的运行环境，空闲时内存占用不到10M，基本无CPU消耗
 
-![image-20230624004834312](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306240114619.png)
+![image-20231014225053389](https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202310142251417.png)
 
 ## 如何使用
 
