@@ -31,7 +31,7 @@ set rustPjName=wind_send
 cd ../windSend-rs
 echo %cd%
 
-@REM 修改 Cargo.toml 中的版本号 (version = "x.x.x")，不能误伤其他地方的version
+@REM 修改 Cargo.toml 中的版本号 (version = "x.x.x")
 call sed -i '0,/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/s/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "%version%"/' Cargo.toml
 @REM 修改 src/main.rs 中的版本号 (static PROGRAM_VERSION: &str = "x.x.x";)
 call sed -i "s/static PROGRAM_VERSION:.*/static PROGRAM_VERSION: \&str = \"%version%\";/" src/main.rs
