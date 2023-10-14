@@ -24,7 +24,7 @@
 
 ### 下载
 
-github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys/clipboard-go/releases)
+github：[Releases · doraemonkeys/WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
 123云盘：[www.123pan.com](https://www.123pan.com/s/yfFAjv-lymn.html) 提取码:c1at
 
@@ -99,7 +99,7 @@ github：[Releases · Doraemonkeys/clipboard-go](https://github.com/Doraemonkeys
 
 
 
-web传递信息的原理是使用了 https://ko0.com/ 网站。虽然方便，但希望各位尽量只在紧急情况下使用这个功能，把别人网站搞垮了大家就都没得用了。
+web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 
@@ -117,7 +117,7 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。虽然方便，�
 
 ### PC
 
-Pc端代码使用Golang编写，代码中主要的库都是跨平台的，但是作者在实现选择文件时使用了Windows的API，所以想要提供其他平台的支持，就需要高手稍微修改一下源代码，作者能力尚浅，欢迎高手来PR。
+Pc端代码拥有Go与Rust两种实现，代码中主要的库都是跨平台的，想要提供其他平台的支持，只需稍微修改一下源代码，作者能力尚浅，欢迎高手来PR。
 
 
 
