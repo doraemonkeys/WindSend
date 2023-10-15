@@ -23,37 +23,39 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
 }
 
 async fn send_files(conn: &mut TlsStream<TcpStream>) -> ControlFlow<()> {
-    let files = crate::systray::SELECTED_FILES
-        .get()
-        .unwrap()
-        .lock()
-        .unwrap()
-        .clone();
-    if !files.is_empty() {
-        let mut paths = Vec::<RoutePathInfo>::with_capacity(files.len());
-        for file in files.iter() {
-            let path = file.clone();
+    let mut selected_paths;
+    {
+        let mut files = crate::systray::SELECTED_FILES
+            .get()
+            .unwrap()
+            .lock()
+            .unwrap();
+        if files.is_empty() {
+            return ControlFlow::Continue(());
+        }
+        selected_paths = Vec::<RoutePathInfo>::with_capacity(files.len());
+        for file in files.drain() {
+            let path = file;
             let size = std::fs::metadata(&path).map(|m| m.len());
             if size.is_err() {
                 error!("get file size failed, err: {}", size.err().unwrap());
                 continue;
             }
             let size = size.unwrap();
-            paths.push(RoutePathInfo { path, size });
+            selected_paths.push(RoutePathInfo { path, size });
         }
-        let resp = RouteRespHead {
-            code: crate::route::resp::SUCCESS_STATUS_CODE,
-            msg: &"复制成功".to_string(),
-            data_type: RouteDataType::Files,
-            data_len: 0,
-            paths,
-        };
-        if send_head(conn, resp).await.is_ok() {
-            crate::RX_RESET_FILES_ITEM.get().unwrap().send(()).unwrap();
-        }
-        return ControlFlow::Break(());
     }
-    ControlFlow::Continue(())
+    let resp = RouteRespHead {
+        code: crate::route::resp::SUCCESS_STATUS_CODE,
+        msg: &"复制成功".to_string(),
+        data_type: RouteDataType::Files,
+        data_len: 0,
+        paths: selected_paths,
+    };
+    if send_head(conn, &resp).await.is_ok() {
+        crate::RX_RESET_FILES_ITEM.get().unwrap().send(()).unwrap();
+    }
+    return ControlFlow::Break(());
 }
 
 async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
@@ -139,7 +141,7 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) 
         data_len: head.end - head.start,
         paths: vec![],
     };
-    if send_head(conn, resp).await.is_err() {
+    if send_head(conn, &resp).await.is_err() {
         return;
     }
     let file = file.unwrap();

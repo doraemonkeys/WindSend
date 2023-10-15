@@ -39,13 +39,13 @@ pub async fn send_msg_with_body<'a>(
 
 pub async fn send_head<'a, W>(
     writer: &'a mut W,
-    head: crate::route::RouteRespHead<'a>,
+    head: &crate::route::RouteRespHead<'a>,
 ) -> Result<(), ()>
 where
     W: AsyncWrite + Unpin + ?Sized,
 {
     let resp_buf =
-        serde_json::to_vec(&head).map_err(|e| error!("json marshal failed, err: {}", e))?;
+        serde_json::to_vec(head).map_err(|e| error!("json marshal failed, err: {}", e))?;
     let head_len = resp_buf.len();
     trace!("head_len: {}, head: {:?}", head_len, head);
     let head_len_buf = &(head_len as u32).to_le_bytes();
@@ -71,7 +71,7 @@ where
         data_len: 0,
         paths: vec![],
     };
-    send_head(writer, resp).await
+    send_head(writer, &resp).await
 }
 
 pub async fn resp_error_msg<'a, W>(writer: &'a mut W, msg: &'a String) -> Result<(), ()>
@@ -85,5 +85,5 @@ where
         data_len: 0,
         paths: vec![],
     };
-    send_head(writer, resp).await
+    send_head(writer, &resp).await
 }

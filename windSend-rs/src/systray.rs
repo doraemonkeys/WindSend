@@ -95,6 +95,7 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
 
     let mut event_loop = EventLoopBuilder::new().build();
     let return_code = event_loop.run_return(move |_event, _, control_flow| {
+        // println!("event_loop");
         *control_flow = ControlFlow::Wait;
         select! {
             recv(rx_reset_files_item) -> _ => {

@@ -86,7 +86,7 @@ impl tokio::io::AsyncWrite for FilePartWriter {
 }
 
 pub struct FileReceiver {
-    file: Arc<TokioMutex<HashMap<u32, RecvFileInfo>>>,
+    file: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
 }
 
@@ -103,8 +103,12 @@ pub struct RecvFileInfo {
     /// fileID在每次传输一个文件时都是随机的，
     /// 即使再次传输同一个文件，也会重新生成一个fileID
     _file_id: u32,
-    /// 保护part、is_done、first_err、down_chan
-    part_lock: TokioMutex<()>,
+    /// part、is_done、first_err、down_chan
+    items: TokioMutex<LockedItem>,
+}
+
+#[derive(Debug)]
+struct LockedItem {
     part: Vec<FilePart>,
     down_chan: Option<tokio::sync::oneshot::Sender<bool>>,
     /// 文件实际保存路径，包含文件名
@@ -137,9 +141,9 @@ impl FileReceiver {
         // debug!("create file: {}", file_path);
         let actual_save_path;
         let already_exist;
-        let file_recv_map = &mut self.file.lock().await;
+        let mut file_recv_map = self.file.lock().await;
         if let Some(info) = file_recv_map.get(&file_id) {
-            actual_save_path = info.save_path.clone();
+            actual_save_path = info.items.lock().await.save_path.clone();
             already_exist = true;
         } else {
             already_exist = false;
@@ -159,19 +163,21 @@ impl FileReceiver {
         }
 
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let info = RecvFileInfo {
-            exp_size: file_size,
-            _file_id: file_id,
-            part_lock: TokioMutex::new(()),
+        let items = LockedItem {
             part: Vec::new(),
             down_chan: Some(tx),
-            save_path: actual_save_path,
+            save_path: actual_save_path.clone(),
             is_done: false,
             first_err: None,
         };
-        file_recv_map.insert(file_id, info);
+        let info = RecvFileInfo {
+            exp_size: file_size,
+            _file_id: file_id,
+            items: TokioMutex::new(items),
+        };
+        file_recv_map.insert(file_id, Arc::new(info));
         // check is this opID exist
-        let ops_map = &mut self.ops.lock().await;
+        let mut ops_map = self.ops.lock().await;
         if let None = ops_map.get(&head.op_id) {
             ops_map.insert(
                 head.op_id,
@@ -200,35 +206,37 @@ impl FileReceiver {
         end: i64,
         recv_err: Option<String>,
     ) -> (bool, bool) {
-        let files_recv = &mut self.file.lock().await;
-        let file = match files_recv.get_mut(&file_id) {
-            Some(file) => file,
-            None => return (false, true),
-        };
-        let part_lock = file.part_lock.lock().await;
-        if file.is_done {
+        let recv_file;
+        {
+            let files_recv = self.file.lock().await;
+            recv_file = match files_recv.get(&file_id) {
+                Some(file) => file.clone(),
+                None => return (false, true),
+            };
+        }
+        let mut recv_items = recv_file.items.lock().await;
+        if recv_items.is_done {
             return (true, false);
         }
-        if file.first_err.is_some() {
+        if recv_items.first_err.is_some() {
             return (false, true);
         }
         if let Some(err) = recv_err {
-            file.first_err = Some(err);
-            file.down_chan.take().unwrap().send(false).ok();
+            recv_items.first_err = Some(err);
+            recv_items.down_chan.take().unwrap().send(false).ok();
             return (false, false);
         }
-        file.part.push(FilePart { start, end });
-        let done = self.check(file.part.clone(), file.exp_size).await;
+        recv_items.part.push(FilePart { start, end });
+        let done = self.check(&mut recv_items.part, recv_file.exp_size).await;
         if done {
-            file.is_done = true;
-            file.down_chan.take().unwrap().send(true).ok();
+            recv_items.is_done = true;
+            recv_items.down_chan.take().unwrap().send(true).ok();
         }
-        drop(part_lock);
         (done, false)
     }
 
-    pub async fn check(&self, all_part: Vec<FilePart>, exp_size: i64) -> bool {
-        let mut part = all_part;
+    pub async fn check(&self, all_part: &mut Vec<FilePart>, exp_size: i64) -> bool {
+        let part = all_part;
         part.sort_by(|a, b| a.start.cmp(&b.start));
         debug!("file part: {:?}", part);
         if part[0].start != 0 {
@@ -257,7 +265,7 @@ impl FileReceiver {
 }
 
 pub async fn recv_monitor(
-    files_recv_info: Arc<TokioMutex<HashMap<u32, RecvFileInfo>>>,
+    files_recv_info: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
     file_id: u32,
     op_id: u32,
@@ -280,7 +288,7 @@ pub async fn recv_monitor(
             success = false;
         }
     }
-    let ops = &mut ops.lock().await;
+    let mut ops = ops.lock().await;
     if success {
         ops.get_mut(&op_id).unwrap().succ_num += 1;
     } else {
@@ -295,12 +303,13 @@ pub async fn recv_monitor(
     let file_recv_info = files_recv_info.lock().await.remove(&file_id).unwrap();
 
     // 仅接收一张图，且格式为png时(only support png)，粘贴到剪切板
+    let save_path = &file_recv_info.items.lock().await.save_path;
     if success
         && op_info.exp_num == 1
         && file_recv_info.exp_size < 1024 * 1024 * 4
-        && crate::utils::has_img_ext(&file_recv_info.save_path)
+        && crate::utils::has_img_ext(save_path)
     {
-        let image = tokio::fs::read(&file_recv_info.save_path).await;
+        let image = tokio::fs::read(save_path).await;
         if image.is_err() {
             error!(
                 "write to clipboard failed:{}",
