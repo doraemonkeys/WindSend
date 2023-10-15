@@ -166,7 +166,7 @@ impl FileReceiver {
         let items = LockedItem {
             part: Vec::new(),
             down_chan: Some(tx),
-            save_path: actual_save_path.clone(),
+            save_path: actual_save_path,
             is_done: false,
             first_err: None,
         };
