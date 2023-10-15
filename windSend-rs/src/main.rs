@@ -17,7 +17,7 @@ pub static RX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLo
 
 static PROGRAM_NAME: &str = "WindSend-S-Rust";
 static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
-static PROGRAM_VERSION: &str = "0.6.1";
+static PROGRAM_VERSION: &str = "0.6.2";
 
 fn init() {
     config::init_global_logger();

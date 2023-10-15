@@ -3142,6 +3142,7 @@ dependencies = [
 [[package]]
 name = "rustls"
 version = "0.21.7"
+source = "git+https://github.com/doraemonkeys/tokio-rustls.git?branch=rustls-0.21.7#bf607e7b0bf2bf5bec0de165ab8c81377c3b402b"
 dependencies = [
  "log",
  "ring 0.16.20",
@@ -3784,6 +3785,7 @@ dependencies = [
 [[package]]
 name = "tokio-rustls"
 version = "0.24.1"
+source = "git+https://github.com/doraemonkeys/tokio-rustls.git?branch=rustls-0.21.7#bf607e7b0bf2bf5bec0de165ab8c81377c3b402b"
 dependencies = [
  "rustls",
  "tokio",
@@ -4302,7 +4304,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "wind_send"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "aes",
  "anyhow",
