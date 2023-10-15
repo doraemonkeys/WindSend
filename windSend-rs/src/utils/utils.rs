@@ -8,9 +8,19 @@ impl StartHelper {
     }
 
     pub fn set_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        if cfg!(not(windows)) {
-            return Err("不支持的操作系统".into());
+        #[cfg(target_os = "windows")]
+        if cfg!(windows) {
+            return self.set_win_auto_start();
         }
+        #[cfg(target_os = "macos")]
+        if cfg!(macos) {
+            return self.set_mac_auto_start();
+        }
+        return Err("不支持的操作系统".into());
+    }
+
+    #[cfg(target_os = "windows")]
+    fn set_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
         let win_user_home_dir =
@@ -50,11 +60,74 @@ impl StartHelper {
         file.write_all(&content_bytes)?;
         Ok(())
     }
+    #[cfg(target_os = "macos")]
+    fn set_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let home_dir = home::home_dir().ok_or_else(|| "获取当前用户的home directory失败")?;
+        let start_file = format!(
+            "{}/Library/LaunchAgents/{}_start.plist",
+            home_dir.to_str().unwrap(),
+            self.exe_name
+        );
+        let cur_path = std::env::current_dir().map_err(|err| {
+            format!(
+                "获取当前文件目录失败: {}",
+                err.to_string().replace("\\", "\\\\")
+            )
+        })?;
+        let mac_list_file = format!(
+            r#"
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>Label</key>
+                <string>{0}_start</string>
+                <key>ProgramArguments</key>
+                    <array>
+                        <string>{1}/{0}</string>
+                    </array>
+                <key>RunAtLoad</key>
+                <true/>
+                <key>WorkingDirectory</key>
+                <string>/Applications/DownTip.app/Contents/MacOS</string>
+                <key>StandardErrorPath</key>
+                <string>/tmp/{0}_start.err</string>
+                <key>StandardOutPath</key>
+                <string>/tmp/{0}_start.out</string>
+            </dict>
+            </plist>
+            "#,
+            self.exe_name,
+            cur_path.to_str().unwrap()
+        );
+        let old_content = std::fs::read(&start_file).unwrap_or_default();
+        if old_content == mac_list_file.as_bytes() {
+            tracing::debug!("start_file content not changed, skip");
+            return Ok(());
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&start_file)?;
+        use std::io::Write;
+        file.write_all(mac_list_file.as_bytes())?;
+        Ok(())
+    }
 
     pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        if cfg!(not(windows)) {
-            return Err("不支持的操作系统".into());
+        #[cfg(target_os = "windows")]
+        if cfg!(windows) {
+            return self.unset_win_auto_start();
         }
+        #[cfg(target_os = "macos")]
+        if cfg!(macos) {
+            return self.unset_mac_auto_start();
+        }
+        return Err("不支持的操作系统".into());
+    }
+
+    fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
             home::home_dir().ok_or_else(|| "获取当前Windows用户的home directory失败")?;
         let start_file = format!(
@@ -67,6 +140,21 @@ impl StartHelper {
             return Ok(());
         }
 
+        std::fs::remove_file(&start_file)?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    fn unset_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let home_dir = home::home_dir().ok_or_else(|| "获取当前用户的home directory失败")?;
+        let start_file = format!(
+            "{}/Library/LaunchAgents/{}_start.plist",
+            home_dir.to_str().unwrap(),
+            self.exe_name
+        );
+        if !std::path::Path::new(&start_file).exists() {
+            return Ok(());
+        }
         std::fs::remove_file(&start_file)?;
         Ok(())
     }

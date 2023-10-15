@@ -133,6 +133,9 @@ func UTF8ToGBK(b []byte) []byte {
 }
 
 func (s *StartHelper) SetAutoStart() error {
+	if runtime.GOOS == "darwin" {
+		return s.setMacAutoStart()
+	}
 	if runtime.GOOS != "windows" {
 		return fmt.Errorf("不支持的操作系统: %v", runtime.GOOS)
 	}
@@ -173,6 +176,9 @@ func (s *StartHelper) SetAutoStart() error {
 }
 
 func (s *StartHelper) UnSetAutoStart() error {
+	if runtime.GOOS == "darwin" {
+		return s.unSetMacAutoStart()
+	}
 	winUserHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("获取当前Windows用户的home directory失败: %v", err)
@@ -184,6 +190,70 @@ func (s *StartHelper) UnSetAutoStart() error {
 		return nil
 	}
 
+	err = os.Remove(startFile)
+	if err != nil {
+		return fmt.Errorf("删除文件失败: %v", err)
+	}
+	return nil
+}
+
+func (s *StartHelper) setMacAutoStart() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("获取当前用户的home directory失败: %v", err)
+	}
+	startFile := homeDir + `/Library/LaunchAgents/` + s.ExeName + `_start.plist`
+	curPath, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("获取当前文件目录失败: %v", err)
+	}
+	macListFile := `
+	<?xml version="1.0" encoding="UTF-8"?>
+	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+	<plist version="1.0">
+	<dict>
+		<key>Label</key>
+		<string>` + s.ExeName + `_start</string>
+		<key>ProgramArguments</key>
+			<array>
+				<string>` + curPath + `/` + s.ExeName + `</string>
+			</array>
+		<key>RunAtLoad</key>
+		<true/>
+		<key>WorkingDirectory</key>
+		<string>/Applications/DownTip.app/Contents/MacOS</string>
+		<key>StandardErrorPath</key>
+		<string>/tmp/` + s.ExeName + `_start.err</string>
+		<key>StandardOutPath</key>
+		<string>/tmp/` + s.ExeName + `_start.out</string>
+	</dict>
+	</plist>
+	`
+	oldContent, err := os.ReadFile(startFile)
+	if err == nil && bytes.Equal(oldContent, []byte(macListFile)) {
+		return nil
+	}
+	file, err := os.OpenFile(startFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	defer file.Close()
+	_, err = file.Write([]byte(macListFile))
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+	return nil
+}
+
+func (s *StartHelper) unSetMacAutoStart() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("获取当前用户的home directory失败: %v", err)
+	}
+	startFile := homeDir + `/Library/LaunchAgents/` + s.ExeName + `_start.plist`
+	if !FileOrDirIsExist(startFile) {
+		return nil
+	}
 	err = os.Remove(startFile)
 	if err != nil {
 		return fmt.Errorf("删除文件失败: %v", err)
