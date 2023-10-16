@@ -23,7 +23,12 @@ pub async fn send_msg_with_body<'a>(
     let resp_buf =
         serde_json::to_vec(&resp).map_err(|e| error!("json marshal failed, err: {}", e))?;
     let head_len = resp_buf.len();
-    trace!("head_len: {}, head: {:?}", head_len, resp);
+    trace!(
+        "head_len: {}, head: {:?},body_len: {}",
+        head_len,
+        resp,
+        body.len()
+    );
     let head_len_buf = &(head_len as u32).to_le_bytes();
     conn.write_all(head_len_buf)
         .await

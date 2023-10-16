@@ -97,7 +97,7 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
             crate::route::paste::paste_text_handler(&mut conn, head).await;
         }
         RouteAction::PasteFile => {
-            crate::route::paste::paste_file_handler(conn, head).await;
+            crate::route::paste::paste_file_handler(&mut conn, head).await;
         }
         RouteAction::Copy => {
             crate::route::copy::copy_handler(&mut conn).await;
@@ -115,6 +115,11 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
             error!("unknown action: {:?}", head.action);
         }
     }
+    use tokio::io::AsyncWriteExt;
+    conn.flush()
+        .await
+        .map_err(|e| error!("flush failed, err: {}", e))
+        .ok();
 }
 
 pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, ()> {

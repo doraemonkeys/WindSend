@@ -170,7 +170,7 @@ pub fn init_global_logger() {
         .add_directive("reqwest=off".parse().unwrap())
         // 屏蔽掉hyper的日志(设置等级为info)
         .add_directive("hyper=info".parse().unwrap())
-        .add_directive("rustls=info".parse().unwrap());
+        .add_directive("rustls=error".parse().unwrap());
     let fmt_layer = fmt::layer()
         // .pretty()
         .with_line_number(true)

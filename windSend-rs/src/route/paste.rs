@@ -36,7 +36,7 @@ pub async fn ping_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) -> R
         &encrypted_resp,
     )
     .await?;
-    Err(())
+    Ok(())
 }
 
 pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) {
@@ -58,12 +58,12 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
     send_msg(conn, &"粘贴成功".to_string()).await.ok();
 }
 
-pub async fn paste_file_handler(mut conn: TlsStream<TcpStream>, head: RouteHead) {
+pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) {
     // head.End == 0 && head.Start == 0 表示文件为空
     if head.end <= head.start && !(head.end == 0 && head.start == 0) {
         let err_msg = &format!("invalid file part, start:{}, end:{}", head.start, head.end);
         error!("{}", err_msg);
-        resp_error_msg(&mut conn, err_msg).await.ok();
+        resp_error_msg(conn, err_msg).await.ok();
         return;
     }
     let data_len = head.end - head.start;
@@ -73,7 +73,7 @@ pub async fn paste_file_handler(mut conn: TlsStream<TcpStream>, head: RouteHead)
             head.data_len, head.start, head.end
         );
         error!("{}", err_msg);
-        resp_error_msg(&mut conn, err_msg).await.ok();
+        resp_error_msg(conn, err_msg).await.ok();
         return;
     }
     if head.files_count_in_this_op == 0 {
@@ -82,7 +82,7 @@ pub async fn paste_file_handler(mut conn: TlsStream<TcpStream>, head: RouteHead)
             head.files_count_in_this_op
         );
         error!("{}", err_msg);
-        resp_error_msg(&mut conn, err_msg).await.ok();
+        resp_error_msg(conn, err_msg).await.ok();
         return;
     }
     // let file = (*crate::file::GLOBAL_FILE_RECEIVER).clone().borrow_mut();
@@ -90,7 +90,7 @@ pub async fn paste_file_handler(mut conn: TlsStream<TcpStream>, head: RouteHead)
     if file.is_err() {
         let err = file.err().unwrap();
         error!("create file error: {}", err);
-        resp_error_msg(&mut conn, &format!("create file error: {}", err))
+        resp_error_msg(conn, &format!("create file error: {}", err))
             .await
             .ok();
         return;
@@ -102,7 +102,7 @@ pub async fn paste_file_handler(mut conn: TlsStream<TcpStream>, head: RouteHead)
     if file_writer.is_err() {
         let err = file_writer.err().unwrap();
         error!("new file writer failed, err: {}", err);
-        resp_error_msg(&mut conn, &format!("new file writer failed, err: {}", err))
+        resp_error_msg(conn, &format!("new file writer failed, err: {}", err))
             .await
             .ok();
         return;
