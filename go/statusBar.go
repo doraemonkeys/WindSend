@@ -32,7 +32,7 @@ func onReady(quitch chan bool) {
 
 	systray.SetTemplateIcon(Data, Data)
 	systray.SetTitle("剪切板同步")
-	systray.SetTooltip("剪切板同步")
+	systray.SetTooltip(ProgramName + " " + ProgramVersion)
 
 	var filesNum int = 0
 	mAddFils := systray.AddMenuItem("添加文件 - 0", "添加文件") // 添加菜单项

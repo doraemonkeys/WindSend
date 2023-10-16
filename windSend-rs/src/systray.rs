@@ -84,7 +84,7 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
     let mut tray_icon = Some(
         TrayIconBuilder::new()
             .with_menu(Box::new(tray_menu))
-            .with_tooltip("剪切板同步")
+            .with_tooltip(String::from(crate::PROGRAM_NAME) + " " + crate::PROGRAM_VERSION)
             .with_icon(icon)
             .build()
             .unwrap(),
