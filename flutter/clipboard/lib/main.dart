@@ -1138,7 +1138,7 @@ class _HomePageState extends State<HomePage> {
     if (text != null && text.isNotEmpty) {
       pasteText = text;
     } else {
-      final clipboardData = await Clipboard.getData('text/plain');
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       if (clipboardData == null ||
           clipboardData.text == null ||
           clipboardData.text!.isEmpty) {
