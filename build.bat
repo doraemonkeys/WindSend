@@ -6,10 +6,19 @@ set goServerProgramName=%ServerProgramName%-Go
 set rustServerProgramName=%ServerProgramName%-Rust
 
 
+@REM 输入version
+set /p version=version:v
+set versionStr=version: %version%
+echo %versionStr%
+
+
 
 @REM build go server
 cd go
 echo %cd%
+@REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
+call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
+
 go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
 
 cd ../bin
@@ -20,10 +29,6 @@ zip -r %goServerProgramName%-amd64-windows.zip %goServerProgramName%-amd64-windo
 
 
 
-@REM 输入version
-set /p version=version:v
-set versionStr=version: %version%
-echo %versionStr%
 
 
 @REM build rust server
