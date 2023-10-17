@@ -110,7 +110,6 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
     let mut file_writer = file_writer.unwrap();
     // 8 is a magic number
     let buf_size = std::cmp::max((data_len / 8) as usize, 4096);
-    println!("buf_size: {}", buf_size);
     let (conn_reader, mut conn_writer) = tokio::io::split(conn);
     // let mut reader =
     //     tokio::io::BufReader::with_capacity(buf_size, conn_reader.take(data_len as u64));

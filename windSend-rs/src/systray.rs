@@ -99,14 +99,13 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
         *control_flow = ControlFlow::Wait;
         select! {
             recv(rx_reset_files_item) -> _ => {
-                println!("rx");
                 handle_menu_event_clear_files(&add_files_i, &clear_files_i);
             }
             recv(menu_channel) -> event => {
                 let event = match event {
                     Ok(event) => event,
                     Err(e) => {
-                        println!("menu_channel recv error: {:?}", e);
+                        error!("menu_channel recv error: {:?}", e);
                         return;
                     }
                 };
@@ -169,13 +168,13 @@ async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem)
     let files = match pick_task.await {
         Some(files) => files,
         None => {
-            println!("pick_files error");
+            warn!("pick_files failed");
             return;
         }
     };
     let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
     for file in files {
-        println!("selected file: {:?}", file);
+        debug!("selected file: {:?}", file);
         selected_files.insert(file.path().to_str().unwrap().to_string());
     }
     clear_item.set_enabled(true);

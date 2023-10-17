@@ -9,13 +9,23 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     if let ControlFlow::Break(_) = send_files(conn).await {
         return;
     }
-    let r = send_text(conn).await;
-    if !r.is_err() {
-        return;
-    }
-    let r = send_image(conn).await;
-    if !r.is_err() {
-        return;
+    {
+        let r1 = send_text(conn).await;
+        if !r1.is_err() {
+            return;
+        }
+        let r2 = send_image(conn).await;
+        if !r2.is_err() {
+            return;
+        }
+        if r1.is_err() {
+            let err = r1.err().unwrap();
+            error!("send text failed, err: {}", err);
+        }
+        if r2.is_err() {
+            let err = r2.err().unwrap();
+            error!("send image failed, err: {}", err);
+        }
     }
     resp_error_msg(conn, &"你还没有复制任何内容".to_string())
         .await
@@ -58,36 +68,29 @@ async fn send_files(conn: &mut TlsStream<TcpStream>) -> ControlFlow<()> {
     return ControlFlow::Break(());
 }
 
-async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
+async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
     let raw_image = crate::config::CLIPBOARD.lock().unwrap().get_image();
     if raw_image.is_err() {
         let data = raw_image.err().unwrap();
         let info = format!("{}", data);
-        return Err(info);
+        return Err(info.into());
     }
-    let data_image = raw_image.unwrap();
-    let mut img_buf = image::ImageBuffer::new(data_image.width as u32, data_image.height as u32);
-    for (x, y, pixel) in img_buf.enumerate_pixels_mut() {
-        let i = (y * data_image.width as u32 + x) as usize;
-        let r = data_image.bytes[i * 4];
-        let g = data_image.bytes[i * 4 + 1];
-        let b = data_image.bytes[i * 4 + 2];
-        let a = data_image.bytes[i * 4 + 3];
-        *pixel = image::Rgba([r, g, b, a]);
-    }
-    let mut img_bytes = Vec::with_capacity(data_image.width * data_image.height * 4);
-    let mut mut_img_buf = std::io::Cursor::new(&mut img_bytes);
-    img_buf
-        .write_to(&mut mut_img_buf, image::ImageOutputFormat::Png)
-        .map_err(|e| error!("write image to bytes failed, err: {}", e))
-        .ok();
-
+    let raw_image = raw_image.unwrap();
+    let img_buf = image::ImageBuffer::from_vec(
+        raw_image.width as u32,
+        raw_image.height as u32,
+        raw_image.bytes.into_owned(),
+    )
+    .ok_or("image::ImageBuffer::from_vec failed")?;
+    let mut cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
+    let img_buf = image::DynamicImage::ImageRgba8(img_buf);
+    img_buf.write_to(&mut cursor_buf, image::ImageOutputFormat::Png)?;
     send_msg_with_body(
         conn,
         &image_name,
         RouteDataType::ClipImage,
-        &mut_img_buf.into_inner(),
+        &cursor_buf.into_inner(),
     )
     .await
     .ok();
