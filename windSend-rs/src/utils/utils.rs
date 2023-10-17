@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 pub struct StartHelper {
     exe_name: String,
 }
@@ -178,7 +180,7 @@ pub fn get_desktop_path() -> Result<String, String> {
 }
 
 /// 去除颜色
-pub fn eliminate_color(line: &[u8]) -> Vec<u8> {
+pub fn eliminate_color<'a>(line: &'a [u8]) -> Cow<'a, [u8]> {
     //"\033[31m 红色 \033[0m"
     if subslice::bmh::find(line, b"\x1b[0m").is_some() {
         let mut buf = Vec::with_capacity(line.len());
@@ -213,23 +215,23 @@ pub fn eliminate_color(line: &[u8]) -> Vec<u8> {
                 }
                 if temp_index == line.len() || temp_index > end + 6 {
                     println!("WARN: 'm' not found in line[{}..{}]", end + 3, end + 6);
-                    return line.to_vec();
+                    return Cow::Owned(line.to_vec());
                 }
                 if start == line.len() {
                     break;
                 }
                 if start > line.len() {
                     println!("WARN: start: {} > line.len(): {}", start, line.len());
-                    return line.to_vec();
+                    return Cow::Owned(line.to_vec());
                 }
             } else {
                 buf.extend_from_slice(&line[start..]);
                 break;
             }
         }
-        return buf;
+        return Cow::Owned(buf);
     }
-    line.to_vec()
+    Cow::Borrowed(line)
 }
 
 #[cfg(test)]
