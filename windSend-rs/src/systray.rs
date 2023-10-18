@@ -72,6 +72,7 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
         &paste_to_web_i,
         &sub_menu_hide,
         &PredefinedMenuItem::separator(),
+        #[cfg(not(target_os = "linux"))]
         &auto_start_i,
         &save_path_i,
         &open_url_i,

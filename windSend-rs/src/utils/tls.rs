@@ -28,7 +28,7 @@ pub fn gen_ca() -> Result<Certificate, Box<dyn std::error::Error>> {
         ))),
     ];
     // 当前时间
-    params.not_before = OffsetDateTime::now_local()?;
+    params.not_before = OffsetDateTime::now_utc();
     // 当前时间 + 3650 , 即有效期10年
     params.not_after = params
         .not_before

@@ -66,6 +66,12 @@ impl Config {
     }
     pub fn save_and_set(&self) -> Result<(), String> {
         self.empty_check()?;
+        self.set()?;
+        self.save()
+    }
+    pub fn set(&self) -> Result<(), String> {
+        self.empty_check()?;
+        #[cfg(not(target_os = "linux"))]
         if self.auto_start {
             START_HELPER
                 .set_auto_start()
@@ -75,16 +81,7 @@ impl Config {
                 .unset_auto_start()
                 .map_err(|err| err.to_string())?;
         }
-        self.save()
-    }
-    pub fn set(&self) -> Result<(), String> {
-        self.empty_check()?;
-        match self.auto_start {
-            true => START_HELPER.set_auto_start().map_err(|err| err.to_string()),
-            false => START_HELPER
-                .unset_auto_start()
-                .map_err(|err| err.to_string()),
-        }
+        Ok(())
     }
 
     fn generate_default() -> Self {
