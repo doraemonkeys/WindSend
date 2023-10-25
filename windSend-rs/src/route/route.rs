@@ -150,12 +150,36 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
         return Err(());
     }
     debug!("head: {:?}", head);
+
     let time_and_ip_bytes =
         hex::decode(&head.time_ip).map_err(|e| error!("hex decode failed, err: {}", e))?;
     let decrypted = crate::config::get_cryptor()
         .map_err(|e| error!("get_cryptor failed, err: {}", e))?
-        .decrypt(&time_and_ip_bytes)
-        .map_err(|e| error!("decrypt failed, err: {}", e))?;
+        .decrypt(&time_and_ip_bytes);
+    // .map_err(|e| error!("decrypt failed, err: {}", e))?;
+    if let Err(e) = decrypted {
+        let remote_ip = conn
+            .get_ref()
+            .0
+            .peer_addr()
+            .map_err(|e| error!("get peer addr failed, err: {}", e));
+        match remote_ip {
+            Ok(remote_ip) => {
+                error!(
+                    "decrypt failed, err: {}, remote_ip: {}",
+                    e,
+                    remote_ip.ip().to_string()
+                );
+            }
+            Err(_) => {
+                error!("get peer addr failed");
+                error!("decrypt failed, err: {}", e)
+            }
+        }
+        return Err(());
+    }
+    let decrypted = decrypted.unwrap();
+
     let time_and_ip_str =
         String::from_utf8(decrypted).map_err(|e| error!("utf8 decode failed, err: {}", e))?;
     let time_len = EXAMINE_TIME_STR.len();

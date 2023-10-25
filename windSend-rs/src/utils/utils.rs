@@ -190,7 +190,7 @@ pub fn eliminate_color<'a>(line: &'a [u8]) -> Cow<'a, [u8]> {
             if let Some(index) = subslice::bmh::find(&line[start..], b"\x1b[") {
                 end = start + index;
                 buf.extend_from_slice(&line[start..end]);
-                // end + 4 与 end + 5 一个是\x1b[0m，一个是\x1b[31m，
+                // end的位置是\x1b的位置，end + 3 与 end + 4 一个是\x1b[0m，一个是\x1b[31m，以此类推，
                 // 如果 end + 4 <= line.len()或者end + 5 <= line.len() 都不成立，
                 // 说明字符串含有\x1b，但是\x1b[0m或者\x1b[31m不完整，或许不是颜色字符串。
                 // if end + 3 < line.len() && line[end + 3] == 'm' as u8 {
