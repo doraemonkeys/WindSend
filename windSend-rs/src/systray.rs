@@ -36,20 +36,6 @@ pub fn show_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> Ret
 }
 
 fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnCode {
-    let icon = load_icon();
-
-    let tray_menu = Menu::new();
-
-    let add_files_i = MenuItem::new("添加文件 - 0", true, None);
-    let clear_files_i = MenuItem::new("清空文件", false, None);
-    let sub_hide_once_i = MenuItem::new("仅一次", true, None);
-    let sub_hide_forever_i = MenuItem::new("永久隐藏", true, None);
-    let auto_start_i = CheckMenuItem::new(
-        "开机自启",
-        true,
-        config::GLOBAL_CONFIG.lock().unwrap().auto_start,
-        None,
-    );
     // let copy_from_web_shortcut = Accelerator::new(
     //     Some(Modifiers::CONTROL | Modifiers::ALT),
     //     tray_icon::menu::accelerator::Code::KeyY,
@@ -71,9 +57,22 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
     // hotkeys_manager.register(hotkey_paste).unwrap();
     // let global_hotkey_channel = GlobalHotKeyEvent::receiver();
 
+    let icon = load_icon();
+
+    let tray_menu = Menu::new();
+
+    let add_files_i = MenuItem::new("添加文件 - 0", true, None);
+    let clear_files_i = MenuItem::new("清空文件", false, None);
+    let sub_hide_once_i = MenuItem::new("仅一次", true, None);
+    let sub_hide_forever_i = MenuItem::new("永久隐藏", true, None);
+    let auto_start_i = CheckMenuItem::new(
+        "开机自启",
+        true,
+        config::GLOBAL_CONFIG.lock().unwrap().auto_start,
+        None,
+    );
     let copy_from_web_i = MenuItem::new("复制[Web]", true, None);
     let paste_to_web_i = MenuItem::new("粘贴[Web]", true, None);
-
     let open_url_i = MenuItem::new("打开官网", true, None);
     let save_path_i = MenuItem::new("文件保存路径", true, None);
     let sub_menu_hide = SubmenuBuilder::new()
