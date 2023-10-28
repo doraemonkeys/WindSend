@@ -1,4 +1,3 @@
-use crossbeam_channel::select;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::OnceLock;
@@ -15,6 +14,14 @@ use crate::config;
 use crate::utils;
 use crate::web;
 
+// use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
+// use global_hotkey::{
+//     hotkey::{Code, HotKey},
+//     GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState,
+// };
+// use tray_icon::menu::accelerator::Accelerator;
+// use tray_icon::menu::accelerator::Modifiers;
+
 pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 #[derive(Debug)]
@@ -29,9 +36,6 @@ pub fn show_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> Ret
 }
 
 fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnCode {
-    // let path = concat!(env!("CARGO_MANIFEST_DIR"), "/icons/icon.png");//TODO:学习
-    // // println!("path: {}", path);
-    // info!("path: {}", path);
     let icon = load_icon();
 
     let tray_menu = Menu::new();
@@ -46,8 +50,30 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
         config::GLOBAL_CONFIG.lock().unwrap().auto_start,
         None,
     );
-    let paste_to_web_i = MenuItem::new("粘贴[Web]", true, None);
+    // let copy_from_web_shortcut = Accelerator::new(
+    //     Some(Modifiers::CONTROL | Modifiers::ALT),
+    //     tray_icon::menu::accelerator::Code::KeyY,
+    // );
+    // let paste_to_web_shortcut = Accelerator::new(
+    //     Some(Modifiers::CONTROL | Modifiers::ALT),
+    //     tray_icon::menu::accelerator::Code::KeyP,
+    // );
+    // let hotkey_copy = HotKey::new(
+    //     Some(hotkey_Modifiers::CONTROL | hotkey_Modifiers::ALT),
+    //     Code::KeyY,
+    // );
+    // let hotkey_paste = HotKey::new(
+    //     Some(hotkey_Modifiers::CONTROL | hotkey_Modifiers::ALT),
+    //     Code::KeyP,
+    // );
+    // let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
+    // hotkeys_manager.register(hotkey_copy).unwrap();
+    // hotkeys_manager.register(hotkey_paste).unwrap();
+    // let global_hotkey_channel = GlobalHotKeyEvent::receiver();
+
     let copy_from_web_i = MenuItem::new("复制[Web]", true, None);
+    let paste_to_web_i = MenuItem::new("粘贴[Web]", true, None);
+
     let open_url_i = MenuItem::new("打开官网", true, None);
     let save_path_i = MenuItem::new("文件保存路径", true, None);
     let sub_menu_hide = SubmenuBuilder::new()
@@ -98,60 +124,50 @@ fn loop_systray(rx_reset_files_item: crossbeam_channel::Receiver<()>) -> ReturnC
     let return_code = event_loop.run_return(move |_event, _, control_flow| {
         // println!("event_loop");
         *control_flow = ControlFlow::Wait;
-        select! {
-            recv(rx_reset_files_item) -> _ => {
-                handle_menu_event_clear_files(&add_files_i, &clear_files_i);
-            }
-            recv(menu_channel) -> event => {
-                let event = match event {
-                    Ok(event) => event,
-                    Err(e) => {
-                        error!("menu_channel recv error: {:?}", e);
-                        return;
-                    }
-                };
-                match event.id {
-                    id if id == sub_hide_once_i.id() || id == sub_hide_forever_i.id() => {
-                        *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
-                    }
-                    id if id == add_files_i.id() => {
-                        let r = crate::RUNTIME.get().unwrap();
-                        r.block_on(handle_menu_event_add_files(&add_files_i, &clear_files_i));
-                    }
-                    id if id == clear_files_i.id() => {
-                        handle_menu_event_clear_files(&add_files_i, &clear_files_i);
-                    }
-                    id if id == paste_to_web_i.id() => {
-                        let r = crate::RUNTIME.get().unwrap();
-                        r.spawn(handle_menu_event_paste_to_web());
-                    }
-                    id if id == copy_from_web_i.id() => {
-                        let r = crate::RUNTIME.get().unwrap();
-                        r.spawn(handle_menu_event_copy_from_web());
-                    }
-                    id if id == auto_start_i.id() => {
-                        let mut config = config::GLOBAL_CONFIG.lock().unwrap();
-                        config.auto_start = !config.auto_start;
-                        if let Err(err) = config.save_and_set() {
-                            error!("save config error: {}", err);
-                        }
-                    }
-                    id if id == save_path_i.id() => {
-                        let r = crate::RUNTIME.get().unwrap();
-                        r.block_on(handle_menu_event_save_path());
-                    }
-                    id if id == open_url_i.id() => {
-                        if let Err(err) = crate::utils::open_url(crate::PROGRAM_URL) {
-                            error!("open url error: {}", err);
-                        }
-                    }
-                    other_id => {
-                        println!("recv unknown menu event, id: {:?}", other_id);
+        if let Ok(_) = rx_reset_files_item.try_recv() {
+            handle_menu_event_clear_files(&add_files_i, &clear_files_i);
+        }
+        // 不能一直阻塞在这里，否则右键点击托盘图标会没有反应
+        if let Ok(event) = menu_channel.try_recv() {
+            match event.id {
+                id if id == sub_hide_once_i.id() || id == sub_hide_forever_i.id() => {
+                    *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
+                }
+                id if id == add_files_i.id() => {
+                    let r = crate::RUNTIME.get().unwrap();
+                    r.block_on(handle_menu_event_add_files(&add_files_i, &clear_files_i));
+                }
+                id if id == clear_files_i.id() => {
+                    handle_menu_event_clear_files(&add_files_i, &clear_files_i);
+                }
+                id if id == paste_to_web_i.id() => {
+                    let r = crate::RUNTIME.get().unwrap();
+                    r.spawn(handle_menu_event_paste_to_web());
+                }
+                id if id == copy_from_web_i.id() => {
+                    let r = crate::RUNTIME.get().unwrap();
+                    r.spawn(handle_menu_event_copy_from_web());
+                }
+                id if id == auto_start_i.id() => {
+                    let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                    config.auto_start = !config.auto_start;
+                    if let Err(err) = config.save_and_set() {
+                        error!("save config error: {}", err);
                     }
                 }
-            }
-            default => {
-                // println!("default");
+                id if id == save_path_i.id() => {
+                    let r = crate::RUNTIME.get().unwrap();
+                    r.block_on(handle_menu_event_save_path());
+                }
+                id if id == open_url_i.id() => {
+                    if let Err(err) = crate::utils::open_url(crate::PROGRAM_URL) {
+                        error!("open url error: {}", err);
+                    }
+                }
+                other_id => {
+                    // println!("recv unknown menu event, id: {:?}", other_id);
+                    error!("recv unknown menu event, id: {:?}", other_id);
+                }
             }
         }
     });
@@ -209,7 +225,6 @@ async fn handle_menu_event_paste_to_web() {
         return;
     }
     debug!("clipboard_text: {:?}", clipboard_text);
-    println!("clipboard_text: {:?}", clipboard_text);
     let clipboard_text = clipboard_text.unwrap();
     let result = web::post_content_to_web(clipboard_text.as_bytes()).await;
     if result.is_err() {
