@@ -21,13 +21,14 @@ lazy_static! {
 lazy_static! {
     pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
 }
-lazy_static::lazy_static!(
-    pub static ref CLIPBOARD: Mutex<arboard::Clipboard> = Mutex::new(arboard::Clipboard::new().unwrap());
-);
+lazy_static! {
+    pub static ref CLIPBOARD: Mutex<arboard::Clipboard> =
+        Mutex::new(arboard::Clipboard::new().unwrap());
+}
 
 pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
     let cryptor = utils::encrypt::AESCbcFollowedCrypt::new(
-        hex::decode(GLOBAL_CONFIG.lock().unwrap().secret_key_hex.clone())?.as_bytes(),
+        hex::decode(GLOBAL_CONFIG.lock()?.secret_key_hex.clone())?.as_bytes(),
     )?;
     Ok(cryptor)
 }

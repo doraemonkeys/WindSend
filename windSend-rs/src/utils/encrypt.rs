@@ -42,7 +42,6 @@ pub trait SymCryptor {
     fn encrypt(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>>;
     fn decrypt(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>>;
 }
-
 pub struct AESCbcCrypt {
     key: Vec<u8>,
 }
@@ -62,15 +61,13 @@ impl AESCbcCrypt {
         }
         Ok(Self { key: key.to_vec() })
     }
-    fn encrypt128(
+    fn encrypt(
         &self,
+        encryptor: impl BlockEncryptMut,
         plain_text: &[u8],
-        iv: &[u8],
         extra_space: usize,
     ) -> anyhow::Result<Vec<u8>> {
         let mut buf = vec![0u8; plain_text.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..16];
-        let encryptor = Aes128CbcEnc::new(key.into(), iv.into());
         let cipher_text = encryptor.encrypt_padded_b2b_mut::<Pkcs7>(plain_text, &mut buf);
         match cipher_text {
             Ok(text) => {
@@ -81,68 +78,13 @@ impl AESCbcCrypt {
             Err(e) => Err(anyhow::anyhow!(e)),
         }
     }
-    fn decrypt128(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
-        let mut buf = vec![0u8; data.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..16];
-        let decryptor = Aes128CbcDec::new(key.into(), iv.into());
-        let plain_text = decryptor.decrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf);
-        if let Err(e) = plain_text {
-            return Err(anyhow::anyhow!(e));
-        }
-        let len = plain_text.unwrap().len();
-        buf.truncate(len);
-        Ok(buf)
-    }
-    fn encrypt192(
+    fn decrypt(
         &self,
-        plain_text: &[u8],
-        iv: &[u8],
+        decryptor: impl BlockDecryptMut,
+        data: &[u8],
         extra_space: usize,
     ) -> anyhow::Result<Vec<u8>> {
-        let mut buf = vec![0u8; plain_text.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..24];
-        let encryptor = Aes192CbcEnc::new(key.into(), iv.into());
-        let cipher_text = encryptor.encrypt_padded_b2b_mut::<Pkcs7>(plain_text, &mut buf);
-        if let Err(e) = cipher_text {
-            return Err(anyhow::anyhow!(e));
-        }
-        let len = cipher_text.unwrap().len();
-        buf.truncate(len);
-        Ok(buf)
-    }
-    fn decrypt192(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
         let mut buf = vec![0u8; data.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..24];
-        let decryptor = Aes192CbcDec::new(key.into(), iv.into());
-        let plain_text = decryptor.decrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf);
-        if let Err(e) = plain_text {
-            return Err(anyhow::anyhow!(e));
-        }
-        let len = plain_text.unwrap().len();
-        buf.truncate(len);
-        Ok(buf)
-    }
-    fn encrypt256(
-        &self,
-        plain_text: &[u8],
-        iv: &[u8],
-        extra_space: usize,
-    ) -> anyhow::Result<Vec<u8>> {
-        let mut buf = vec![0u8; plain_text.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..32];
-        let encryptor = Aes256CbcEnc::new(key.into(), iv.into());
-        let cipher_text = encryptor.encrypt_padded_b2b_mut::<Pkcs7>(plain_text, &mut buf);
-        if let Err(e) = cipher_text {
-            return Err(anyhow::anyhow!(e));
-        }
-        let len = cipher_text.unwrap().len();
-        buf.truncate(len);
-        Ok(buf)
-    }
-    fn decrypt256(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
-        let mut buf = vec![0u8; data.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let key = &self.key[..32];
-        let decryptor = Aes256CbcDec::new(key.into(), iv.into());
         let plain_text = decryptor.decrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf);
         if let Err(e) = plain_text {
             return Err(anyhow::anyhow!(e));
@@ -156,18 +98,42 @@ impl AESCbcCrypt {
 impl SymCryptor for AESCbcCrypt {
     fn encrypt(&self, plain_text: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
         match self.key.len() {
-            16 => self.encrypt128(plain_text, iv, extra_space),
-            24 => self.encrypt192(plain_text, iv, extra_space),
-            32 => self.encrypt256(plain_text, iv, extra_space),
+            16 => {
+                let key = &self.key[..16];
+                let encryptor = Aes128CbcEnc::new(key.into(), iv.into());
+                self.encrypt(encryptor, plain_text, extra_space)
+            }
+            24 => {
+                let key = &self.key[..24];
+                let encryptor = Aes192CbcEnc::new(key.into(), iv.into());
+                self.encrypt(encryptor, plain_text, extra_space)
+            }
+            32 => {
+                let key = &self.key[..32];
+                let encryptor = Aes256CbcEnc::new(key.into(), iv.into());
+                self.encrypt(encryptor, plain_text, extra_space)
+            }
             _ => Err(anyhow::anyhow!("unsupported key length")),
         }
     }
 
     fn decrypt(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
         match self.key.len() {
-            16 => self.decrypt128(data, iv, extra_space),
-            24 => self.decrypt192(data, iv, extra_space),
-            32 => self.decrypt256(data, iv, extra_space),
+            16 => {
+                let key = &self.key[..16];
+                let decryptor = Aes128CbcDec::new(key.into(), iv.into());
+                self.decrypt(decryptor, data, extra_space)
+            }
+            24 => {
+                let key = &self.key[..24];
+                let decryptor = Aes192CbcDec::new(key.into(), iv.into());
+                self.decrypt(decryptor, data, extra_space)
+            }
+            32 => {
+                let key = &self.key[..32];
+                let decryptor = Aes256CbcDec::new(key.into(), iv.into());
+                self.decrypt(decryptor, data, extra_space)
+            }
             _ => Err(anyhow::anyhow!("unsupported key length")),
         }
     }
@@ -184,7 +150,7 @@ impl AESCbcFollowedCrypt {
     }
     pub fn encrypt(&self, plain_text: &[u8]) -> anyhow::Result<Vec<u8>> {
         let iv = rand_n_bytes2(AESCbcCrypt::BLOCK_SIZE);
-        let mut cipher_text = self.cryptor.encrypt(plain_text, &iv, iv.len())?;
+        let mut cipher_text = SymCryptor::encrypt(&self.cryptor, plain_text, &iv, iv.len())?;
         cipher_text.extend_from_slice(&iv);
         Ok(cipher_text)
     }
@@ -197,7 +163,7 @@ impl AESCbcFollowedCrypt {
         }
         let iv = &data[data.len() - AESCbcCrypt::BLOCK_SIZE..];
         let data = &data[..data.len() - AESCbcCrypt::BLOCK_SIZE];
-        self.cryptor.decrypt(data, iv, 0)
+        SymCryptor::decrypt(&self.cryptor, data, iv, 0)
     }
 }
 
@@ -210,8 +176,9 @@ mod tests {
         let cryptor = AESCbcCrypt::new(key).unwrap();
         let plain_text = "hello world".as_bytes();
         let iv = "1234567890123456".as_bytes();
-        let cipher_text = cryptor.encrypt(plain_text, iv, 0).unwrap();
-        let plain_text2 = cryptor.decrypt(&cipher_text, iv, 0).unwrap();
+        // let cipher_text = cryptor.encrypt(plain_text, iv, 0).unwrap();
+        let cipher_text = SymCryptor::encrypt(&cryptor, plain_text, iv, 0).unwrap();
+        let plain_text2 = SymCryptor::decrypt(&cryptor, &cipher_text, iv, 0).unwrap();
         assert_eq!(plain_text, plain_text2.as_slice());
     }
     #[test]
