@@ -30,6 +30,7 @@ import 'utils.dart';
 
 const String githubUrl = 'https://github.com/doraemonkeys/WindSend';
 const String donateUrl = 'https://doraemonkeys.github.io/donate_page';
+const String downloadUrl = 'https://github.com/doraemonkeys/WindSend/releases';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
@@ -56,6 +57,15 @@ class AboutPage extends StatelessWidget {
             subtitle: Text(context.formatString(AppLocale.donateAuthor, [])),
             onTap: () {
               launchInBrowser(Uri.parse(donateUrl));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_rounded),
+            title: const Text("Release"),
+            subtitle:
+                Text(context.formatString(AppLocale.downloadLatestVersion, [])),
+            onTap: () {
+              launchInBrowser(Uri.parse(downloadUrl));
             },
           ),
         ],
