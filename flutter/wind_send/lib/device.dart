@@ -265,7 +265,7 @@ class Device {
 
   Future<void> pingDevice2(
       StreamController<String> msgController, Device device,
-      {Duration? timeout}) async {
+      {Duration timeout = connectTimeout}) async {
     // var urlstr = 'https://$ip:${cnf.port}/ping';
     bool ok;
     try {
@@ -274,10 +274,11 @@ class Device {
     } catch (e) {
       ok = false;
     }
+    // print('pingDevice2: ${device.iP} $ok');
     msgController.add(ok ? device.iP : '');
   }
 
-  Future<void> pingDevice({Duration? timeout = connectTimeout}) async {
+  Future<void> pingDevice({Duration timeout = connectTimeout}) async {
     // print('checkServer: $ip:$port');
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
@@ -341,7 +342,7 @@ class Device {
 
   static Future<void> _matchDevice(
       StreamController<Device> msgController, String ip,
-      {Duration? timeout = connectTimeout}) async {
+      {Duration timeout = connectTimeout}) async {
     print('matchDevice: $ip');
     var device = Device(
       targetDeviceName: '',
