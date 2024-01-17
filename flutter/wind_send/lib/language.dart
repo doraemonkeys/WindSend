@@ -45,7 +45,7 @@ mixin AppLocale {
   static const String shareFailed = 'shareFailed';
   static const String shareSuccess = 'shareSuccess';
 
-  static const Map<String, dynamic> ZH = {
+  static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
     selectColorTip: '选择一个主题颜色',
     toggleBrightnessTip: '切换亮度',
@@ -93,7 +93,7 @@ mixin AppLocale {
     shareSuccess: '发送到 %a 成功',
   };
 
-  static const Map<String, dynamic> EN = {
+  static const Map<String, dynamic> en = {
     appBarTitle: 'WindSend',
     selectColorTip: 'Select a seed color',
     toggleBrightnessTip: 'Toggle brightness',
@@ -140,4 +140,8 @@ mixin AppLocale {
     shareFailed: 'Share failed',
     shareSuccess: 'Successfully sent to the %a',
   };
+
+  static List<String> getSupportLanguageCode() {
+    return ['zh', 'en'];
+  }
 }

@@ -234,12 +234,18 @@ class AppSharedCnfService {
 
   // 语言
   static Locale get locale {
-    final String? language = _sp.getString('Language');
+    String? language = _sp.getString('Language');
     if (language == null) {
-      return const Locale('zh', 'CN');
+      final sysLanguage = Platform.localeName;
+      final sysLanguageCode = sysLanguage.split('_')[0];
+      language = AppLocale.getSupportLanguageCode().firstWhere(
+          (element) => element == sysLanguageCode,
+          orElse: () => 'en_US');
     }
-    final List<String> list = language.split('_');
-    return Locale(list[0], list[1]);
+    final languageCode = language.split('_')[0];
+    final countryCode =
+        language.split('_').length > 1 ? language.split('_')[1] : null;
+    return Locale(languageCode, countryCode);
   }
 
   static set locale(Locale value) {
