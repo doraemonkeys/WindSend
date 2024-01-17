@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 // import 'dart:isolate';
@@ -7,30 +6,20 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as filepath;
-import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/services.dart';
-import 'package:convert/convert.dart';
-import 'package:intl/intl.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:line_icons/line_icons.dart';
 import 'package:wind_send/request.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
 import 'cnf.dart';
 import 'theme.dart';
 import 'language.dart';
-import 'textEdit.dart';
+import 'text_edit.dart';
 import 'setting.dart';
 import 'utils.dart';
 import 'sorting.dart';
 import 'about.dart';
-import 'deviceEdit.dart';
+import 'device_edit.dart';
 import 'device.dart';
 
 void main() async {
@@ -560,7 +549,7 @@ class _MainBodyState extends State<MainBody> {
         child: ListView.builder(
           itemCount: widget.devices.length,
           itemBuilder: (context, index) {
-            print('build MainBody,index: $index');
+            // print('build MainBody,index: $index');
             return DeviceItem(
               device: widget.devices[index],
               devices: widget.devices,
@@ -616,10 +605,10 @@ class DeviceItem extends StatefulWidget {
       try {
         msg = await task();
         break;
-      } catch (e, s) {
+      } catch (e) {
         err = e;
         msg = e.toString();
-        print('commonActionFunc err: $err\n, $s');
+        // print('commonActionFunc err: $err\n, $s');
       }
       if (err != null &&
           !exited &&
@@ -715,7 +704,7 @@ class _DeviceItemState extends State<DeviceItem> {
 
   @override
   Widget build(BuildContext context) {
-    print('build DeviceItem');
+    // print('build DeviceItem');
     return Card(
       child: ExpansionTile(
         key: ValueKey(
@@ -772,7 +761,7 @@ class _DeviceItemState extends State<DeviceItem> {
 
 List<Widget> deviceItemChilden(BuildContext context, Device device,
     void Function(Device device) onChanged) {
-  print('build deviceItemChilden,unFold: ${device.unFold}');
+  // print('build deviceItemChilden,unFold: ${device.unFold}');
   List<Widget> result = [];
   final int maxStringLen = max(
     max(
@@ -798,8 +787,14 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFunc(
-                context, device, onChanged, device.doCopyAction);
+            await DeviceItem.commonActionFunc(context, device, onChanged,
+                () async {
+              var (c, count) = await device.doCopyAction();
+              if (count != 0) {
+                return context.formatString(AppLocale.filesSaved, [count]);
+              }
+              return '${context.formatString(AppLocale.copySuccess, [])}\n$c';
+            });
           },
         ),
       );
@@ -819,8 +814,11 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFunc(
-                context, device, onChanged, device.doPasteTextAction);
+            await DeviceItem.commonActionFunc(context, device, onChanged, () {
+              return device.doPasteTextAction(
+                successMsg: context.formatString(AppLocale.pasteSuccess, []),
+              );
+            });
           },
         ),
       );
@@ -881,7 +879,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           await DeviceItem.commonActionFunc(context, device, onChanged,
               () async {
             String msg = await device.doCopyActionWeb();
-            return msg.isEmpty ? successMsg : msg;
+            return msg.isEmpty ? successMsg : '$successMsg\n$msg';
           });
         },
       ),

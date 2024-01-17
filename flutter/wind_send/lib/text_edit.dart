@@ -1,31 +1,10 @@
 import 'dart:math';
 
-import 'dart:convert';
-import 'dart:io';
-import 'dart:async';
-// import 'dart:isolate';
-// import 'dart:typed_data';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/services.dart';
-import 'package:convert/convert.dart';
-import 'package:intl/intl.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:flutter_toastr/flutter_toastr.dart';
-import 'package:permission_handler/permission_handler.dart';
-// import 'package:filesaverz/filesaverz.dart';
 
 import 'cnf.dart';
-import 'theme.dart';
 import 'language.dart';
-import 'textEdit.dart';
 import 'utils.dart';
 import 'device.dart';
 
@@ -78,7 +57,7 @@ class TextEditPageState extends State<TextEditPage> {
 
   @override
   void initState() {
-    print('TextEditPageState initState');
+    // print('TextEditPageState initState');
     _controller.addListener(() {
       // 监听输入框内容变化
       if (_sendStatus != TaskStatus.idle) {
@@ -102,7 +81,6 @@ class TextEditPageState extends State<TextEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    print('TextEditPageState build');
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -181,7 +159,7 @@ class TextEditPageState extends State<TextEditPage> {
           required int? maxLength,
           required bool isFocused,
         }) {
-          print('characters buildCounter');
+          // print('characters buildCounter');
           return Text('$currentLength characters');
         },
       ),

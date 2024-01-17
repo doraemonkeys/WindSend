@@ -5,31 +5,10 @@ import 'dart:async';
 // import 'dart:typed_data';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localization/flutter_localization.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as filepathpkg;
-import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/services.dart';
-import 'package:convert/convert.dart';
-import 'package:intl/intl.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:flutter_toastr/flutter_toastr.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:line_icons/line_icons.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
-import 'cnf.dart';
-import 'theme.dart';
-import 'language.dart';
-import 'textEdit.dart';
-import 'setting.dart';
-import 'utils.dart';
-import 'sorting.dart';
-import 'about.dart';
-import 'deviceEdit.dart';
 import 'device.dart';
 
 class HeadInfo {
@@ -283,7 +262,7 @@ class FileUploader {
     int opID,
     int filesCountInThisOp,
   ) async {
-    print('conns.length: ${_connectionManager.conns.length}');
+    // print('conns.length: ${_connectionManager.conns.length}');
     var (conn, stream) = await _connectionManager.getConnection();
 
     HeadInfo head = HeadInfo(
@@ -300,9 +279,9 @@ class FileUploader {
       filesCountInThisOp: filesCountInThisOp,
     );
 
-    print('head: ${head.toJson().toString()}');
+    // print('head: ${head.toJson().toString()}');
     await head.writeToConn(conn);
-    print('write head done');
+    // print('write head done');
 
     int sentSize = 0;
     while (sentSize < end - start) {
@@ -417,7 +396,7 @@ class FileDownloader {
     var chunkSize = min(maxChunkSize, end - start);
     // print('chunkSize: $chunkSize');
     var (conn, stream) = await _connectionManager.getConnection();
-    print('_writeRangeFile start: $start, end: $end');
+    // print('_writeRangeFile start: $start, end: $end');
     var head = HeadInfo(
       localDeviceName,
       DeviceAction.downloadAction.name,
@@ -426,14 +405,14 @@ class FileDownloader {
       start: start,
       end: end,
     );
-    print('_writeRangeFile send head: ${head.toJson().toString()}');
+    // print('_writeRangeFile send head: ${head.toJson().toString()}');
     await head.writeToConn(conn);
     await conn.flush();
 
     void readHead(List<int> data) {
       var jsonContent = utf8.decode(Uint8List.fromList(data));
       var respHeader = RespHead.fromJson(jsonDecode(jsonContent));
-      print('_writeRangeFile respHeader: $jsonContent');
+      // print('_writeRangeFile respHeader: $jsonContent');
       if (respHeader.code != 200) {
         throw Exception(
             'respone code: ${respHeader.code} msg: ${respHeader.msg}');
@@ -499,10 +478,10 @@ class FileDownloader {
     // create dir
     await Directory(filepathpkg.dirname(newFilepath)).create(recursive: true);
     var file = File(newFilepath);
-    print('------------------------------------');
-    print('newFilepath: $newFilepath');
-    print('newFile fileSavePath: $fileSavePath');
-    print('------------------------------------');
+    // print('------------------------------------');
+    // print('newFilepath: $newFilepath');
+    // print('newFile fileSavePath: $fileSavePath');
+    // print('------------------------------------');
     var fileAccess = await file.open(mode: FileMode.write);
 
     int partSize = targetFileSize ~/ threadNum;
@@ -540,7 +519,7 @@ String generateUniqueFilepath(String filePath) {
   if (!file.existsSync()) {
     return filePath;
   }
-  print('file exists');
+  // print('file exists');
   var name = file.path.replaceAll('\\', '/').split('/').last;
   var fileExt = name.split('.').last;
   name = name.substring(0, name.length - fileExt.length - 1);

@@ -45,6 +45,9 @@ mixin AppLocale {
   static const String shareFailed = 'shareFailed';
   static const String shareSuccess = 'shareSuccess';
   static const String downloadLatestVersion = 'downloadLatestVersion';
+  static const String copySuccess = 'copySuccess';
+  static const String pasteSuccess = 'pasteSuccess';
+  static const String filesSaved = 'filesSaved';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -93,6 +96,9 @@ mixin AppLocale {
     shareFailed: '分享失败',
     shareSuccess: '发送到 %a 成功',
     downloadLatestVersion: '下载最新版本',
+    copySuccess: '复制成功',
+    pasteSuccess: '粘贴成功',
+    filesSaved: '%a 个文件已保存',
   };
 
   static const Map<String, dynamic> en = {
@@ -142,6 +148,9 @@ mixin AppLocale {
     shareFailed: 'Share failed',
     shareSuccess: 'Successfully sent to the %a',
     downloadLatestVersion: 'Download latest version',
+    copySuccess: 'Copied',
+    pasteSuccess: 'Paste successfully',
+    filesSaved: '%a files saved',
   };
 
   static List<String> getSupportLanguageCode() {

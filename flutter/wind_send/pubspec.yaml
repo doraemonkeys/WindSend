@@ -55,6 +55,8 @@ dependencies:
     git:
       url: https://github.com/doraemonkeys/aes_crypt_null_safe
       ref: master
+  path: ^1.8.3
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:

@@ -1,23 +1,18 @@
 import 'dart:math';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as filepath;
-import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:flutter_toastr/flutter_toastr.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:provider/provider.dart';
 import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
 
 import 'language.dart';
@@ -117,7 +112,7 @@ class Device {
   }
 
   Map<String, dynamic> toJson() {
-    print('device toJson');
+    // print('device toJson');
     final Map<String, dynamic> data = <String, dynamic>{};
     data['TargetDeviceName'] = targetDeviceName;
     // data['subtitle'] = subtitle;
@@ -343,7 +338,7 @@ class Device {
   static Future<void> _matchDevice(
       StreamController<Device> msgController, String ip,
       {Duration timeout = connectTimeout}) async {
-    print('matchDevice: $ip');
+    // print('matchDevice: $ip');
     var device = Device(
       targetDeviceName: '',
       iP: ip,
@@ -397,7 +392,7 @@ class Device {
     return await _matchDeviceLoop(StreamController<Device>(), myIp);
   }
 
-  Future<String> doCopyAction(
+  Future<(String, int)> doCopyAction(
       [Duration connectTimeout = connectTimeout]) async {
     var conn = await SecureSocket.connect(
       iP,
@@ -425,12 +420,10 @@ class Device {
     if (respHead.dataType == RespHead.dataTypeText) {
       final content = utf8.decode(respBody);
       await Clipboard.setData(ClipboardData(text: content));
-      //返回 复制成功
-      String successPrefix = '复制成功: \n';
       if (content.length > 40) {
-        return '$successPrefix${content.substring(0, 40)}...';
+        return ('${content.substring(0, 40)}...', 0);
       }
-      return '$successPrefix$content';
+      return (content, 0);
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
       final imageName = respHead.msg;
@@ -440,16 +433,18 @@ class Device {
       var file = File(filePath);
       await file.writeAsBytes(respBody);
       // /xxx/dir/xxx.jpg -> /xxx/dir
-      return "1 个文件已保存到:\n${file.parent.path}";
+      // return "1 个文件已保存到:\n${file.parent.path}";
+      return ("", 1);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
       // print('respHead.paths: ${jsonEncode(respHead.paths)}');
-      return await _downloadFiles(respHead.paths!);
+      int fileCount = await _downloadFiles(respHead.paths!);
+      return ("", fileCount);
     }
     throw Exception('Unknown data type: ${respHead.dataType}');
   }
 
-  Future<String> _downloadFiles(List<TargetPaths> winFilePaths) async {
+  Future<int> _downloadFiles(List<TargetPaths> winFilePaths) async {
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
@@ -473,7 +468,7 @@ class Device {
           saveDir = fileSavePath; // 传输文件夹时，图片不分离
           saveDir = filepath.join(saveDir, winFilePath.savePath);
         }
-        print('fileName: $fileName, saveDir: $saveDir');
+        // print('fileName: $fileName, saveDir: $saveDir');
         if (winFilePath.type == TargetPaths.pathInfoTypeDir) {
           String systemSeparator = filepath.separator;
           saveDir = saveDir.replaceAll('/', systemSeparator);
@@ -505,7 +500,7 @@ class Device {
       }
       fileCount++;
     }
-    return '$fileCount 个文件已保存';
+    return fileCount;
   }
 
   /// filePath为空时，弹出文件选择器
@@ -520,13 +515,13 @@ class Device {
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         if (!await Permission.manageExternalStorage.request().isGranted) {
-          throw Exception('需要manageExternalStorage权限');
+          throw Exception('need manageExternalStorage permission');
         }
         if (androidInfo.version.sdkInt > 32) {
           if (!await Permission.photos.request().isGranted ||
               !await Permission.videos.request().isGranted ||
               !await Permission.audio.request().isGranted) {
-            throw Exception('需要photos, videos, audio权限');
+            throw Exception('need photos, videos, audio permission');
           }
         }
       }
@@ -548,7 +543,7 @@ class Device {
         if (uploadThread == 0) {
           throw Exception('threadNum can not be 0');
         }
-        print('uploading $filepath');
+        // print('uploading $filepath');
         await fileUploader.upload(
             filepath, fileSavePathMap[filepath] ?? '', opID!, filePaths.length);
       }
@@ -571,13 +566,13 @@ class Device {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (!await Permission.manageExternalStorage.request().isGranted) {
-        throw Exception('需要manageExternalStorage权限');
+        throw Exception('need manageExternalStorage permission');
       }
       if (androidInfo.version.sdkInt > 32) {
         if (!await Permission.photos.request().isGranted ||
             !await Permission.videos.request().isGranted ||
             !await Permission.audio.request().isGranted) {
-          throw Exception('需要photos, videos, audio权限');
+          throw Exception('need photos, videos, audio permission');
         }
       }
     }
@@ -595,7 +590,7 @@ class Device {
       selectedDirPath =
           selectedDirPath.substring(0, selectedDirPath.length - 1);
     }
-    print('selectedDirPath: $selectedDirPath');
+    // print('selectedDirPath: $selectedDirPath');
     List<String> filePaths = [];
     Map<String, String> fileSavePathMap = {};
     List<String> dirPaths = [filepath.basename(selectedDirPath)];
@@ -616,9 +611,9 @@ class Device {
         ));
       }
     }
-    print('filePaths: $filePaths');
-    print('fileSavePathMap: $fileSavePathMap');
-    print('dirPaths: $dirPaths');
+    // print('filePaths: $filePaths');
+    // print('fileSavePathMap: $fileSavePathMap');
+    // print('dirPaths: $dirPaths');
     int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
     if (filePaths.isNotEmpty) {
       await doPasteFileAction(
@@ -654,6 +649,7 @@ class Device {
 
   Future<String> doPasteTextAction({
     String? text,
+    String successMsg = 'Paste successfully',
     timeout = connectTimeout,
   }) async {
     String pasteText;
@@ -664,7 +660,7 @@ class Device {
       if (clipboardData == null ||
           clipboardData.text == null ||
           clipboardData.text!.isEmpty) {
-        throw Exception('剪切板没有内容');
+        throw Exception('no text in clipboard');
       }
       pasteText = clipboardData.text!;
     }
@@ -698,7 +694,7 @@ class Device {
     if (respHead.msg != null && respHead.msg!.isNotEmpty) {
       return respHead.msg!;
     }
-    return '粘贴成功';
+    return successMsg;
   }
 
   Future<void> doPasteTextActionWeb({
@@ -712,7 +708,7 @@ class Device {
       if (clipboardData == null ||
           clipboardData.text == null ||
           clipboardData.text!.isEmpty) {
-        throw Exception('剪切板没有内容');
+        throw Exception('no text in clipboard');
       }
       pasteText = clipboardData.text!;
     }
@@ -725,12 +721,10 @@ class Device {
     var contentUint8List = await fetcher.getContentFromWeb();
     await Clipboard.setData(ClipboardData(text: utf8.decode(contentUint8List)));
     var content = utf8.decode(contentUint8List);
-    //返回 复制成功
-    String successPrefix = '复制成功: \n';
     if (content.length > 40) {
-      return '$successPrefix${content.substring(0, 40)}...';
+      return '${content.substring(0, 40)}...';
     } else {
-      return '$successPrefix$content';
+      return content;
     }
   }
 }
