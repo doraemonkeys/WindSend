@@ -62,13 +62,13 @@ class _MyAppState extends State<MyApp> {
       mapLocales: [
         const MapLocale(
           'en',
-          AppLocale.EN,
+          AppLocale.en,
           countryCode: 'US',
           fontFamily: 'Font EN',
         ),
         const MapLocale(
           'zh',
-          AppLocale.ZH,
+          AppLocale.zh,
           countryCode: 'CN',
           fontFamily: 'Font ZH',
         ),
@@ -80,25 +80,26 @@ class _MyAppState extends State<MyApp> {
     themeMode = getThemeMode();
 
     // -------------------------------- share --------------------------------
+    if (!Platform.isWindows) {
+      // For sharing images coming from outside the app while the app is in the memory
+      var fileStream = ReceiveSharingIntent.getMediaStream();
 
-    // For sharing images coming from outside the app while the app is in the memory
-    var fileStream = ReceiveSharingIntent.getMediaStream();
+      // For sharing or opening urls/text coming from outside the app while the app is in the memory
+      var textStream = ReceiveSharingIntent.getTextStream();
 
-    // For sharing or opening urls/text coming from outside the app while the app is in the memory
-    var textStream = ReceiveSharingIntent.getTextStream();
+      // For sharing images coming from outside the app while the app is closed
+      var fileFuture = ReceiveSharingIntent.getInitialMedia();
 
-    // For sharing images coming from outside the app while the app is closed
-    var fileFuture = ReceiveSharingIntent.getInitialMedia();
+      // For sharing or opening urls/text coming from outside the app while the app is closed
+      var textFuture = ReceiveSharingIntent.getInitialText();
 
-    // For sharing or opening urls/text coming from outside the app while the app is closed
-    var textFuture = ReceiveSharingIntent.getInitialText();
-
-    ShareDataModel.initInstance(
-      textStream,
-      fileStream,
-      sharedText: textFuture,
-      sharedFiles: fileFuture,
-    );
+      ShareDataModel.initInstance(
+        textStream,
+        fileStream,
+        sharedText: textFuture,
+        sharedFiles: fileFuture,
+      );
+    }
     // -------------------------------- share --------------------------------
 
     super.initState();
@@ -446,13 +447,18 @@ class _MainBodyState extends State<MainBody> {
   void initState() {
     super.initState();
 
+    // -------------------------------- share --------------------------------
+    if (Platform.isWindows) {
+      // unable to share files on windows
+      return;
+    }
+
     handleOnError(Object err) {
-      print('handleOnErrorxxxxx: $err');
+      // print('handleOnErrorxxxxx: $err');
       alertDialogFunc(context, const Text('Share failed'),
           content: Text(err.toString()));
     }
 
-    // -------------------------------- share --------------------------------
     ShareDataModel().sharedTextStream.listen(
       (String? t) async {
         if (t == null || t.isEmpty) {
