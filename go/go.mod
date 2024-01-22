@@ -1,4 +1,4 @@
-module github.com/doraemonkeys/clipboard-go
+module github.com/doraemonkeys/WindSend
 
 go 1.21
 

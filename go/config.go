@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/doraemonkeys/clipboard-go/language"
+	"github.com/doraemonkeys/WindSend/language"
 	"github.com/doraemonkeys/mylog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"

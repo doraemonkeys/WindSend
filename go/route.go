@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/doraemonkeys/clipboard-go/language"
+	"github.com/doraemonkeys/WindSend/language"
 	"github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
 )
