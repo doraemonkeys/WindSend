@@ -33,3 +33,5 @@ windSend-rs/config.yaml
 *.pem
 .vscode/*
 *.exe
+
+go/icon_bytes
