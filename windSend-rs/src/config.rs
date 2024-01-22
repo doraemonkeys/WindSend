@@ -22,7 +22,7 @@ lazy_static! {
     pub static ref GLOBAL_CONFIG: Mutex<Config> = Mutex::new(init_global_config());
 }
 lazy_static! {
-    pub static ref LOG_LEVEL: tracing::Level = tracing::Level::TRACE;
+    pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
 }
 lazy_static! {
     pub static ref CLIPBOARD: Mutex<arboard::Clipboard> =
