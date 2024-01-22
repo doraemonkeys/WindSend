@@ -14,7 +14,7 @@ echo %versionStr%
 
 
 
-@REM build go server
+@REM build go server[amd64]
 cd go
 echo %cd%
 @REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
@@ -28,7 +28,24 @@ move ../go/%goServerProgramName%.exe %goServerProgramName%-amd64-windows/%goServ
 xcopy ..\README.md %goServerProgramName%-amd64-windows /y
 xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-amd64-windows /y
 zip -r %goServerProgramName%-amd64-windows.zip %goServerProgramName%-amd64-windows
+cd ../go  
 
+
+@REM build go server[arm64]
+set GOARCH=arm64
+echo %cd%
+@REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
+call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
+
+go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
+
+cd ../bin
+md %goServerProgramName%-arm64-windows
+move ../go/%goServerProgramName%.exe %goServerProgramName%-arm64-windows/%goServerProgramName%.exe
+xcopy ..\README.md %goServerProgramName%-arm64-windows /y
+xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-arm64-windows /y
+zip -r %goServerProgramName%-arm64-windows.zip %goServerProgramName%-arm64-windows
+cd ../go
 
 
 
