@@ -1,6 +1,6 @@
 set appName=WindSend
 
-cd flutter\clipboard
+cd flutter\wind_send
 
 call flutter clean
 
@@ -15,7 +15,7 @@ call flutter build windows --release
 
 if %errorlevel% equ 0 (
   echo Build Windows Success!
-  xcopy /s /y build\windows\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
+  xcopy /s /y build\windows\x64\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
   xcopy ..\..\README.md ..\..\bin\%appName%-flutter-amd64-windows\ /y
   cd ..\..\bin
   zip -r %appName%-flutter-client-amd64-windows.zip %appName%-flutter-amd64-windows

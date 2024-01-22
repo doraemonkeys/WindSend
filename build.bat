@@ -4,6 +4,7 @@
 set ServerProgramName=WindSend-S
 set goServerProgramName=%ServerProgramName%-Go
 set rustServerProgramName=%ServerProgramName%-Rust
+set "ServerProgramIconName=icon-192.png"
 
 
 @REM 输入version
@@ -25,6 +26,7 @@ cd ../bin
 md %goServerProgramName%-amd64-windows
 move ../go/%goServerProgramName%.exe %goServerProgramName%-amd64-windows/%goServerProgramName%.exe
 xcopy ..\README.md %goServerProgramName%-amd64-windows /y
+xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-amd64-windows /y
 zip -r %goServerProgramName%-amd64-windows.zip %goServerProgramName%-amd64-windows
 
 
@@ -46,6 +48,7 @@ cd ../bin
 md %rustServerProgramName%-amd64-windows
 move ..\windSend-rs\target\release\%rustPjName%.exe %rustServerProgramName%-amd64-windows/%rustServerProgramName%.exe
 xcopy ..\README.md %rustServerProgramName%-amd64-windows /y
+xcopy "..\windSend-rs\%ServerProgramIconName%" %rustServerProgramName%-amd64-windows /y
 zip -r %rustServerProgramName%-amd64-windows.zip %rustServerProgramName%-amd64-windows
 
 
@@ -56,7 +59,7 @@ pause
 
 
 @REM build flutter client
-cd ../flutter/clipboard
+cd ../flutter/wind_send
 echo %cd%
 
 call flutter clean
@@ -89,7 +92,7 @@ call flutter build windows --release
 
 if %errorlevel% equ 0 (
   echo Build Windows Success!
-  xcopy /s /y build\windows\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
+  xcopy /s /y build\windows\x64\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
   xcopy ..\..\README.md ..\..\bin\%appName%-flutter-amd64-windows\ /y
   cd ..\..\bin
   zip -r %appName%-flutter-client-amd64-windows.zip %appName%-flutter-amd64-windows
