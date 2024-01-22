@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"fyne.io/systray"
+	"github.com/doraemonkeys/clipboard-go/language"
 	"github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
 )
@@ -25,47 +26,115 @@ func ShowStatusBar() (quitCh chan bool) {
 }
 
 var clearFilesCH = make(chan struct{})
+var closeAllowSearchCH = make(chan struct{})
+var allowSearch = false
 
 //var liveCheckCH = make(chan struct{})
 
-func onReady(quitch chan bool) {
+type setTitle interface {
+	SetTitle(string)
+}
 
+func switchLang(items []Pair[setTitle, Pair[int, string]]) {
+	for _, v := range items {
+		v.First.SetTitle(language.Translate(v.Second.First) + v.Second.Second)
+	}
+}
+
+func onReady(quitch chan bool) {
 	systray.SetTemplateIcon(Data, Data)
-	systray.SetTitle("剪切板同步")
+	systray.SetTitle(ProgramName)
 	systray.SetTooltip(ProgramName + " " + ProgramVersion)
 
 	var filesNum int = 0
-	mAddFils := systray.AddMenuItem("添加文件 - 0", "添加文件") // 添加菜单项
 
-	//mChecked := systray.AddMenuItemCheckbox("Unchecked", "Check Me", true) // 添加菜单项状态选择
-	mClearFiles := systray.AddMenuItem("清空文件", "清空文件")
+	// 添加菜单项
+	mAddFils := systray.AddMenuItem(language.Translate(language.AddFiles)+" - 0",
+		language.Translate(language.AddFiles))
 
-	mCopyFromWeb := systray.AddMenuItem("复制[Web]", "复制[Web]") // 添加菜单项
-	mPasteToWeb := systray.AddMenuItem("粘贴[Web]", "粘贴[Web]")  // 添加菜单项
+	mClearFiles := systray.AddMenuItem(language.Translate(language.ClearFiles),
+		language.Translate(language.ClearFiles))
+
+	mCopyFromWeb := systray.AddMenuItem(language.Translate(language.Copy)+"[Web]",
+		language.Translate(language.Copy)+"[Web]") // 添加菜单项
+
+	// mPasteToWeb := systray.AddMenuItem("粘贴[Web]", "粘贴[Web]") // 添加菜单项
+	mPasteToWeb := systray.AddMenuItem(language.Translate(language.Paste)+"[Web]",
+		language.Translate(language.Paste)+"[Web]") // 添加菜单项
 
 	systray.AddSeparator() //添加分割线
-	mHide := systray.AddMenuItem("隐藏图标", "隐藏图标")
-	// 仅一次
-	mSubHide := mHide.AddSubMenuItem("仅一次", "仅一次")
-	// 永久隐藏
-	mSubHideForever := mHide.AddSubMenuItem("永久隐藏", "永久隐藏")
-
-	// 自启动
-	mAutoStart := systray.AddMenuItemCheckbox("自启动", "自启动", GloballCnf.AutoStart)
-
 	// 文件保存路径
-	mSavePath := systray.AddMenuItem("文件保存路径", "文件保存路径")
+	mSavePath := systray.AddMenuItem(language.Translate(language.SavePath),
+		language.Translate(language.SavePath))
+	mHide := systray.AddMenuItem(language.Translate(language.HideIcon),
+		language.Translate(language.HideIcon))
+	// 仅一次
+	mSubHide := mHide.AddSubMenuItem(language.Translate(language.OnlyOnce),
+		language.Translate(language.OnlyOnce))
+	// 永久隐藏
+	mSubHideForever := mHide.AddSubMenuItem(language.Translate(language.HideForever),
+		language.Translate(language.HideForever))
+	mLang := systray.AddMenuItem("Language", "Language")
+	mLangZH := mLang.AddSubMenuItemCheckbox("简体中文", "简体中文", language.GetLanguage() == language.ZH_CN_CODE)
+	mLangEN := mLang.AddSubMenuItemCheckbox("English", "English", language.GetLanguage() == language.EN_US_CODE)
+	// 自启动
+	mAutoStart := systray.AddMenuItemCheckbox(language.Translate(language.AutoStart),
+		language.Translate(language.AutoStart), GloballCnf.AutoStart)
 
-	mUrl := systray.AddMenuItem("打开官网", ProgramUrl)
-	mQuit := systray.AddMenuItem("退出", "Quit the whole app")
+	systray.AddSeparator() //添加分割线
+	allowSearchM := systray.AddMenuItemCheckbox(language.Translate(language.QuickPair),
+		language.Translate(language.QuickPairTip), allowSearch)
+	mUrl := systray.AddMenuItem(language.Translate(language.OpenOfficialWebsite),
+		language.Translate(language.OpenOfficialWebsite))
+	mQuit := systray.AddMenuItem(language.Translate(language.Quit), "Quit the whole app")
+
+	menuItems := []Pair[setTitle, Pair[int, string]]{
+		{mAddFils, NewPair(language.AddFiles, " - 0")},
+		{mClearFiles, NewPair(language.ClearFiles, "")},
+		{mCopyFromWeb, NewPair(language.Copy, "[Web]")},
+		{mPasteToWeb, NewPair(language.Paste, "[Web]")},
+		{mSavePath, NewPair(language.SavePath, "")},
+		{mHide, NewPair(language.HideIcon, "")},
+		{mSubHide, NewPair(language.OnlyOnce, "")},
+		{mSubHideForever, NewPair(language.HideForever, "")},
+		{mAutoStart, NewPair(language.AutoStart, "")},
+		{allowSearchM, NewPair(language.QuickPair, "")},
+		{mUrl, NewPair(language.OpenOfficialWebsite, "")},
+		{mQuit, NewPair(language.Quit, "")},
+	}
 
 	mClearFiles.Disable()
 	for {
 		select {
+		case <-mLangZH.ClickedCh:
+			language.SetLanguage(language.ZH_CN_CODE)
+			switchLang(menuItems)
+			mLangZH.Check()
+			mLangEN.Uncheck()
+			GloballCnf.Language = language.ZH_CN_CODE
+			_ = GloballCnf.Save()
+		case <-mLangEN.ClickedCh:
+			language.SetLanguage(language.EN_US_CODE)
+			switchLang(menuItems)
+			mLangZH.Uncheck()
+			mLangEN.Check()
+			GloballCnf.Language = language.EN_US_CODE
+			_ = GloballCnf.Save()
+		case <-allowSearchM.ClickedCh:
+			if allowSearchM.Checked() {
+				allowSearchM.Uncheck()
+				allowSearch = false
+			} else {
+				allowSearchM.Check()
+				allowSearch = true
+			}
+		case <-closeAllowSearchCH:
+			allowSearchM.Uncheck()
+			allowSearch = false
 		case <-mAddFils.ClickedCh:
 			n, err := SelectFiles()
 			if err != nil {
-				logrus.Error("选择文件失败：", err)
+				logrus.Error("failed to select files:", err)
 				continue
 			}
 			if err == nil && n == 0 {
@@ -76,16 +145,16 @@ func onReady(quitch chan bool) {
 				mClearFiles.Enable()
 			}
 			filesNum += n
-			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
+			mAddFils.SetTitle(language.Translate(language.AddFiles) + " - " + strconv.Itoa(filesNum))
 		case <-mClearFiles.ClickedCh:
 			SelectedFiles = nil
 			filesNum = 0
-			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
+			mAddFils.SetTitle(language.Translate(language.AddFiles) + " - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
 		case <-clearFilesCH:
 			SelectedFiles = nil
 			filesNum = 0
-			mAddFils.SetTitle("添加文件 - " + strconv.Itoa(filesNum))
+			mAddFils.SetTitle(language.Translate(language.AddFiles) + " - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
 		case <-mUrl.ClickedCh:
 			OpenUrl(ProgramUrl)
@@ -104,8 +173,8 @@ func onReady(quitch chan bool) {
 			GloballCnf.AutoStart = !GloballCnf.AutoStart
 			err := GloballCnf.SaveAndSet()
 			if err != nil {
-				logrus.Error("保存配置失败：", err)
-				Inform("保存配置失败：" + err.Error())
+				logrus.Error("failed to save config:", err)
+				Inform(language.Translate(language.SaveConfigFailed)+":"+err.Error(), ProgramName)
 			} else {
 				if mAutoStart.Checked() {
 					mAutoStart.Uncheck()
@@ -116,40 +185,40 @@ func onReady(quitch chan bool) {
 		case <-mSavePath.ClickedCh:
 			path, err := SelectFolderOnWindows(ProgramName)
 			if err != nil {
-				logrus.Error("选择文件夹失败：", err)
+				logrus.Error("failed to select folder:", err)
 				continue
 			}
 			GloballCnf.SavePath = path
 			err = GloballCnf.Save()
 			if err != nil {
-				logrus.Error("保存配置失败：", err)
-				Inform("保存配置失败：" + err.Error())
+				logrus.Error("failed to save config:", err)
+				Inform(language.Translate(language.SaveConfigFailed)+":"+err.Error(), ProgramName)
 			}
 
 		case <-mPasteToWeb.ClickedCh:
 			if clipboarDataType != clipboardWatchDataTypeText {
-				Inform("当前剪切板数据不是文本")
+				Inform(language.Translate(language.ClipboardNotText), ProgramName)
 			} else if clipboarDataType == clipboardWatchDataTypeText {
 				err := PostContentToWeb(clipboardWatchData)
 				if err != nil {
-					logrus.Error("粘贴到Web失败：", err)
-					Inform("粘贴到Web失败：" + err.Error())
+					logrus.Error("failed to paste to web:", err)
+					Inform(language.Translate(language.PasteToWebFailed)+":"+err.Error(), ProgramName)
 				}
-				Inform("粘贴到Web成功")
+				Inform(language.Translate(language.PasteToWebSuccess), ProgramName)
 			}
 		case <-mCopyFromWeb.ClickedCh:
 			text, err := GetContentFromWeb()
 			if err != nil {
-				logrus.Error("从Web复制失败：", err)
-				Inform("从Web复制失败：" + err.Error())
+				logrus.Error("failed to copy from web:", err)
+				Inform(language.Translate(language.CopyFromWebFailed)+":"+err.Error(), ProgramName)
 			} else {
 				clipboard.Write(clipboard.FmtText, text)
 				textRune := []rune(string(text))
 				showLen := 80
 				if len(textRune) >= showLen {
-					Inform(string(textRune[:showLen]) + "...")
+					Inform(string(textRune[:showLen])+"...", ProgramName)
 				} else {
-					Inform(string(textRune))
+					Inform(string(textRune), ProgramName)
 				}
 			}
 		case <-mQuit.ClickedCh:
@@ -158,5 +227,4 @@ func onReady(quitch chan bool) {
 			return
 		}
 	}
-
 }

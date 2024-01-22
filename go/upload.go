@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/doraemonkeys/clipboard-go/language"
 	"github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
 )
@@ -25,6 +26,7 @@ type FileReceiver struct {
 
 type OpInfo struct {
 	op      uint32
+	reqHead headInfo
 	expNum  int
 	succNum int
 	failNum int
@@ -54,7 +56,7 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	var (
 		fileID   uint32 = head.FileID
 		fileSize int64  = head.FileSize
-		filePath string = filepath.Join(GloballCnf.SavePath, head.Name)
+		filePath string = filepath.Join(GloballCnf.SavePath, head.Path)
 	)
 
 	filePath = filepath.Clean(filePath)
@@ -64,6 +66,10 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 		return file.file, nil
 	}
 	filePath = generateUniqueFilepath(filePath)
+	err := os.MkdirAll(filepath.Dir(filePath), 0666)
+	if err != nil {
+		return nil, err
+	}
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		return nil, err
@@ -75,7 +81,11 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 
 	// check is this opID exist
 	if _, ok := f.OPs[head.OpID]; !ok {
-		f.OPs[head.OpID] = &OpInfo{op: head.OpID, expNum: head.FilesCountInThisOp}
+		f.OPs[head.OpID] = &OpInfo{
+			op:      head.OpID,
+			reqHead: head,
+			expNum:  head.FilesCountInThisOp,
+		}
 	}
 
 	go f.recvMonitor(fileID, head.OpID, Info.downChan)
@@ -121,11 +131,11 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 	}
 	// 此次操作已经完成
 	if OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
-		msg := fmt.Sprintf("%d个文件已保存到 %s", OpInfo.succNum, GloballCnf.SavePath)
+		msg := fmt.Sprintf("%d %s %s", OpInfo.succNum, language.Translate(language.NFilesSavedTo), GloballCnf.SavePath)
 		if OpInfo.failNum > 0 {
-			msg += fmt.Sprintf("\n%d个文件保存失败", OpInfo.failNum)
+			msg += fmt.Sprintf("\n%d files failed to save", OpInfo.failNum)
 		}
-		Inform(msg)
+		Inform(msg, OpInfo.reqHead.DeviceName)
 	}
 }
 
@@ -204,23 +214,26 @@ func NewFileReceiver() *FileReceiver {
 
 var GlobalFileReceiver = NewFileReceiver()
 
-func pasteFileHandler(conn net.Conn, head headInfo) {
+func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
+	if head.UploadType == pathInfoTypeDir {
+		return createDirOnlyHandler(conn, head)
+	}
 	// head.End == 0 && head.Start == 0 表示文件为空
 	if head.End <= head.Start && !(head.End == 0 && head.Start == 0) {
 		errMsg := fmt.Sprintf("invalid file part, start:%d, end:%d", head.Start, head.End)
 		logrus.Error(errMsg)
-		return
+		return respCommonError(conn, errMsg)
 	}
 	dataLen := head.End - head.Start
 	if head.DataLen != dataLen {
 		errMsg := fmt.Sprintf("invalid file part, dataLen:%d, start:%d, end:%d", head.DataLen, head.Start, head.End)
 		logrus.Error(errMsg)
-		return
+		return respCommonError(conn, errMsg)
 	}
 	if head.FilesCountInThisOp == 0 {
 		errMsg := fmt.Sprintf("invalid file part, FilesCountInThisOp:%d", head.FilesCountInThisOp)
 		logrus.Error(errMsg)
-		return
+		return respCommonError(conn, errMsg)
 	}
 
 	var bufSize = max(int(dataLen/8), 4096) // 8 is a magic number
@@ -229,7 +242,7 @@ func pasteFileHandler(conn net.Conn, head headInfo) {
 	file, err := GlobalFileReceiver.GetFile(head)
 	if err != nil {
 		logrus.Error("create file error:", err)
-		return
+		return respCommonError(conn, err.Error())
 	}
 	fileWriter := NewFileWriter(file, int(head.Start), int(head.End))
 	// fileBufWriter := bufio.NewWriterSize(fileWriter, bufSize)
@@ -238,30 +251,52 @@ func pasteFileHandler(conn net.Conn, head headInfo) {
 	// n, err := reader.WriteTo(fileWriter)
 	if err != nil && err != io.EOF {
 		logrus.Error("write file error:", err)
-		respError(conn, err.Error())
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
-		return
+		return respCommonError(conn, err.Error())
 	}
 	if n < dataLen {
 		logrus.Errorln("write file error, n:", n, " dataLen:", dataLen)
-		respError(conn, ErrorIncompleteData)
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, errors.New(ErrorIncompleteData))
-		return
+		return respCommonError(conn, ErrorIncompleteData)
 	}
 	if n > dataLen {
 		// should not happen
 		logrus.Warnln("write file error, n:", n, "dataLen:", dataLen)
 	}
 	// part written successfully
-	sendMsg(conn, fmt.Sprintf("file part written successfully, fileID:%d, start:%d, end:%d", head.FileID, head.Start, head.End))
-	logrus.Debugln("write file success, fileID:", head.FileID, " start:", head.Start, " end:", head.End)
+	noSocketErr = true
+	err = sendMsg(conn, fmt.Sprintf("file part written successfully, fileID:%d, start:%d, end:%d", head.FileID, head.Start, head.End))
+	if err != nil {
+		noSocketErr = false
+	}
+	logrus.Debugln("write file part success, fileID:", head.FileID, " start:", head.Start, " end:", head.End)
 	done, errOccurred := GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, nil)
 	if errOccurred {
-		return
+		return true
 	}
 	if done {
-		logrus.Infoln("save file success:", head.Name)
+		logrus.Infoln("save file success:", head.Path)
 	}
+	return noSocketErr
+}
+
+func createDirOnlyHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
+	for i := 0; i < len(head.Dirs); i++ {
+		err := os.MkdirAll(filepath.Join(GloballCnf.SavePath, head.Dirs[i]), 0666)
+		if err != nil {
+			logrus.Error("create dir error:", err)
+			return respCommonError(conn, err.Error())
+		}
+	}
+	err := sendMsg(conn, "create dirs success")
+	if err != nil {
+		logrus.Error("createDirOnlyHandler sendMsg error:", err)
+		return false
+	}
+	if len(head.Dirs) > 0 && head.FilesCountInThisOp == 0 {
+		Inform(language.Translate(language.DirCreated), head.DeviceName)
+	}
+	return true
 }
 
 type FileWriter struct {

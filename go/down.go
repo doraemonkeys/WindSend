@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func downloadHandler(conn net.Conn, head headInfo) {
+func downloadHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 
 	var respHead RespHead
 	respHead.Code = 200
@@ -19,14 +19,14 @@ func downloadHandler(conn net.Conn, head headInfo) {
 	err := sendHead(conn, respHead)
 	if err != nil {
 		logrus.Error("send head failed, err:", err)
-		return
+		return false
 	}
 
 	logrus.Debugln("downloading file ", head.Path, " from ", head.Start, " to ", head.End)
 	file, err := os.Open(head.Path)
 	if err != nil {
 		logrus.Error("open file failed, err:", err)
-		return
+		return respCommonError(conn, "open file failed, err:"+err.Error())
 	}
 	defer file.Close()
 
@@ -40,11 +40,12 @@ func downloadHandler(conn net.Conn, head headInfo) {
 	n, err := reader.WriteTo(conn)
 	if err != nil {
 		logrus.Error("write to conn failed, err:", err)
-		return
+		return respCommonError(conn, "write to conn failed, err:"+err.Error())
 	}
 	if n != expectedSize {
 		logrus.Warnln("write to conn failed, n != expectedSize, n:", n, ", expectedSize:", expectedSize)
 	}
+	return true
 }
 
 type FilePartReader struct {

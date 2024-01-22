@@ -396,7 +396,7 @@ func HasImageExt(name string) bool {
 
 // 产生不冲突的文件路径
 func generateUniqueFilepath(filePath string) string {
-	if _, err := os.Stat(filePath); err != nil {
+	if !FileOrDirIsExist(filePath) {
 		return filePath
 	}
 	dir := filepath.Dir(filePath)
@@ -458,4 +458,34 @@ func hasSpecificExtNames(name string, extNames ...string) bool {
 		}
 	}
 	return false
+}
+
+func GetDeviceName() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown" + fmt.Sprint(time.Now().UnixMilli())
+	}
+	return hostname
+}
+
+// e.g. zh_CN.UTF-8 en_US.UTF-8
+func GetSystemLang() string {
+	envKeys := []string{"LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE"}
+	lang := ""
+	for _, key := range envKeys {
+		lang = os.Getenv(key)
+		if lang != "" {
+			break
+		}
+	}
+	return lang
+}
+
+type Pair[T1, T2 any] struct {
+	First  T1
+	Second T2
+}
+
+func NewPair[T1, T2 any](first T1, second T2) Pair[T1, T2] {
+	return Pair[T1, T2]{First: first, Second: second}
 }

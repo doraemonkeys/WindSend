@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/doraemonkeys/clipboard-go/language"
 	"github.com/doraemonkeys/mylog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -19,13 +22,22 @@ type Config struct {
 	AutoStart bool `yaml:"autoStart"`
 	// 文件保存路径
 	SavePath string `yaml:"savePath"`
+	Language string `yaml:"language"`
 }
 
 var configFilePath string = "config.yaml"
 var GloballCnf *Config
 var startHelper *StartHelper
+var AppIconPath string
+
+const AppIconName = "icon-192.png"
 
 func initGlobalConfig() Config {
+	curPath, err := os.Getwd()
+	if err == nil {
+		AppIconPath = filepath.Join(curPath, AppIconName)
+	}
+
 	startHelper = NewStartHelper(ProgramName)
 
 	if _, err := os.Stat(configFilePath); err != nil {
@@ -96,6 +108,12 @@ func (cnf Config) Set() error {
 	} else {
 		err = startHelper.UnSetAutoStart()
 	}
+	for _, v := range language.SupportedLanguageCode {
+		if strings.HasPrefix(cnf.Language, v) {
+			language.SetLanguage(v)
+			break
+		}
+	}
 	return err
 }
 
@@ -105,6 +123,10 @@ func generateDefaultConfig() Config {
 	cnf.SecretKeyHex = generateSecretKeyHex(32)
 	cnf.ShowToolbarIcon = true
 	cnf.AutoStart = false
+	cnf.Language = GetSystemLang()
+	if cnf.Language == "" {
+		cnf.Language = language.ZH_CN_CODE
+	}
 	temp, err := GetDesktopPath()
 	if err != nil {
 		logrus.Error("GetDesktopPath error:", err)
@@ -139,7 +161,7 @@ func InitGlobalLogger() {
 	logCnf.MaxKeepDays = 100
 	logCnf.NoConsole = true
 	logCnf.DisableWriterBuffer = true
-	// logCnf.LogLevel = "debug"
+	logCnf.LogLevel = mylog.InfoLevel
 	err := mylog.InitGlobalLogger(logCnf)
 	if err != nil {
 		panic(err)
