@@ -1,14 +1,50 @@
-use crate::route::resp::{resp_error_msg, send_head, send_msg_with_body};
-use crate::route::{RouteDataType, RouteHead, RoutePathInfo, RouteRespHead};
-use std::ops::ControlFlow;
+use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
+use crate::route::{RouteDataType, RoutePathInfo, RouteRecvHead, RouteRespHead};
+use std::path::PathBuf;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{debug, error, warn};
 
 pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
-    if let ControlFlow::Break(_) = send_files(conn).await {
+    // 用户选择的文件
+    let files = crate::systray::SELECTED_FILES
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .clone();
+    if !files.is_empty() {
+        let r = send_files(conn, files).await;
+        if let Ok(_) = r {
+            crate::TX_RESET_FILES_ITEM
+                .get()
+                .unwrap()
+                .try_send(())
+                .unwrap();
+        }
+        *crate::systray::SELECTED_FILES
+            .get()
+            .unwrap()
+            .lock()
+            .unwrap() = std::collections::HashSet::new();
         return;
     }
+
+    // 文件剪切板
+    let files = clipboard_files::read();
+    if files.is_ok() {
+        let files = files.unwrap().into_iter().map(|f| f.display().to_string());
+        let r = send_files(conn, files).await;
+        if r.is_ok() {
+            let r = crate::config::CLIPBOARD.lock().unwrap().clear();
+            if let Err(e) = r {
+                error!("clear clipboard failed, err: {}", e);
+            }
+            return;
+        }
+        return;
+    }
+
     {
         let r1 = send_text(conn).await;
         if !r1.is_err() {
@@ -18,62 +54,116 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
         if !r2.is_err() {
             return;
         }
-        if r1.is_err() {
-            let err = r1.err().unwrap();
-            error!("send text failed, err: {}", err);
+        if let Err(e) = r1 {
+            warn!("send text failed, err: {}", e);
         }
-        if r2.is_err() {
-            let err = r2.err().unwrap();
-            error!("send image failed, err: {}", err);
+        if let Err(e) = r2 {
+            warn!("send image failed, err: {}", e);
         }
     }
-    resp_error_msg(conn, &"你还没有复制任何内容".to_string())
-        .await
-        .ok();
+    let _ = resp_common_error_msg(conn, &"你还没有复制任何内容".to_string()).await;
 }
 
-async fn send_files(conn: &mut TlsStream<TcpStream>) -> ControlFlow<()> {
-    let mut selected_paths;
-    {
-        let mut files = crate::systray::SELECTED_FILES
-            .get()
-            .unwrap()
-            .lock()
-            .unwrap();
-        if files.is_empty() {
-            return ControlFlow::Continue(());
-        }
-        selected_paths = Vec::<RoutePathInfo>::with_capacity(files.len());
-        for file in files.drain() {
-            let path = file;
-            let size = std::fs::metadata(&path).map(|m| m.len());
-            if size.is_err() {
-                error!("get file size failed, err: {}", size.err().unwrap());
+async fn send_files<T: IntoIterator<Item = String>>(
+    conn: &mut TlsStream<TcpStream>,
+    paths: T,
+) -> Result<(), ()> {
+    let mut resp_paths = Vec::<RoutePathInfo>::new();
+    for path1 in paths {
+        let path_attr = tokio::fs::metadata(&path1).await;
+        let path_attr = match path_attr {
+            Ok(attr) => attr,
+            Err(err) => {
+                error!("get file attr failed, err: {}", err);
                 continue;
             }
-            let size = size.unwrap();
-            selected_paths.push(RoutePathInfo { path, size });
+        };
+        let mut rpi: RoutePathInfo = RoutePathInfo::default();
+        rpi.path = path1.clone();
+        if path_attr.is_file() {
+            rpi.type_ = crate::route::PathInfoType::File;
+            rpi.size = path_attr.len();
+            resp_paths.push(rpi);
+            continue;
+        }
+        rpi.type_ = crate::route::PathInfoType::Dir;
+        let dir_root = std::path::Path::new(&path1)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        rpi.save_path = dir_root.clone();
+        resp_paths.push(rpi);
+
+        static DEFAULT_SEPARATOR: &str = "/";
+        static REVERSE_SEPARATOR: &str = "\\";
+        let path1 = path1.replace(REVERSE_SEPARATOR, DEFAULT_SEPARATOR);
+        for entry in walkdir::WalkDir::new(&path1) {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    error!("walkdir entry failed, err: {}", err);
+                    continue;
+                }
+            };
+            let path2 = entry
+                .path()
+                .display()
+                .to_string()
+                .replace(REVERSE_SEPARATOR, DEFAULT_SEPARATOR);
+            let mut rpi: RoutePathInfo = RoutePathInfo::default();
+            rpi.path = path2.clone();
+            rpi.type_ = if entry.file_type().is_dir() {
+                crate::route::PathInfoType::Dir
+            } else {
+                crate::route::PathInfoType::File
+            };
+            // dbg!(&dir_root);
+            // dbg!(&path1, &path2);
+            // dbg!(path2.strip_prefix(&path1).unwrap_or_default());
+            let relative_path = path2
+                .strip_prefix(&path1)
+                .unwrap_or_default()
+                .trim_start_matches(DEFAULT_SEPARATOR);
+            rpi.save_path = PathBuf::from(dir_root.clone())
+                .join(relative_path)
+                .to_string_lossy()
+                .to_string();
+            if let crate::route::PathInfoType::File = rpi.type_ {
+                rpi.size = entry.metadata().unwrap().len();
+                rpi.save_path = PathBuf::from(rpi.save_path)
+                    .parent()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
+            }
+            // println!("{:?}", &rpi.save_path);
+            resp_paths.push(rpi);
         }
     }
+    // dbg!(&resp_paths);
+    if resp_paths.is_empty() {
+        let msg = "send_files unexpected empty paths";
+        error!("{}", msg);
+        resp_common_error_msg(conn, &msg.to_string()).await.ok();
+        return Err(());
+    }
+    debug!("{:?}", &resp_paths);
     let resp = RouteRespHead {
         code: crate::route::resp::SUCCESS_STATUS_CODE,
         msg: &"复制成功".to_string(),
         data_type: RouteDataType::Files,
         data_len: 0,
-        paths: selected_paths,
+        paths: resp_paths,
     };
-    if send_head(conn, &resp).await.is_ok() {
-        crate::RX_RESET_FILES_ITEM.get().unwrap().send(()).unwrap();
-    }
-    return ControlFlow::Break(());
+    send_head(conn, &resp).await
 }
 
 async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
     let raw_image = crate::config::CLIPBOARD.lock().unwrap().get_image();
-    if raw_image.is_err() {
-        let data = raw_image.err().unwrap();
-        let info = format!("{}", data);
+    if let Err(err) = raw_image {
+        let info = format!("{}", err);
         return Err(info.into());
     }
     let raw_image = raw_image.unwrap();
@@ -99,9 +189,8 @@ async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::
 
 async fn send_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
     let data_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
-    if data_text.is_err() {
-        let data_text = data_text.err().unwrap();
-        let info = format!("{}", data_text);
+    if let Err(e) = data_text {
+        let info = format!("{}", e);
         return Err(info);
     }
     let data_text = data_text.unwrap();
@@ -115,27 +204,24 @@ async fn send_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
     .ok();
     Ok(())
 }
-pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) {
+
+/// 返回是否应该继续循环(比如没有遇到Socket Error)
+pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
     // 检查文件是否存在
-    if !std::path::Path::new(&head.down_path).exists() {
-        error!("file not exists: {}", head.down_path);
-        resp_error_msg(conn, &format!("file not exists: {}", head.down_path))
-            .await
-            .ok();
-        return;
+    if !std::path::Path::new(&head.path).exists() {
+        error!("file not exists: {}", head.path);
+        let r = resp_common_error_msg(conn, &format!("file not exists: {}", head.path)).await;
+        return r.is_ok();
     }
     debug!(
         "downloading file {} from {} to {}",
-        head.down_path, head.start, head.end
+        head.path, head.start, head.end
     );
-    let file = tokio::fs::File::open(&head.down_path).await;
-    if file.is_err() {
-        let err = file.err().unwrap();
+    let file = tokio::fs::File::open(&head.path).await;
+    if let Err(err) = file {
         error!("open file failed, err: {}", err);
-        resp_error_msg(conn, &format!("open file failed, err: {}", err))
-            .await
-            .ok();
-        return;
+        let r = resp_common_error_msg(conn, &format!("open file failed, err: {}", err)).await;
+        return r.is_ok();
     }
     let resp = RouteRespHead {
         code: crate::route::resp::SUCCESS_STATUS_CODE,
@@ -145,25 +231,23 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) 
         paths: vec![],
     };
     if send_head(conn, &resp).await.is_err() {
-        return;
+        return false;
     }
     let file = file.unwrap();
     let file_reader =
         crate::file::FilePartReader::new(file, head.start as usize, head.end as usize).await;
-    if file_reader.is_err() {
-        let err = file_reader.err().unwrap();
+    if let Err(err) = file_reader {
         error!("new file part reader failed, err: {}", err);
-        return;
+        return false;
     }
-    static MAX_BUF_SIZE: usize = 1024 * 1024 * 30;
+    const MAX_BUF_SIZE: usize = 1024 * 1024 * 30;
     let file_reader = file_reader.unwrap();
     let buf_size = std::cmp::min((head.end - head.start) as usize, MAX_BUF_SIZE);
     let mut file_part_reader = tokio::io::BufReader::with_capacity(buf_size, file_reader);
     let n = tokio::io::copy(&mut file_part_reader, conn).await;
-    if n.is_err() {
-        let err = n.err().unwrap();
+    if let Err(err) = n {
         error!("copy file to conn failed, err: {}", err);
-        return;
+        return false;
     }
     let n = n.unwrap() as i64;
     if n != head.end - head.start {
@@ -173,4 +257,5 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) 
             head.end - head.start
         );
     }
+    true
 }

@@ -2,14 +2,17 @@ use crate::utils;
 use image::EncodableLayout;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::sync::Mutex;
+use std::{path::Path, str::FromStr};
 use tracing::{debug, error, warn};
 
 static CONFIG_FILE_PATH: &str = "config.yaml";
 static TLS_DIR: &str = "./tls";
 static TLS_CERT_FILE: &str = "cert.pem";
 static TLS_KEY_FILE: &str = "key.pem";
+static APP_ICON_NAME: &str = "icon-192.png";
+
+pub static APP_ICON_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 lazy_static! {
     static ref START_HELPER: utils::StartHelper =
@@ -19,11 +22,14 @@ lazy_static! {
     pub static ref GLOBAL_CONFIG: Mutex<Config> = Mutex::new(init_global_config());
 }
 lazy_static! {
-    pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
+    pub static ref LOG_LEVEL: tracing::Level = tracing::Level::TRACE;
 }
 lazy_static! {
     pub static ref CLIPBOARD: Mutex<arboard::Clipboard> =
         Mutex::new(arboard::Clipboard::new().unwrap());
+}
+lazy_static! {
+    pub static ref ALLOW_TO_BE_SEARCHED: Mutex<bool> = Mutex::new(false);
 }
 
 pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
@@ -45,6 +51,8 @@ pub struct Config {
     pub auto_start: bool,
     #[serde(rename = "savePath")]
     pub save_path: String,
+    #[serde(rename = "language")]
+    pub language: crate::language::Language,
 }
 
 impl Config {
@@ -82,10 +90,17 @@ impl Config {
                 .unset_auto_start()
                 .map_err(|err| err.to_string())?;
         }
+        crate::language::LANGUAGE_MANAGER
+            .write()
+            .unwrap()
+            .set_language(self.language);
+
         Ok(())
     }
 
     fn generate_default() -> Self {
+        let lang = crate::utils::get_system_lang();
+        let lang = crate::language::Language::from_str(&lang);
         Self {
             server_port: "6779".to_string(),
             secret_key_hex: utils::encrypt::generate_secret_key_hex(32),
@@ -95,6 +110,7 @@ impl Config {
                 warn!("get_desktop_path error: {}", err);
                 "./".to_string()
             }),
+            language: lang.unwrap_or_default(),
         }
     }
 }
@@ -144,7 +160,18 @@ impl std::io::Write for LogWriter {
     }
 }
 
-pub fn init_global_logger() {
+pub fn init() {
+    init_global_logger();
+
+    let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
+    let icon_path = current_dir.join(APP_ICON_NAME);
+    debug!("icon_path: {:?}", icon_path);
+    APP_ICON_PATH.set(icon_path.display().to_string()).unwrap();
+
+    init_tls_config();
+}
+
+fn init_global_logger() {
     let file_appender =
         tracing_appender::rolling::never("./logs", format!("{}.log", crate::PROGRAM_NAME));
     let log_writer = LogWriter::new(file_appender);
@@ -183,7 +210,7 @@ pub fn init_global_logger() {
     tracing::info!("init_global_logger success");
 }
 
-pub fn init_tls_config() {
+fn init_tls_config() {
     // mkdir tls
     if !Path::new(TLS_DIR).exists() {
         std::fs::create_dir(TLS_DIR).unwrap();

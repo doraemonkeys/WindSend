@@ -1,70 +1,40 @@
-use crate::route::resp::{resp_error_msg, send_msg, send_msg_with_body};
-use crate::route::{RouteDataType, RouteHead};
+use crate::route::resp::{resp_common_error_msg, send_msg};
+use crate::route::RouteRecvHead;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
-pub async fn ping_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) -> Result<(), ()> {
+pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
     let mut body_buf = vec![0u8; head.data_len as usize];
-    conn.read_exact(&mut body_buf)
-        .await
-        .map_err(|e| error!("read body failed, err: {}", e))?;
-    let decrypted_body = crate::config::get_cryptor()
-        .map_err(|e| error!("get_cryptor failed, err: {}", e))?
-        .decrypt(&body_buf)
-        .map_err(|e| error!("decrypt failed, err: {}", e))?;
-    if decrypted_body != b"ping" {
-        error!(
-            "invalid ping data: {}",
-            String::from_utf8_lossy(&decrypted_body)
-        );
-        resp_error_msg(conn, &format!("invalid ping data: {:?}", decrypted_body))
-            .await
-            .ok();
-        return Err(());
+    let r = conn.read_exact(&mut body_buf).await;
+    if let Err(e) = r {
+        error!("read body failed, err: {}", e);
     }
-    let resp = b"pong";
-    let encrypted_resp = crate::config::get_cryptor()
-        .map_err(|e| error!("get_cryptor failed, err: {}", e))?
-        .encrypt(resp)
-        .map_err(|e| error!("encrypt failed, err: {}", e))?;
-    send_msg_with_body(
-        conn,
-        &"验证成功".to_string(),
-        RouteDataType::Text,
-        &encrypted_resp,
-    )
-    .await?;
-    Ok(())
-}
-
-pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) {
-    let mut body_buf = vec![0u8; head.data_len as usize];
-    conn.read_exact(&mut body_buf)
-        .await
-        .map_err(|e| error!("read body failed, err: {}", e))
-        .ok();
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
     {
         let clipboard = &mut crate::config::CLIPBOARD.lock().unwrap();
-        clipboard
-            .set_text(body.clone())
-            .map_err(|e| error!("set clipboard text failed, err: {}", e))
-            .ok();
+        let r = clipboard.set_text(body.clone());
+        if let Err(e) = r {
+            error!("set clipboard text failed, err: {}", e);
+        }
     }
-    crate::utils::inform(&body);
+    crate::utils::inform(&body, &head.device_name);
     send_msg(conn, &"粘贴成功".to_string()).await.ok();
 }
 
-pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead) {
+/// 返回是否应该继续循环(比如没有遇到Socket Error)
+pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
+    if let crate::route::PathInfoType::Dir = head.upload_type {
+        return create_dirs_only_handler(conn, head).await;
+    }
+
     // head.End == 0 && head.Start == 0 表示文件为空
     if head.end <= head.start && !(head.end == 0 && head.start == 0) {
         let err_msg = &format!("invalid file part, start:{}, end:{}", head.start, head.end);
         error!("{}", err_msg);
-        resp_error_msg(conn, err_msg).await.ok();
-        return;
+        return resp_common_error_msg(conn, err_msg).await.is_ok();
     }
     let data_len = head.end - head.start;
     if head.data_len != data_len {
@@ -73,8 +43,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
             head.data_len, head.start, head.end
         );
         error!("{}", err_msg);
-        resp_error_msg(conn, err_msg).await.ok();
-        return;
+        return resp_common_error_msg(conn, err_msg).await.is_ok();
     }
     if head.files_count_in_this_op == 0 {
         let err_msg = &format!(
@@ -82,30 +51,24 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
             head.files_count_in_this_op
         );
         error!("{}", err_msg);
-        resp_error_msg(conn, err_msg).await.ok();
-        return;
+        return resp_common_error_msg(conn, err_msg).await.is_ok();
     }
     // let file = (*crate::file::GLOBAL_FILE_RECEIVER).clone().borrow_mut();
     let file = crate::file::GLOBAL_FILE_RECEIVER.get_file(&head).await;
-    if file.is_err() {
-        let err = file.err().unwrap();
+    if let Err(err) = file {
         error!("create file error: {}", err);
-        resp_error_msg(conn, &format!("create file error: {}", err))
+        return resp_common_error_msg(conn, &format!("create file error: {}", err))
             .await
-            .ok();
-        return;
+            .is_ok();
     }
-    trace!("file: {:?}", file);
     let file = file.unwrap();
     let file_writer =
         crate::file::FilePartWriter::new(file, head.start as usize, head.end as usize).await;
-    if file_writer.is_err() {
-        let err = file_writer.err().unwrap();
+    if let Err(err) = file_writer {
         error!("new file writer failed, err: {}", err);
-        resp_error_msg(conn, &format!("new file writer failed, err: {}", err))
+        return resp_common_error_msg(conn, &format!("new file writer failed, err: {}", err))
             .await
-            .ok();
-        return;
+            .is_ok();
     }
     let mut file_writer = file_writer.unwrap();
     // 8 is a magic number
@@ -118,43 +81,40 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
     // rust只开启读缓冲或同时开启写缓冲和读缓冲速度都很慢。
     let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut buf_writer).await;
     // let n = tokio::io::copy(&mut reader, &mut file_writer).await;
-    if buf_writer.flush().await.is_err() {
-        let err = n.err().unwrap();
+    if let Err(err) = buf_writer.flush().await {
         error!("flush file writer failed, err: {}", err);
-        resp_error_msg(
+        return resp_common_error_msg(
             &mut conn_writer,
             &format!("flush file writer failed, err: {}", err),
         )
         .await
-        .ok();
-        return;
+        .is_ok();
     }
-    if n.is_err() {
-        let err = n.err().unwrap();
+    if let Err(err) = n {
         let msg = format!("write file error: {}", err);
         error!("{}", msg);
-        resp_error_msg(&mut conn_writer, &msg).await.ok();
+        let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
         crate::file::GLOBAL_FILE_RECEIVER
             .report_file_part(head.file_id, head.start, head.end, Some(msg))
             .await;
-        return;
+        return resp_success;
     }
     let n = n.unwrap();
     if n < data_len as u64 {
         let msg = format!("write file error, n: {}, dataLen: {}", n, data_len);
         error!("{}", msg);
-        resp_error_msg(&mut conn_writer, &msg).await.ok();
+        let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
         crate::file::GLOBAL_FILE_RECEIVER
             .report_file_part(head.file_id, head.start, head.end, Some(msg))
             .await;
-        return;
+        return resp_success;
     }
     if n > data_len as u64 {
         // should not happen
         warn!("write file error, n: {}, dataLen: {}", n, data_len);
     }
     // part written successfully
-    send_msg(
+    let resp_success = send_msg(
         &mut conn_writer,
         &format!(
             "file part written successfully, fileID:{}, start:{}, end:{}",
@@ -162,18 +122,46 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteHead
         ),
     )
     .await
-    .ok();
+    .is_ok();
     debug!(
-        "write file success, fileID: {}, start: {}, end: {}",
+        "write file part success, fileID: {}, start: {}, end: {}",
         head.file_id, head.start, head.end
     );
     let (done, err_occurred) = crate::file::GLOBAL_FILE_RECEIVER
         .report_file_part(head.file_id, head.start, head.end, None)
         .await;
     if err_occurred {
-        return;
+        return resp_success;
     }
     if done {
-        info!("save file success: {}", head.file_name);
+        info!("save file success: {}", head.path);
     }
+    resp_success
+}
+
+pub async fn create_dirs_only_handler(
+    conn: &mut TlsStream<TcpStream>,
+    head: RouteRecvHead,
+) -> bool {
+    let download_dir = std::path::PathBuf::from(
+        crate::config::GLOBAL_CONFIG
+            .lock()
+            .unwrap()
+            .save_path
+            .clone(),
+    );
+    for dir in &head.dirs {
+        let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
+        if let Err(err) = r {
+            error!("create dir error: {}", err);
+            return resp_common_error_msg(conn, &err.to_string()).await.is_ok();
+        }
+    }
+    if let Err(_) = send_msg(conn, &"create dirs success".to_string()).await {
+        return false;
+    };
+    if !head.dirs.is_empty() && head.files_count_in_this_op == 0 {
+        crate::utils::inform(&"目录创建成功", &head.device_name);
+    }
+    true
 }

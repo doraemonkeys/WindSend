@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
-use tracing::{debug, error, trace};
+use tracing::info;
+use tracing::{debug, error, trace, warn};
+
+use crate::route::resp::resp_error_msg;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub enum RouteAction {
@@ -18,11 +21,15 @@ pub enum RouteAction {
     Copy,
     #[serde(rename = "download")]
     Download,
+    #[serde(rename = "match")]
+    Match,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct RouteHead {
+pub struct RouteRecvHead {
     pub action: RouteAction,
+    #[serde(rename = "deviceName")]
+    pub device_name: String,
     #[serde(rename = "timeIp")]
     pub time_ip: String,
     #[serde(rename = "fileID")]
@@ -30,10 +37,14 @@ pub struct RouteHead {
     #[serde(rename = "fileSize")]
     pub file_size: i64,
     #[serde(rename = "path")]
-    pub down_path: String,
-    /// 上传文件的名称
-    #[serde(rename = "name")]
-    pub file_name: String,
+    /// 上传或下载文件时的文件路径
+    pub path: String,
+    /// 创建文件夹请求
+    pub dirs: Vec<String>,
+    #[serde(rename = "uploadType")]
+    /// 上传文件或文件夹时有效
+    #[serde(default)]
+    pub upload_type: PathInfoType,
     pub start: i64,
     pub end: i64,
     #[serde(rename = "dataLen")]
@@ -59,10 +70,38 @@ pub struct RouteRespHead<'a> {
     pub paths: Vec<RoutePathInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct RoutePathInfo {
     pub path: String,
     pub size: u64,
+    #[serde(rename = "type")]
+    pub type_: PathInfoType,
+    #[serde(rename = "savePath")]
+    pub save_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PathInfoType {
+    #[serde(rename = "dir")]
+    Dir,
+    #[serde(rename = "file")]
+    File,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+impl std::default::Default for PathInfoType {
+    fn default() -> Self {
+        PathInfoType::Unknown("unknown".to_string())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MatchActionRespBody {
+    #[serde(rename = "deviceName")]
+    device_name: String,
+    #[serde(rename = "secretKeyHex")]
+    secret_key_hex: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,61 +115,78 @@ pub enum RouteDataType {
     #[serde(rename = "binary")]
     Binary,
 }
+
 static TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 static EXAMINE_TIME_STR: &str = "2023-10-10 01:45:32";
-static MAX_TIME_DIFF: i64 = 10;
+static MAX_TIME_DIFF: i64 = 300;
 
 pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::TcpStream>) {
-    let head = common_auth(&mut conn).await;
-    if head.is_err() {
-        return;
+    loop {
+        let head = common_auth(&mut conn).await;
+        if head.is_err() {
+            return;
+        }
+        let head = head.unwrap();
+        info!("recv head: {:?}", head);
+
+        let mut ok = false;
+        match head.action {
+            RouteAction::Ping => {
+                let _ = crate::route::resp::ping_handler(&mut conn, head).await;
+            }
+            RouteAction::PasteText => {
+                crate::route::paste::paste_text_handler(&mut conn, head).await;
+            }
+            RouteAction::PasteFile => {
+                ok = crate::route::paste::paste_file_handler(&mut conn, head).await;
+            }
+            RouteAction::Copy => {
+                crate::route::copy::copy_handler(&mut conn).await;
+            }
+            RouteAction::Download => {
+                ok = crate::route::copy::download_handler(&mut conn, head).await;
+            }
+            RouteAction::Match => {
+                let _ = match_handler(&mut conn).await;
+            }
+            RouteAction::Unknown => {
+                let msg = format!("unknown action: {:?}", head.action);
+                let _ = crate::route::resp::resp_common_error_msg(&mut conn, &msg).await;
+                error!("{}", msg);
+            }
+        }
+        use tokio::io::AsyncWriteExt;
+        if let Err(e) = conn.flush().await {
+            error!("flush failed, err: {}", e);
+        }
+        if !ok {
+            return;
+        }
     }
-    let head = head.unwrap();
-    debug!("head: {:?}", head);
-    match head.action {
-        RouteAction::Ping => {
-            crate::route::paste::ping_handler(&mut conn, head)
-                .await
-                .ok();
-        }
-        RouteAction::PasteText => {
-            crate::route::paste::paste_text_handler(&mut conn, head).await;
-        }
-        RouteAction::PasteFile => {
-            crate::route::paste::paste_file_handler(&mut conn, head).await;
-        }
-        RouteAction::Copy => {
-            crate::route::copy::copy_handler(&mut conn).await;
-        }
-        RouteAction::Download => {
-            crate::route::copy::download_handler(&mut conn, head).await;
-        }
-        _ => {
-            crate::route::resp::resp_error_msg(
-                &mut conn,
-                &format!("unknown action: {:?}", head.action),
-            )
-            .await
-            .ok();
-            error!("unknown action: {:?}", head.action);
-        }
-    }
-    use tokio::io::AsyncWriteExt;
-    conn.flush()
-        .await
-        .map_err(|e| error!("flush failed, err: {}", e))
-        .ok();
 }
 
-pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, ()> {
+pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHead, ()> {
+    static UNAUTHORIZED_CODE: i32 = 401;
+
+    let remote_ip = conn
+        .get_ref()
+        .0
+        .peer_addr()
+        .map_err(|e| error!("get peer addr failed, err: {}", e))
+        .unwrap_or(std::net::SocketAddr::from(([0, 0, 0, 0], 0)));
+    info!("try to read head, remote ip: {}", remote_ip);
+
     let head_buf_size = 1024;
     let mut head_buf = vec![0u8; head_buf_size];
     // 读取json长度
     let mut head_len = [0u8; 4];
-    conn.read_exact(&mut head_len)
-        .await
-        .map_err(|e| error!("read head len failed, err: {}", e))
-        .ok();
+    if let Err(e) = conn.read_exact(&mut head_len).await {
+        match e.kind() {
+            std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_ip),
+            _ => error!("read head len failed, err: {}", e),
+        }
+        return Err(());
+    }
     let head_len = i32::from_le_bytes(head_len);
     if head_len > head_buf_size as i32 || head_len <= 0 {
         error!("invalid head len: {}", head_len);
@@ -141,12 +197,29 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
     // 读取json
     conn.read_exact(&mut head_buf)
         .await
-        .map_err(|e| error!("read head failed, err: {}", e))
-        .ok();
-    let head: RouteHead = serde_json::from_slice(&head_buf)
+        .map_err(|e| error!("read head failed, err: {}", e))?;
+    debug!("head_buf: {:?}", String::from_utf8_lossy(&head_buf));
+    let head: RouteRecvHead = serde_json::from_slice(&head_buf)
         .map_err(|e| error!("json unmarshal failed, err: {}", e))?;
+
+    if let RouteAction::Match = head.action {
+        if *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() {
+            return Ok(head);
+        }
+        let msg = format!(
+            "search not allowed, deviceName: {}, ip: {}",
+            head.device_name,
+            remote_ip.ip()
+        );
+        warn!("{}", msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
+        return Err(());
+    }
+
     if head.time_ip.is_empty() {
-        error!("time-ip is empty");
+        let msg = format!("time-ip field is empty, remote ip: {}", remote_ip.ip());
+        error!(msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     debug!("head: {:?}", head);
@@ -156,26 +229,11 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
     let decrypted = crate::config::get_cryptor()
         .map_err(|e| error!("get_cryptor failed, err: {}", e))?
         .decrypt(&time_and_ip_bytes);
-    // .map_err(|e| error!("decrypt failed, err: {}", e))?;
+
     if let Err(e) = decrypted {
-        let remote_ip = conn
-            .get_ref()
-            .0
-            .peer_addr()
-            .map_err(|e| error!("get peer addr failed, err: {}", e));
-        match remote_ip {
-            Ok(remote_ip) => {
-                error!(
-                    "decrypt failed, err: {}, remote_ip: {}",
-                    e,
-                    remote_ip.ip().to_string()
-                );
-            }
-            Err(_) => {
-                error!("get peer addr failed");
-                error!("decrypt failed, err: {}", e)
-            }
-        }
+        let msg = format!("decrypt failed, err: {}, remote_ip: {}", e, remote_ip.ip());
+        error!(msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     let decrypted = decrypted.unwrap();
@@ -184,7 +242,9 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
         String::from_utf8(decrypted).map_err(|e| error!("utf8 decode failed, err: {}", e))?;
     let time_len = EXAMINE_TIME_STR.len();
     if time_and_ip_str.len() < time_len {
-        error!("time-ip is too short");
+        let msg = format!("time-ip is too short, remote_ip: {}", remote_ip.ip());
+        error!(msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     let time_str = &time_and_ip_str[..time_len];
@@ -197,7 +257,9 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
         .num_seconds()
         > MAX_TIME_DIFF
     {
-        error!("time expired: {}", t);
+        let msg = format!("time expired: {}", t);
+        error!(msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     let myipv4 = conn
@@ -205,10 +267,49 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteHead, (
         .0
         .local_addr()
         .map_err(|e| error!("get local addr failed, err: {}", e))?;
-    trace!("ip: {}, myipv4: {}", ip, myipv4.ip());
+    debug!("ip: {}, myipv4: {}", ip, myipv4.ip());
     if ip != myipv4.ip().to_string() {
-        error!("ip not match: {} != {}", ip, myipv4.ip());
+        let msg = format!("ip not match: {} != {}", ip, myipv4.ip());
+        error!(msg);
+        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     Ok(head)
+}
+
+async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
+    let hostname = hostname::get()
+        .map_err(|e| error!("get hostname failed, err: {}", e))
+        .unwrap_or_default();
+    let hostname: String = hostname.to_string_lossy().to_string();
+    let action_resp = MatchActionRespBody {
+        device_name: hostname,
+        secret_key_hex: crate::config::GLOBAL_CONFIG
+            .lock()
+            .unwrap()
+            .secret_key_hex
+            .clone(),
+    };
+    let action_resp = serde_json::to_vec(&action_resp);
+    if let Err(e) = &action_resp {
+        let err = format!("json marshal failed, err: {}", e);
+        error!("{}", err);
+        let _ = crate::route::resp::resp_common_error_msg(conn, &err).await;
+        return Err(());
+    }
+    let r =
+        crate::route::resp::send_msg(conn, &String::from_utf8(action_resp.unwrap()).unwrap()).await;
+    match r {
+        Ok(_) => {
+            let _ = crate::TX_CLOSE_ALLOW_TO_BE_SEARCHED
+                .get()
+                .unwrap()
+                .try_send(())
+                .map_err(|e| error!("send close allow to be search failed, err: {}", e));
+            *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = false;
+            info!("turn off the switch of allowing to be searched");
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
 }

@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::PROGRAM_NAME;
+
 pub struct StartHelper {
     exe_name: String,
 }
@@ -336,7 +338,7 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn inform(content: &str) {
+pub fn inform(content: &str, title: &str) {
     use notify_rust::Notification;
     use tracing::error;
     let show_len = 80;
@@ -349,9 +351,10 @@ pub fn inform(content: &str) {
         body = content.to_string();
     }
     Notification::new()
-        .summary(crate::PROGRAM_NAME)
+        .summary(title)
+        .appname(PROGRAM_NAME)
         .body(&body)
-        .auto_icon()
+        .icon(crate::config::APP_ICON_PATH.get().unwrap())
         .show()
         .map_err(|err| error!("show notification error: {}", err))
         .ok();
@@ -363,4 +366,17 @@ pub fn has_img_ext(name: &str) -> bool {
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico" => true,
         _ => false,
     }
+}
+
+// e.g. zh_CN.UTF-8 => zh_CN
+pub fn get_system_lang() -> String {
+    let env_keys = vec!["LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE"];
+    let mut lang = String::new();
+    for key in env_keys {
+        lang = std::env::var(key).unwrap_or_default();
+        if !lang.is_empty() {
+            break;
+        }
+    }
+    lang
 }

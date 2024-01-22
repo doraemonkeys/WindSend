@@ -1,8 +1,10 @@
 use crate::route::{RouteDataType, RouteRespHead};
-use tokio::io::{AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{error, trace};
+
+use crate::route::RouteRecvHead;
 
 pub static SUCCESS_STATUS_CODE: i32 = 200;
 pub static ERROR_STATUS_CODE: i32 = 400;
@@ -79,16 +81,63 @@ where
     send_head(writer, &resp).await
 }
 
-pub async fn resp_error_msg<'a, W>(writer: &'a mut W, msg: &'a String) -> Result<(), ()>
+pub async fn resp_error_msg<'a, W>(writer: &'a mut W, code: i32, msg: &'a String) -> Result<(), ()>
 where
     W: AsyncWrite + Unpin + ?Sized,
 {
     let resp = RouteRespHead {
-        code: ERROR_STATUS_CODE,
+        code,
         msg,
         data_type: RouteDataType::Text,
         data_len: 0,
         paths: vec![],
     };
     send_head(writer, &resp).await
+}
+
+pub async fn resp_common_error_msg<'a, W>(writer: &'a mut W, msg: &'a String) -> Result<(), ()>
+where
+    W: AsyncWrite + Unpin + ?Sized,
+{
+    resp_error_msg(writer, ERROR_STATUS_CODE, msg).await
+}
+
+pub async fn ping_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> Result<(), ()> {
+    let mut body_buf = vec![0u8; head.data_len as usize];
+    if let Err(e) = conn.read_exact(&mut body_buf).await {
+        error!("read body failed, err: {}", e);
+        return Err(());
+    };
+
+    let decrypted_body = crate::config::get_cryptor()
+        .and_then(|c| Ok(c.decrypt(&body_buf)?))
+        .map_err(|e| format!("decrypt failed, err: {}", e));
+    if let Err(e) = &decrypted_body {
+        error!("{}", e);
+        resp_common_error_msg(conn, e).await.ok();
+        return Err(());
+    }
+    let decrypted_body = decrypted_body.unwrap();
+
+    if decrypted_body != b"ping" {
+        let msg = format!(
+            "invalid ping data: {}",
+            String::from_utf8_lossy(&decrypted_body)
+        );
+        let _ = resp_common_error_msg(conn, &msg).await;
+        return Err(());
+    }
+    let resp = b"pong";
+    let encrypted_resp = crate::config::get_cryptor()
+        .map_err(|e| error!("get_cryptor failed, err: {}", e))?
+        .encrypt(resp)
+        .map_err(|e| error!("encrypt failed, err: {}", e))?;
+    send_msg_with_body(
+        conn,
+        &"验证成功".to_string(),
+        RouteDataType::Text,
+        &encrypted_resp,
+    )
+    .await?;
+    Ok(())
 }

@@ -1,9 +1,11 @@
+use crate::language::{LanguageKey, LANGUAGE_MANAGER};
 use std::collections::HashMap;
 use std::io::SeekFrom;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, Take};
 use tokio::sync::Mutex as TokioMutex;
 use tracing::{debug, error, warn};
+
 pub struct FilePartReader {
     file_part: Take<tokio::fs::File>,
 }
@@ -92,6 +94,7 @@ pub struct FileReceiver {
 
 #[derive(Debug, Clone)]
 pub struct OpInfo {
+    req_device_name: String,
     exp_num: i32,
     succ_num: i32,
     fail_num: i32,
@@ -134,7 +137,7 @@ impl FileReceiver {
 
     pub async fn get_file(
         &self,
-        head: &crate::route::RouteHead,
+        head: &crate::route::RouteRecvHead,
     ) -> std::io::Result<tokio::fs::File> {
         let file_id = head.file_id;
         let file_size = head.file_size;
@@ -149,10 +152,14 @@ impl FileReceiver {
             already_exist = false;
             let file_path =
                 std::path::Path::new(&crate::config::GLOBAL_CONFIG.lock().unwrap().save_path)
-                    .join(&head.file_name);
+                    .join(&head.path);
             actual_save_path = generate_unique_filepath(file_path)?;
         }
-        debug!("create file: {}", actual_save_path);
+        debug!("uploading file: {}", actual_save_path);
+        let dir = std::path::Path::new(&actual_save_path)
+            .parent()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path parent error"))?;
+        tokio::fs::create_dir_all(dir).await?;
         let file = tokio::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -182,6 +189,7 @@ impl FileReceiver {
             ops_map.insert(
                 head.op_id,
                 OpInfo {
+                    req_device_name: head.device_name.clone(),
                     exp_num: head.files_count_in_this_op,
                     succ_num: 0,
                     fail_num: 0,
@@ -276,13 +284,14 @@ pub async fn recv_monitor(
     let success;
     tokio::select! {
         r = down_ch => {
-            if r.is_err() {
-               error!("fileID: {} recv report error: {}", file_id, r.err().unwrap());
+            if let Err(e) = r {
+                error!("fileID: {} recv report error: {}", file_id, e);
                 success = false;
             } else {
                 success = r.unwrap();
             }
         }
+        //TODO: remove this timeout
         _ = sleep(Duration::from_secs(60*10)) => {
             error!("fileID: {} download timeout!", file_id);
             success = false;
@@ -302,7 +311,7 @@ pub async fn recv_monitor(
     // 不管是否下载成功，都要删除，因为下一次传输同一个文件时，fileID是不一样的。
     let file_recv_info = files_recv_info.lock().await.remove(&file_id).unwrap();
 
-    // 仅接收一张图，且格式为png时(only support png)，粘贴到剪切板
+    // 仅接收一张图，粘贴到剪切板
     let save_path = &file_recv_info.items.lock().await.save_path;
     if success
         && op_info.exp_num == 1
@@ -310,28 +319,31 @@ pub async fn recv_monitor(
         && crate::utils::has_img_ext(save_path)
     {
         let image = tokio::fs::read(save_path).await;
-        if image.is_err() {
-            error!(
-                "write to clipboard failed:{}",
-                image.err().unwrap().to_string()
-            );
+        if let Err(e) = image {
+            error!("write to clipboard failed:{}", e);
         } else {
             crate::config::set_clipboard_from_img_bytes(&image.unwrap())
                 .await
                 .ok();
         }
     }
+
+    let files_saved_to = LANGUAGE_MANAGER
+        .read()
+        .unwrap()
+        .translate(LanguageKey::NFilesSavedTo);
     // 此次操作已经完成
     if op_info.succ_num + op_info.fail_num == op_info.exp_num {
         let mut msg = format!(
-            "{}个文件已保存到 {}",
+            "{} {} {}",
             op_info.succ_num,
+            files_saved_to,
             crate::config::GLOBAL_CONFIG.lock().unwrap().save_path
         );
         if op_info.fail_num > 0 {
-            msg = format!("{}\n{}个文件保存失败", msg, op_info.fail_num);
+            msg = format!("{}\n{} files failed to save", msg, op_info.fail_num);
         }
-        crate::utils::inform(&msg);
+        crate::utils::inform(&msg, &op_info.req_device_name);
     }
 }
 
@@ -351,12 +363,7 @@ fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Resul
     let name = path
         .file_name()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path file_name error"))?;
-    let name: String = name
-        .to_str()
-        .ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::Other, "path file_name to str error")
-        })?
-        .to_string();
+    let name: String = name.to_string_lossy().to_string();
     let file_ext = path
         .extension()
         .unwrap_or(std::ffi::OsStr::new(""))
@@ -365,6 +372,7 @@ fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Resul
         .to_string();
     for i in 1..100 {
         let new_name = if !file_ext.is_empty() {
+            let name = name.trim_end_matches(&format!(".{}", file_ext));
             format!("{}({}).{}", name, i, file_ext)
         } else {
             format!("{}({})", name, i)

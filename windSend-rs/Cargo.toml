@@ -49,14 +49,14 @@ subslice = "0.2.3"
 regex = "1.9.6"
 global-hotkey = "0.4"
 reqwest = { version = "0.11", features = ["multipart", "cookies"] }
-arboard = { version = "3", features = [
+arboard = { version = "3.3.0", features = [
     "core-graphics",
     "image",
     "image-data",
     "wayland-data-control",
     "wl-clipboard-rs",
 ] }
-notify-rust = "4.9.0"
+notify-rust = "4.10"
 tokio-native-tls = "0.3.1"
 rustls-pemfile = "1.0.3"
 webpki-roots = "0.25"
@@ -71,6 +71,9 @@ moka = { version = "0.12", features = ["future", "sync"] }
 # rustls = { path = "./rustls/rustls" }
 # tokio-rustls = { path = "./tokio-rustls" }
 tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "rustls-0.21.7" }
+clipboard-files = { git = "https://github.com/doraemonkeys/clipboard-files" }
+hostname = "^0.3"
+walkdir = "2.4"
 
 [build-dependencies]
 windres = "*"
