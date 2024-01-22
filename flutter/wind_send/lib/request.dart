@@ -467,11 +467,14 @@ class FileDownloader {
     TargetPaths paths,
     String fileSavePath,
   ) async {
+    String systemSeparator = filepathpkg.separator;
     var targetFilePath = paths.path;
     var targetFileSize = paths.size;
+    targetFilePath = targetFilePath.replaceAll('/', systemSeparator);
+    targetFilePath = targetFilePath.replaceAll('\\', systemSeparator);
+
     var filename = filepathpkg.basename(targetFilePath);
     var newFilepath = filepathpkg.join(fileSavePath, filename);
-    String systemSeparator = filepathpkg.separator;
     newFilepath = newFilepath.replaceAll('/', systemSeparator);
     newFilepath = newFilepath.replaceAll('\\', systemSeparator);
     newFilepath = generateUniqueFilepath(newFilepath);
