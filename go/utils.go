@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/harry1453/go-common-file-dialog/cfd"
 	"github.com/wumansgy/goEncrypt/aes"
@@ -488,4 +489,17 @@ type Pair[T1, T2 any] struct {
 
 func NewPair[T1, T2 any](first T1, second T2) Pair[T1, T2] {
 	return Pair[T1, T2]{First: first, Second: second}
+}
+
+// 过滤字符串中的不可打印字符
+func FilterNonPrintable(content string) string {
+	var validString []rune = make([]rune, 0, len(content))
+	for _, v := range content {
+		ok := unicode.IsPrint(v)
+		fmt.Printf("%d %v\n", int32(v), ok)
+		if ok {
+			validString = append(validString, v)
+		}
+	}
+	return string(validString)
 }

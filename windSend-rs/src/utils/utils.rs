@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::PROGRAM_NAME;
+use tracing::error;
 
 pub struct StartHelper {
     exe_name: String,
@@ -338,17 +339,20 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn inform(content: &str, title: &str) {
+pub fn inform<T: AsRef<str>>(content: T, title: &str) {
     use notify_rust::Notification;
-    use tracing::error;
     let show_len = 80;
-    let mut content_rune = content.chars().collect::<Vec<char>>();
+    let mut content_rune = content
+        .as_ref()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<Vec<char>>();
     let body;
     if content_rune.len() >= show_len {
         content_rune.truncate(show_len);
         body = format!("{}...", content_rune.into_iter().collect::<String>());
     } else {
-        body = content.to_string();
+        body = content.as_ref().to_string();
     }
     Notification::new()
         .summary(title)

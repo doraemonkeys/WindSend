@@ -7,6 +7,7 @@ import (
 
 // Inform 发出通知
 func Inform(content string, tittle string) {
+	content = FilterNonPrintable(content)
 	notification := toast.Notification{
 		AppID:    ProgramName,
 		Title:    tittle,
