@@ -40,6 +40,11 @@ func initGlobalConfig() Config {
 
 	startHelper = NewStartHelper(ProgramName)
 
+	defer func() {
+		if err := GloballCnf.Set(); err != nil {
+			logrus.Panic(err)
+		}
+	}()
 	if _, err := os.Stat(configFilePath); err != nil {
 		cnf := generateDefaultConfig()
 		GloballCnf = &cnf
@@ -56,10 +61,6 @@ func initGlobalConfig() Config {
 	defer file.Close()
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&GloballCnf)
-	if err != nil {
-		logrus.Panic(err)
-	}
-	err = GloballCnf.Set()
 	if err != nil {
 		logrus.Panic(err)
 	}
