@@ -495,9 +495,7 @@ func NewPair[T1, T2 any](first T1, second T2) Pair[T1, T2] {
 func FilterNonPrintable(content string) string {
 	var validString []rune = make([]rune, 0, len(content))
 	for _, v := range content {
-		ok := unicode.IsPrint(v)
-		fmt.Printf("%d %v\n", int32(v), ok)
-		if ok {
+		if unicode.IsPrint(v) {
 			validString = append(validString, v)
 		}
 	}
