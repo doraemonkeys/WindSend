@@ -342,18 +342,19 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
 pub fn inform<T: AsRef<str>>(content: T, title: &str) {
     use notify_rust::Notification;
     let show_len = 80;
-    let mut content_rune = content
-        .as_ref()
-        .chars()
-        .filter(|c| c.is_alphanumeric())
+    let content_bytes = content.as_ref().as_bytes();
+    let mut content_runes = String::from_utf8_lossy(content_bytes)
+        .char_indices()
+        .filter_map(|ic| match ic.1 {
+            c if c.is_alphanumeric() => Some(ic.1),
+            _ => None,
+        })
         .collect::<Vec<char>>();
-    let body;
-    if content_rune.len() >= show_len {
-        content_rune.truncate(show_len);
-        body = format!("{}...", content_rune.into_iter().collect::<String>());
-    } else {
-        body = content.as_ref().to_string();
+    if content_runes.len() >= show_len {
+        content_runes.truncate(show_len);
+        content_runes.append(&mut vec!['.'; 3])
     }
+    let body = content_runes.into_iter().collect::<String>();
     Notification::new()
         .summary(title)
         .appname(PROGRAM_NAME)
