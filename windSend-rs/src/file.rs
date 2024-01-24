@@ -88,7 +88,12 @@ impl tokio::io::AsyncWrite for FilePartWriter {
 }
 
 pub struct FileReceiver {
+    /// key: fileID value: RecvFileInfo
+    ///
+    /// fileID在每次传输一个文件时都是随机的，
+    /// 即使再次传输同一个文件，也会重新生成一个fileID
     file: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
+    /// key: opID value: OpInfo
     ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
 }
 
@@ -103,9 +108,6 @@ pub struct OpInfo {
 #[derive(Debug)]
 pub struct RecvFileInfo {
     exp_size: i64,
-    /// fileID在每次传输一个文件时都是随机的，
-    /// 即使再次传输同一个文件，也会重新生成一个fileID
-    _file_id: u32,
     /// part、is_done、first_err、down_chan
     items: TokioMutex<LockedItem>,
 }
@@ -179,7 +181,6 @@ impl FileReceiver {
         };
         let info = RecvFileInfo {
             exp_size: file_size,
-            _file_id: file_id,
             items: TokioMutex::new(items),
         };
         file_recv_map.insert(file_id, Arc::new(info));
@@ -292,7 +293,7 @@ pub async fn recv_monitor(
             }
         }
         //TODO: remove this timeout
-        _ = sleep(Duration::from_secs(60*10)) => {
+        _ = sleep(Duration::from_secs(60*60)) => {
             error!("fileID: {} download timeout!", file_id);
             success = false;
         }
@@ -322,9 +323,7 @@ pub async fn recv_monitor(
         if let Err(e) = image {
             error!("write to clipboard failed:{}", e);
         } else {
-            crate::config::set_clipboard_from_img_bytes(&image.unwrap())
-                .await
-                .ok();
+            let _ = crate::config::set_clipboard_from_img_bytes(&image.unwrap()).await;
         }
     }
 

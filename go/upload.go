@@ -18,6 +18,10 @@ import (
 )
 
 type FileReceiver struct {
+	// key: fileID value: RecvFileInfo
+	//
+	// fileID在每次传输一个文件时都是随机的，
+	// 即使再次传输同一个文件，也会重新生成一个fileID
 	file map[uint32]*recvfileInfo
 	OPs  map[uint32]*OpInfo
 	// 用于保证file和Ops的并发安全
@@ -35,9 +39,6 @@ type OpInfo struct {
 type recvfileInfo struct {
 	file     *os.File
 	filePath string
-	// fileID在每次传输一个文件时都是随机的，
-	// 即使再次传输同一个文件，也会重新生成一个fileID
-	fileID   uint32
 	partLock *sync.Mutex
 	part     []FilePart
 	expSize  int64
@@ -74,7 +75,7 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	var Info = &recvfileInfo{file: file, filePath: filePath, fileID: fileID, expSize: fileSize}
+	var Info = &recvfileInfo{file: file, filePath: filePath, expSize: fileSize}
 	Info.partLock = new(sync.Mutex)
 	Info.downChan = make(chan bool, 1)
 	f.file[fileID] = Info
@@ -96,7 +97,7 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 	var success bool = false
 	select {
 	case success = <-downCh:
-	case <-time.After(time.Minute * 10):
+	case <-time.After(time.Minute * 60):
 		logrus.Error("fileID:", fileID, "download timeout!")
 	}
 
