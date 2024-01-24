@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 # tray-item = "0.8.0"
 log = "0.4.0"
-env_logger = "0.10"
+env_logger = "0.11.0"
 aes = "0.8.3"
 hex = "0.4.3"
 block-modes = "0.9"
@@ -16,15 +16,15 @@ hex-literal = "0.4"
 ctr = "0.9"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-rfd = "0.12"
+rfd = "0.13.0"
 image = "0.24"
 crossbeam-channel = "0"
 tray-icon = "0.11.0"
-tao = "0.24"
+tao = "0.24.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-rcgen = { version = "0.11", features = ["pem", "x509-parser"] }
+rcgen = { version = "0.12.0", features = ["pem", "x509-parser"] }
 rsa = "0.9.2"
 ring = "0.17"
 pem = { version = "3" }
@@ -59,7 +59,7 @@ arboard = { version = "3.3.0", features = [
 notify-rust = "4.10"
 tokio-native-tls = "0.3.1"
 rustls-pemfile = "1.0.3"
-webpki-roots = "0.25"
+webpki-roots = "0.26.0"
 moka = { version = "0.12", features = ["future", "sync"] }
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
@@ -80,4 +80,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.24"
+tao = "0.24.1"
