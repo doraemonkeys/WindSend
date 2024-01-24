@@ -283,6 +283,7 @@ pub async fn recv_monitor(
     use std::time::Duration;
     use tokio::time::sleep;
     let success;
+    let mut is_timeout = false;
     tokio::select! {
         r = down_ch => {
             if let Err(e) = r {
@@ -292,10 +293,10 @@ pub async fn recv_monitor(
                 success = r.unwrap();
             }
         }
-        //TODO: remove this timeout
         _ = sleep(Duration::from_secs(60*60)) => {
             error!("fileID: {} download timeout!", file_id);
             success = false;
+            is_timeout = true;
         }
     }
     let mut ops = ops.lock().await;
@@ -332,7 +333,7 @@ pub async fn recv_monitor(
         .unwrap()
         .translate(LanguageKey::NFilesSavedTo);
     // 此次操作已经完成
-    if op_info.succ_num + op_info.fail_num == op_info.exp_num {
+    if !is_timeout && op_info.succ_num + op_info.fail_num == op_info.exp_num {
         let mut msg = format!(
             "{} {} {}",
             op_info.succ_num,

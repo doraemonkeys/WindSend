@@ -95,9 +95,12 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 
 func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool) {
 	var success bool = false
+	var isTimeout bool = false
 	select {
 	case success = <-downCh:
 	case <-time.After(time.Minute * 60):
+		isTimeout = true
+		success = false
 		logrus.Error("fileID:", fileID, "download timeout!")
 	}
 
@@ -131,7 +134,7 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 		}
 	}
 	// 此次操作已经完成
-	if OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
+	if !isTimeout && OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
 		msg := fmt.Sprintf("%d %s %s", OpInfo.succNum, language.Translate(language.NFilesSavedTo), GloballCnf.SavePath)
 		if OpInfo.failNum > 0 {
 			msg += fmt.Sprintf("\n%d files failed to save", OpInfo.failNum)
