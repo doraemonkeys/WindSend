@@ -26,6 +26,7 @@ cd ../bin
 md %goServerProgramName%-amd64-windows
 move ../go/%goServerProgramName%.exe %goServerProgramName%-amd64-windows/%goServerProgramName%.exe
 xcopy ..\README.md %goServerProgramName%-amd64-windows /y
+xcopy ..\README-EN.md %goServerProgramName%-amd64-windows /y
 xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-amd64-windows /y
 zip -r %goServerProgramName%-amd64-windows.zip %goServerProgramName%-amd64-windows
 cd ../go  
@@ -43,6 +44,7 @@ cd ../bin
 md %goServerProgramName%-arm64-windows
 move ../go/%goServerProgramName%.exe %goServerProgramName%-arm64-windows/%goServerProgramName%.exe
 xcopy ..\README.md %goServerProgramName%-arm64-windows /y
+xcopy ..\README-EN.md %goServerProgramName%-arm64-windows /y
 xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-arm64-windows /y
 zip -r %goServerProgramName%-arm64-windows.zip %goServerProgramName%-arm64-windows
 cd ../go
@@ -65,6 +67,7 @@ cd ../bin
 md %rustServerProgramName%-amd64-windows
 move ..\windSend-rs\target\release\%rustPjName%.exe %rustServerProgramName%-amd64-windows/%rustServerProgramName%.exe
 xcopy ..\README.md %rustServerProgramName%-amd64-windows /y
+xcopy ..\README-EN.md %rustServerProgramName%-amd64-windows /y
 xcopy "..\windSend-rs\%ServerProgramIconName%" %rustServerProgramName%-amd64-windows /y
 zip -r %rustServerProgramName%-amd64-windows.zip %rustServerProgramName%-amd64-windows
 
