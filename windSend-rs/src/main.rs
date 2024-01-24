@@ -19,7 +19,7 @@ pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>
 
 static PROGRAM_NAME: &str = "WindSend-S-Rust";
 static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
-static PROGRAM_VERSION: &str = "1.0.0";
+static PROGRAM_VERSION: &str = "1.0.2";
 
 fn init() {
     config::init();
