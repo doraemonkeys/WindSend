@@ -342,8 +342,8 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
 pub fn inform<T: AsRef<str>>(content: T, title: &str) {
     use notify_rust::Notification;
     let show_len = 80;
-    let content_bytes = content.as_ref().as_bytes();
-    let mut content_runes = String::from_utf8_lossy(content_bytes)
+    let mut content_runes = content
+        .as_ref()
         .char_indices()
         .filter_map(|ic| match ic.1 {
             c if c.is_alphanumeric() => Some(ic.1),
