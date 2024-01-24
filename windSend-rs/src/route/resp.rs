@@ -1,10 +1,10 @@
+use crate::language::{LanguageKey, LANGUAGE_MANAGER};
+use crate::route::RouteRecvHead;
 use crate::route::{RouteDataType, RouteRespHead};
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{error, trace};
-
-use crate::route::RouteRecvHead;
 
 pub static SUCCESS_STATUS_CODE: i32 = 200;
 pub static ERROR_STATUS_CODE: i32 = 400;
@@ -132,12 +132,11 @@ pub async fn ping_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) 
         .map_err(|e| error!("get_cryptor failed, err: {}", e))?
         .encrypt(resp)
         .map_err(|e| error!("encrypt failed, err: {}", e))?;
-    send_msg_with_body(
-        conn,
-        &"验证成功".to_string(),
-        RouteDataType::Text,
-        &encrypted_resp,
-    )
-    .await?;
+
+    let verify_success = LANGUAGE_MANAGER
+        .read()
+        .unwrap()
+        .translate(LanguageKey::VerifySuccess);
+    send_msg_with_body(conn, verify_success, RouteDataType::Text, &encrypted_resp).await?;
     Ok(())
 }

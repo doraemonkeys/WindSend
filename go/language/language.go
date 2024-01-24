@@ -24,6 +24,7 @@ const (
 	ClipboardIsEmpty
 	DirCreated
 	NFilesSavedTo
+	VerifySuccess
 )
 
 var _ZH_CN = map[int]string{
@@ -50,6 +51,7 @@ var _ZH_CN = map[int]string{
 	ClipboardIsEmpty:    "你还没有复制任何内容",
 	DirCreated:          "文件夹创建成功",
 	NFilesSavedTo:       "个文件保存到",
+	VerifySuccess:       "验证成功",
 }
 
 var _EN_US = map[int]string{
@@ -76,6 +78,7 @@ var _EN_US = map[int]string{
 	ClipboardIsEmpty:    "You haven't copied anything yet",
 	DirCreated:          "Directory created successfully",
 	NFilesSavedTo:       "files saved to",
+	VerifySuccess:       "Verify Success",
 }
 
 var SupportedLanguageCode = []string{EN_US_CODE, ZH_CN_CODE}

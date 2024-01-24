@@ -206,7 +206,7 @@ func pingHandler(conn net.Conn, head headInfo) {
 		return
 	}
 	// encryptedResp = []byte("pong")
-	sendMsgWithBody(conn, "验证成功", DataTypeText, encryptedResp)
+	sendMsgWithBody(conn, language.Translate(language.VerifySuccess), DataTypeText, encryptedResp)
 }
 
 func readHead(conn net.Conn) (headInfo, error) {
