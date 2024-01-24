@@ -346,7 +346,7 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         .as_ref()
         .char_indices()
         .filter_map(|ic| match ic.1 {
-            c if c.is_alphanumeric() => Some(ic.1),
+            c if !c.is_control() => Some(ic.1),
             _ => None,
         })
         .collect::<Vec<char>>();
