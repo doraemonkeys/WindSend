@@ -84,7 +84,7 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 
 ## Difference between Rust implementation and Go implementation?
 
-These two versions are almost the same in function and appearance, but there are still slight differences.
+The two versions are almost the same in function and appearance, but there are still slight differences in some aspects.
 
 1. The Rust version is relatively smaller in size
 2. The Rust version supports writing more types of images to the Windows clipboard
