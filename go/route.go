@@ -145,7 +145,6 @@ func mainProcess(conn net.Conn) {
 			logrus.Error("unknown action:", head.Action)
 			return
 		}
-		fmt.Println("ok:", ok)
 		if !ok {
 			return
 		}
