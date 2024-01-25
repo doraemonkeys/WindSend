@@ -69,6 +69,7 @@ pub enum LanguageKey {
     About,
     NFilesSavedTo,
     VerifySuccess,
+    CopySuccessfully,
 }
 
 lazy_static! {
@@ -131,6 +132,10 @@ lazy_static! {
         (LanguageKey::About, String::from("About")),
         (LanguageKey::NFilesSavedTo, String::from("files saved to")),
         (LanguageKey::VerifySuccess, String::from("Verify Success")),
+        (
+            LanguageKey::CopySuccessfully,
+            String::from("Copy Successfully")
+        ),
     ]
     .into_iter()
     .collect();
@@ -178,6 +183,7 @@ lazy_static! {
         (LanguageKey::About, String::from("关于")),
         (LanguageKey::NFilesSavedTo, String::from("个文件已保存到")),
         (LanguageKey::VerifySuccess, String::from("验证成功")),
+        (LanguageKey::CopySuccessfully, String::from("复制成功")),
     ]
     .into_iter()
     .collect();

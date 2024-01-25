@@ -1,3 +1,4 @@
+use crate::language::{LanguageKey, LANGUAGE_MANAGER};
 use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
 use crate::route::{RouteDataType, RoutePathInfo, RouteRecvHead, RouteRespHead};
 use std::path::PathBuf;
@@ -61,7 +62,11 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
             warn!("send image failed, err: {}", e);
         }
     }
-    let _ = resp_common_error_msg(conn, &"你还没有复制任何内容".to_string()).await;
+    let clipboard_is_empty = LANGUAGE_MANAGER
+        .read()
+        .unwrap()
+        .translate(LanguageKey::ClipboardIsEmpty);
+    let _ = resp_common_error_msg(conn, clipboard_is_empty).await;
 }
 
 async fn send_files<T: IntoIterator<Item = String>>(
@@ -149,9 +154,13 @@ async fn send_files<T: IntoIterator<Item = String>>(
         return Err(());
     }
     debug!("{:?}", &resp_paths);
+    let copy_successfully = LANGUAGE_MANAGER
+        .read()
+        .unwrap()
+        .translate(LanguageKey::CopySuccessfully);
     let resp = RouteRespHead {
         code: crate::route::resp::SUCCESS_STATUS_CODE,
-        msg: &"复制成功".to_string(),
+        msg: copy_successfully,
         data_type: RouteDataType::Files,
         data_len: 0,
         paths: resp_paths,
