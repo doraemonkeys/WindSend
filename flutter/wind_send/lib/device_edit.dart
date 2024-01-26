@@ -354,7 +354,7 @@ class SettingsSection extends StatelessWidget {
           margin: const EdgeInsets.only(
             left: 16,
             right: 16,
-            bottom: 16,
+            bottom: 18,
           ),
           child: Column(
             children: children,
