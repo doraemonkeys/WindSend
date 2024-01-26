@@ -61,7 +61,6 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
             ],
           ),
           SettingsSection(
-            title: '',
             children: [
               ListTile(
                 enabled: widget.device.iP != AppConfigModel.webIP,
@@ -112,7 +111,6 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
 
   SettingsSection actionSettingsSection(BuildContext context) {
     return SettingsSection(
-      title: '',
       children: [
         SwitchListTile(
           title: Text(context.formatString(AppLocale.copy, [])),
@@ -346,7 +344,6 @@ class SettingsSection extends StatelessWidget {
             padding: const EdgeInsets.only(
               left: 10,
               top: 0,
-              bottom: 8,
             ),
             child: Text(
               title!,
@@ -354,7 +351,11 @@ class SettingsSection extends StatelessWidget {
             ),
           ),
         Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: 16,
+          ),
           child: Column(
             children: children,
           ),
