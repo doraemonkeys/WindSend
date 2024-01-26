@@ -70,6 +70,12 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 
 > In most cases, failure to pair quickly means that the network between your devices is not connected. Please use your phone's hotspot and try again.
 
+
+
+### Note
+
+- The time difference between the two devices cannot exceed 5 minutes, otherwise the pairing will fail.
+
 ## Tips
 
 - **Long press to upload mobile phone folder**

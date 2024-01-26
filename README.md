@@ -83,6 +83,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 ### 注意事项
 
 1. 一直转圈圈说明你电脑端配置有问题，比如wifi设置为公用网络。
+2. 两个设备之间的时间差不能超过5分钟，否则会导致配对失败。
 
 
 
@@ -108,7 +109,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### 1. 使用内网穿透软件
 
-如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP，Auto Select填false就行了，其他工具自行测试。
+如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP就行了，其他工具自行测试。
 
 
 
