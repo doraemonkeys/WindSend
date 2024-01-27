@@ -232,25 +232,31 @@ fn init_tls_config() {
     }
 }
 
-// use tokio_rustls::rustls;
 pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::error::Error>> {
     use tokio_rustls::rustls;
+    use tokio_rustls::rustls::pki_types::PrivateKeyDer;
     let private_key_bytes = std::fs::read(&Path::new(TLS_DIR).join(TLS_KEY_FILE))?;
-    let mut private_key = rustls_pemfile::pkcs8_private_keys(&mut private_key_bytes.as_slice())?;
-    if private_key.len() == 0 {
-        private_key = rustls_pemfile::rsa_private_keys(&mut private_key_bytes.as_slice())?;
-        debug!("rsa_private_keys");
-    } else {
-        debug!("pkcs8_private_keys");
+    let mut private_key: Option<PrivateKeyDer<'static>> = None;
+
+    let pkcs8_private_key =
+        rustls_pemfile::pkcs8_private_keys(&mut private_key_bytes.as_slice()).next();
+    if let Some(Ok(pkcs8_private_key)) = pkcs8_private_key {
+        private_key = Some(pkcs8_private_key.into());
     }
-    let private_key = rustls::PrivateKey(private_key.remove(0));
+    if private_key.is_none() {
+        let rsa_private_key =
+            rustls_pemfile::rsa_private_keys(&mut private_key_bytes.as_slice()).next();
+        let rsa_private_key = rsa_private_key.ok_or("rsa_private_key is none")??;
+        private_key = Some(rsa_private_key.into());
+    }
+    let private_key = private_key.unwrap();
 
     let ca_cert_bytes = std::fs::read(&Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
-    let mut ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())?;
-    let ca_cert = rustls::Certificate(ca_cert.remove(0));
+    let ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())
+        .next()
+        .ok_or("ca_cert is none")??;
 
     let server_conf = rustls::ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(vec![ca_cert], private_key)?;
     Ok(tokio_rustls::TlsAcceptor::from(std::sync::Arc::new(

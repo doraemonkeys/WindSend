@@ -58,7 +58,7 @@ arboard = { version = "3.3.0", features = [
 ] }
 notify-rust = "4.10"
 tokio-native-tls = "0.3.1"
-rustls-pemfile = "1.0.3"
+rustls-pemfile = "2.0.0"
 webpki-roots = "0.26.0"
 moka = { version = "0.12", features = ["future", "sync"] }
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
@@ -70,7 +70,8 @@ moka = { version = "0.12", features = ["future", "sync"] }
 # ] }
 # rustls = { path = "./rustls/rustls" }
 # tokio-rustls = { path = "./tokio-rustls" }
-tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "rustls-0.21.7" }
+tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
+# tokio-rustls = "0.25.0"
 clipboard-files = { git = "https://github.com/doraemonkeys/clipboard-files" }
 hostname = "^0.3"
 walkdir = "2.4"
