@@ -64,6 +64,9 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
     // hotkeys_manager.register(hotkey_paste).unwrap();
     // let global_hotkey_channel = GlobalHotKeyEvent::receiver();
 
+    // before Menu::new()
+    let mut event_loop = EventLoopBuilder::new().build();
+
     let icon = load_icon();
     let tray_menu = Menu::new();
 
@@ -335,7 +338,6 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
         }),
     ];
 
-    let mut event_loop = EventLoopBuilder::new().build();
     let mut should_poll = false;
     static POOL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
     let return_code = event_loop.run_return(|_event, _, control_flow| {
