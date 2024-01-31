@@ -327,7 +327,7 @@ class Device {
     int count = 0;
     for (var i = 1; i < 255; i++) {
       var ip = '$ipPrefix.$i';
-      _matchDevice(msgController, ip);
+      _matchDevice(msgController, ip, timeout: const Duration(seconds: 3));
       count++;
     }
     return await msgController.stream.take(count).firstWhere(
