@@ -3,8 +3,6 @@ fyne.io/systray v1.10.0/go.mod h1:oM2AQqGJ1AMo4nNqZFYU8xYygSBZkW2hmdJ7n4yjedE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/doraemonkeys/mylog v0.0.0-20240107034814-aa7998590040 h1:1mdkMCqkYomZCQZlqnI3PMeOQGdDYLpbV+dpqzaaqnM=
-github.com/doraemonkeys/mylog v0.0.0-20240107034814-aa7998590040/go.mod h1:vz3c3GomoxkI3UnBF3JM+cX8SqugBS3/3HaWgTH9NYk=
 github.com/doraemonkeys/mylog v0.0.0-20240119040146-fd87055f407a h1:HWPV8lqjTEK0FEdGuN2Ma9CDwlo4OssJwukDgrqLKDc=
 github.com/doraemonkeys/mylog v0.0.0-20240119040146-fd87055f407a/go.mod h1:vz3c3GomoxkI3UnBF3JM+cX8SqugBS3/3HaWgTH9NYk=
 github.com/go-ole/go-ole v1.2.4/go.mod h1:XCwSNxSkXRo4vlyPy93sltvi/qJq0jqQhjqQNIwKuxM=
@@ -16,8 +14,6 @@ github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5x
 github.com/godbus/dbus/v5 v5.1.0 h1:4KLkAxT3aOY8Li4FRJe/KvhoNFFxo0m6fNuFUO8QJUk=
 github.com/godbus/dbus/v5 v5.1.0/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/google/uuid v1.5.0 h1:1p67kYwdtXjb0gL0BPiP1Av9wiZPo5A8z2cWkTZ+eyU=
-github.com/google/uuid v1.5.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/harry1453/go-common-file-dialog v1.2.0 h1:nGr9ZIpXrKb7IUY9Or6jqt4nuPEd/I+5sH1JPMsKhaM=
@@ -45,8 +41,6 @@ github.com/wumansgy/goEncrypt v1.1.0 h1:Krr2FJL4GEsMTBvLfsnoTmgWb7rkGnL4siJ9K2cx
 github.com/wumansgy/goEncrypt v1.1.0/go.mod h1:dWgF7mi5Ujmt8V5EoyRqjH6XtZ8wmNQyT4u2uvH8Pyg=
 golang.design/x/clipboard v0.7.0 h1:4Je8M/ys9AJumVnl8m+rZnIvstSnYj1fvzqYrU3TXvo=
 golang.design/x/clipboard v0.7.0/go.mod h1:PQIvqYO9GP29yINEfsEn5zSQKAz3UgXmZKzDA6dnq2E=
-golang.org/x/exp/shiny v0.0.0-20240112132812-db7319d0e0e3 h1:NezsOJwoBjJ5AXH5QQCdxe+WsqLw+f/t8eo1Tacfhqs=
-golang.org/x/exp/shiny v0.0.0-20240112132812-db7319d0e0e3/go.mod h1:3F+MieQB7dRYLTmnncoFbb1crS5lfQoTfDgQy6K4N0o=
 golang.org/x/exp/shiny v0.0.0-20240119083558-1b970713d09a h1:NZ9mAQhIcCceDZKqQX3JJVIz7nn3QLDuC+nXedsViBM=
 golang.org/x/exp/shiny v0.0.0-20240119083558-1b970713d09a/go.mod h1:3F+MieQB7dRYLTmnncoFbb1crS5lfQoTfDgQy6K4N0o=
 golang.org/x/image v0.15.0 h1:kOELfmgrmJlw4Cdb7g/QGuB3CvDrXbqEIww/pNtNBm8=
