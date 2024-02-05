@@ -437,14 +437,17 @@ class Device {
       return ("", 1);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
-      // print('respHead.paths: ${jsonEncode(respHead.paths)}');
-      int fileCount = await _downloadFiles(respHead.paths!);
+      List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
+      List<TargetPaths> respPaths =
+          respPathsMap.map((e) => TargetPaths.fromJson(e)).toList();
+      int fileCount = await _downloadFiles(respPaths);
       return ("", fileCount);
     }
     throw Exception('Unknown data type: ${respHead.dataType}');
   }
 
   Future<int> _downloadFiles(List<TargetPaths> winFilePaths) async {
+    // print('downloadFiles: ${jsonEncode(winFilePaths)}');
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
@@ -631,11 +634,13 @@ class Device {
       DeviceAction.pasteFile.name,
       generateTimeipHeadHex(),
       opID: opID,
-      dirs: dirPaths,
       uploadType: HeadInfo.uploadTypeDir,
       filesCountInThisOp: filePaths.length,
     );
-    await headInfo.writeToConn(conn);
+    var dirPathsJson = jsonEncode(dirPaths);
+    var dirPathsUint8List = Uint8List.fromList(utf8.encode(dirPathsJson));
+    headInfo.dataLen = dirPathsUint8List.length;
+    await headInfo.writeToConnWithBody(conn, dirPathsUint8List);
     await conn.flush();
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
     conn.destroy();

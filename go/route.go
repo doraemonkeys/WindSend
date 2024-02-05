@@ -54,7 +54,6 @@ type headInfo struct {
 	FileID     uint32       `json:"fileID"`
 	FileSize   int64        `json:"fileSize"`
 	Path       string       `json:"path"`
-	Dirs       []string     `json:"dirs"`
 	UploadType pathInfoType `json:"uploadType"`
 	// Name       string `json:"name"`
 	Start   int64 `json:"start"`
@@ -74,8 +73,8 @@ type RespHead struct {
 	// 客户端copy时返回的数据类型(text, image, file)
 	DataType string `json:"dataType"`
 	// 如果body有数据，返回数据的长度
-	DataLen int64      `json:"dataLen"`
-	Paths   []pathInfo `json:"paths"`
+	DataLen int64 `json:"dataLen"`
+	// Paths   []pathInfo `json:"paths"`
 }
 
 type pathInfo struct {
@@ -209,8 +208,7 @@ func pingHandler(conn net.Conn, head headInfo) {
 }
 
 func readHead(conn net.Conn) (headInfo, error) {
-	const headBufSize = 1024
-	var headBuf [headBufSize]byte
+	var headBuf = make([]byte, 4)
 	var head headInfo
 
 	// 读取json长度
@@ -219,9 +217,12 @@ func readHead(conn net.Conn) (headInfo, error) {
 		return head, err
 	}
 	headLen = int32(binary.LittleEndian.Uint32(headBuf[:4]))
-	if headLen > headBufSize || headLen <= 0 {
-		return head, fmt.Errorf("invalid head len:%d", headLen)
+	// 头部不能超过10KB，以防止恶意攻击导致内存溢出
+	const maxHeadLen = 1024 * 10
+	if headLen > maxHeadLen {
+		return head, fmt.Errorf("head len too large: %d", headLen)
 	}
+	headBuf = make([]byte, headLen)
 	// 读取json
 	if _, err := io.ReadFull(conn, headBuf[:headLen]); err != nil {
 		logrus.Error("read head failed, err:", err)
@@ -370,10 +371,8 @@ func copyHandler(conn net.Conn, head headInfo) {
 }
 
 func sendFiles(conn net.Conn) error {
-	var resp RespHead
-	resp.Code = 200
-	resp.DataType = DataTypeFilePaths
 	// resp.Paths = SelectedFiles
+	var respPaths = make([]pathInfo, 0, len(SelectedFiles))
 	for _, path1 := range SelectedFiles {
 		path1 = strings.ReplaceAll(path1, "\\", "/")
 		fInfo, err := os.Stat(path1)
@@ -387,12 +386,12 @@ func sendFiles(conn net.Conn) error {
 		if !fInfo.IsDir() {
 			pi.Type = pathInfoTypeFile
 			pi.Size = fInfo.Size()
-			resp.Paths = append(resp.Paths, pi)
+			respPaths = append(respPaths, pi)
 			continue
 		} else {
 			pi.Type = pathInfoTypeDir
 			pi.SavePath = filepath.Base(path1)
-			resp.Paths = append(resp.Paths, pi)
+			respPaths = append(respPaths, pi)
 		}
 		// 遍历目录
 		err = filepath.Walk(path1, func(path2 string, info os.FileInfo, err error) error {
@@ -410,7 +409,7 @@ func sendFiles(conn net.Conn) error {
 				pi.Size = info.Size()
 				pi.SavePath = filepath.Dir(pi.SavePath)
 			}
-			resp.Paths = append(resp.Paths, pi)
+			respPaths = append(respPaths, pi)
 			return nil
 		})
 		if err != nil {
@@ -419,8 +418,13 @@ func sendFiles(conn net.Conn) error {
 			return err
 		}
 	}
-	fmt.Println(resp.Paths)
-	return sendHead(conn, resp)
+	body, err := json.Marshal(respPaths)
+	if err != nil {
+		logrus.Error("json marshal failed, err:", err)
+		respCommonError(conn, err.Error())
+		return err
+	}
+	return sendMsgWithBody(conn, "", DataTypeFilePaths, body)
 }
 
 func sendImage(conn net.Conn) {
@@ -489,7 +493,7 @@ func sendHead(conn net.Conn, head RespHead) error {
 	return nil
 }
 
-func sendMsgWithBody(conn net.Conn, msg string, datatype string, body []byte) {
+func sendMsgWithBody(conn net.Conn, msg string, datatype string, body []byte) error {
 	var resp RespHead
 	resp.Code = 200
 	resp.Msg = msg
@@ -498,7 +502,7 @@ func sendMsgWithBody(conn net.Conn, msg string, datatype string, body []byte) {
 	respBuf, err := json.Marshal(resp)
 	if err != nil {
 		logrus.Error("json marshal failed, err:", err)
-		return
+		return err
 	}
 	var headLen = len(respBuf)
 	// fmt.Println("headLen:", headLen, "head:", string(respBuf))
@@ -506,14 +510,15 @@ func sendMsgWithBody(conn net.Conn, msg string, datatype string, body []byte) {
 	binary.LittleEndian.PutUint32(headLenBuf[:], uint32(headLen))
 	if _, err := conn.Write(headLenBuf[:]); err != nil {
 		logrus.Error("write head len failed, err:", err)
-		return
+		return err
 	}
 	if _, err := conn.Write(respBuf); err != nil {
 		logrus.Error("write head failed, err:", err)
-		return
+		return err
 	}
 	if _, err := conn.Write(body); err != nil {
 		logrus.Error("write body failed, err:", err)
-		return
+		return err
 	}
+	return nil
 }

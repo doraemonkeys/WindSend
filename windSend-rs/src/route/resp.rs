@@ -20,7 +20,6 @@ pub async fn send_msg_with_body<'a>(
         msg,
         data_type: datatype,
         data_len: body.len() as i64,
-        paths: vec![],
     };
     let resp_buf =
         serde_json::to_vec(&resp).map_err(|e| error!("json marshal failed, err: {}", e))?;
@@ -76,7 +75,6 @@ where
         msg,
         data_type: RouteDataType::Text,
         data_len: 0,
-        paths: vec![],
     };
     send_head(writer, &resp).await
 }
@@ -90,7 +88,6 @@ where
         msg,
         data_type: RouteDataType::Text,
         data_len: 0,
-        paths: vec![],
     };
     send_head(writer, &resp).await
 }

@@ -39,8 +39,6 @@ pub struct RouteRecvHead {
     #[serde(rename = "path")]
     /// 上传或下载文件时的文件路径
     pub path: String,
-    /// 创建文件夹请求
-    pub dirs: Vec<String>,
     #[serde(rename = "uploadType")]
     /// 上传文件或文件夹时有效
     #[serde(default)]
@@ -67,7 +65,7 @@ pub struct RouteRespHead<'a> {
     /// 如果body有数据，返回数据的长度
     #[serde(rename = "dataLen")]
     pub data_len: i64,
-    pub paths: Vec<RoutePathInfo>,
+    // pub paths: Vec<RoutePathInfo>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -166,7 +164,9 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
 }
 
 pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHead, ()> {
-    static UNAUTHORIZED_CODE: i32 = 401;
+    const UNAUTHORIZED_CODE: i32 = 401;
+    // 头部不能超过10KB，以防止恶意攻击导致内存溢出
+    const MAX_HEAD_LEN: isize = 1024 * 10;
 
     let remote_ip = conn
         .get_ref()
@@ -176,8 +176,6 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .unwrap_or(std::net::SocketAddr::from(([0, 0, 0, 0], 0)));
     info!("try to read head, remote ip: {}", remote_ip);
 
-    let head_buf_size = 1024;
-    let mut head_buf = vec![0u8; head_buf_size];
     // 读取json长度
     let mut head_len = [0u8; 4];
     if let Err(e) = conn.read_exact(&mut head_len).await {
@@ -188,12 +186,12 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         return Err(());
     }
     let head_len = i32::from_le_bytes(head_len);
-    if head_len > head_buf_size as i32 || head_len <= 0 {
+    if head_len > MAX_HEAD_LEN as i32 || head_len <= 0 {
         error!("invalid head len: {}", head_len);
         return Err(());
     }
+    let mut head_buf = vec![0u8; head_len as usize];
     trace!("head_len: {}", head_len);
-    head_buf.resize(head_len as usize, 0);
     // 读取json
     conn.read_exact(&mut head_buf)
         .await

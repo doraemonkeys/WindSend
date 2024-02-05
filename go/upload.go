@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -285,19 +286,31 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 }
 
 func createDirOnlyHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
-	for i := 0; i < len(head.Dirs); i++ {
-		err := os.MkdirAll(filepath.Join(GloballCnf.SavePath, head.Dirs[i]), 0666)
+	var buf = make([]byte, head.DataLen)
+	_, err := io.ReadFull(conn, buf)
+	if err != nil {
+		logrus.Error("read dir data error:", err)
+		return respCommonError(conn, err.Error())
+	}
+	var dirs []string
+	err = json.Unmarshal(buf, &dirs)
+	if err != nil {
+		logrus.Error("unmarshal dir data error:", err)
+		return respCommonError(conn, err.Error())
+	}
+	for i := 0; i < len(dirs); i++ {
+		err := os.MkdirAll(filepath.Join(GloballCnf.SavePath, dirs[i]), 0666)
 		if err != nil {
 			logrus.Error("create dir error:", err)
 			return respCommonError(conn, err.Error())
 		}
 	}
-	err := sendMsg(conn, "create dirs success")
+	err = sendMsg(conn, "create dirs success")
 	if err != nil {
 		logrus.Error("createDirOnlyHandler sendMsg error:", err)
 		return false
 	}
-	if len(head.Dirs) > 0 && head.FilesCountInThisOp == 0 {
+	if len(dirs) > 0 && head.FilesCountInThisOp == 0 {
 		Inform(language.Translate(language.DirCreated), head.DeviceName)
 	}
 	return true

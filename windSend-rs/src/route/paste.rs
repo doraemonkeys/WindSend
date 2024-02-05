@@ -143,6 +143,19 @@ pub async fn create_dirs_only_handler(
     conn: &mut TlsStream<TcpStream>,
     head: RouteRecvHead,
 ) -> bool {
+    let mut data_buf = vec![0u8; head.data_len as usize];
+    if let Err(e) = conn.read_exact(&mut data_buf).await {
+        error!("read body failed, err: {}", e);
+        return false;
+    }
+    let dirs: Vec<String> = match serde_json::from_slice(&data_buf) {
+        Ok(dirs) => dirs,
+        Err(e) => {
+            error!("parse dirs failed, err: {}", e);
+            return false;
+        }
+    };
+
     let download_dir = std::path::PathBuf::from(
         crate::config::GLOBAL_CONFIG
             .lock()
@@ -150,7 +163,7 @@ pub async fn create_dirs_only_handler(
             .save_path
             .clone(),
     );
-    for dir in &head.dirs {
+    for dir in &dirs {
         let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
         if let Err(err) = r {
             error!("create dir error: {}", err);
@@ -160,7 +173,7 @@ pub async fn create_dirs_only_handler(
     if let Err(_) = send_msg(conn, &"create dirs success".to_string()).await {
         return false;
     };
-    if !head.dirs.is_empty() && head.files_count_in_this_op == 0 {
+    if !dirs.is_empty() && head.files_count_in_this_op == 0 {
         crate::utils::inform(&"目录创建成功", &head.device_name);
     }
     true

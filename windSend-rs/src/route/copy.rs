@@ -158,14 +158,16 @@ async fn send_files<T: IntoIterator<Item = String>>(
         .read()
         .unwrap()
         .translate(LanguageKey::CopySuccessfully);
-    let resp = RouteRespHead {
-        code: crate::route::resp::SUCCESS_STATUS_CODE,
-        msg: copy_successfully,
-        data_type: RouteDataType::Files,
-        data_len: 0,
-        paths: resp_paths,
+    let body = match serde_json::to_vec(&resp_paths) {
+        Ok(body) => body,
+        Err(err) => {
+            let msg = format!("serde_json::to_vec failed, err: {}", err);
+            error!("{}", &msg);
+            let _ = resp_common_error_msg(conn, &msg).await;
+            return Err(());
+        }
     };
-    send_head(conn, &resp).await
+    send_msg_with_body(conn, copy_successfully, RouteDataType::Files, &body).await
 }
 
 async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
@@ -237,7 +239,6 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHe
         msg: &"start download".to_string(),
         data_type: RouteDataType::Binary,
         data_len: head.end - head.start,
-        paths: vec![],
     };
     if send_head(conn, &resp).await.is_err() {
         return false;

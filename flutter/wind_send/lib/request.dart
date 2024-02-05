@@ -19,7 +19,6 @@ class HeadInfo {
   int fileSize;
   String uploadType;
   String path;
-  List<String> dirs;
 
   int start;
   int end;
@@ -35,7 +34,6 @@ class HeadInfo {
       this.fileSize = 0,
       this.uploadType = '',
       this.path = '',
-      this.dirs = const [],
       this.start = 0,
       this.end = 0,
       this.dataLen = 0,
@@ -50,7 +48,6 @@ class HeadInfo {
         uploadType = json['uploadType'],
         fileSize = json['fileSize'],
         path = json['path'],
-        dirs = json['dirs']?.cast<String>() ?? [],
         start = json['start'],
         end = json['end'],
         dataLen = json['dataLen'],
@@ -65,7 +62,6 @@ class HeadInfo {
         'uploadType': uploadType,
         'fileSize': fileSize,
         'path': path,
-        'dirs': dirs,
         'start': start,
         'end': end,
         'dataLen': dataLen,
@@ -110,15 +106,14 @@ class RespHead {
   String dataType;
   String? timeIp;
   String? msg;
-  List<TargetPaths>? paths;
+  // List<TargetPaths>? paths;
   int dataLen = 0;
 
   static const String dataTypeFiles = 'files';
   static const String dataTypeText = 'text';
   static const String dataTypeImage = 'clip-image';
 
-  RespHead(this.code, this.dataType,
-      {this.timeIp, this.msg, this.paths, this.dataLen = 0});
+  RespHead(this.code, this.dataType, {this.timeIp, this.msg, this.dataLen = 0});
 
   RespHead.fromJson(Map<String, dynamic> json)
       : code = json['code'],
@@ -126,20 +121,12 @@ class RespHead {
         msg = json['msg'],
         // paths = json['paths']?.cast<String>(),
         dataLen = json['dataLen'],
-        dataType = json['dataType'] {
-    if (json['paths'] != null) {
-      paths = [];
-      json['paths'].forEach((v) {
-        paths!.add(TargetPaths.fromJson(v));
-      });
-    }
-  }
+        dataType = json['dataType'];
 
   Map<String, dynamic> toJson() => {
         'code': code,
         'timeIp': timeIp,
         'msg': msg,
-        'paths': paths,
         'dataLen': dataLen,
         'dataType': dataType
       };
