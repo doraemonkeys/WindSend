@@ -22,10 +22,17 @@ import 'about.dart';
 import 'device_edit.dart';
 import 'device.dart';
 
-void main() async {
+const String appName = 'WindSend';
+
+Future<void> init() async {
   // 初始化插件前需调用初始化代码 runApp()函数之前
   WidgetsFlutterBinding.ensureInitialized();
   await AppSharedCnfService.initInstance();
+  await SharedLogger.initFileLogger(appName);
+}
+
+void main() async {
+  await init();
   runApp(const MyApp());
 }
 
@@ -37,7 +44,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static const String _appName = 'WindSend';
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
   AppColorSeed colorSelected = AppSharedCnfService.themeColor;
@@ -129,7 +135,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       supportedLocales: _localization.supportedLocales,
       localizationsDelegates: _localization.localizationsDelegates,
-      title: _appName,
+      title: appName,
       themeMode: themeMode,
       theme: ThemeData(
         colorSchemeSeed: colorSelected.color,
@@ -299,9 +305,12 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
               Device? newDevice;
               try {
                 newDevice = await Device.search();
-              } catch (e) {
+              } catch (e, s) {
                 err = e;
                 failDoneMsg = e.toString();
+                SharedLogger()
+                    .logger
+                    .e('search device failed', error: e, stackTrace: s);
               }
               if (err != null) {
                 setState(() {
@@ -605,9 +614,12 @@ class DeviceItem extends StatefulWidget {
       try {
         msg = await task();
         break;
-      } catch (e) {
+      } catch (e, s) {
         err = e;
         msg = e.toString();
+        SharedLogger()
+            .logger
+            .e('commonActionFunc failed', error: e, stackTrace: s);
         // print('commonActionFunc err: $err\n, $s');
       }
       if (err != null &&
