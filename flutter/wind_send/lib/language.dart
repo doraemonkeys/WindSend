@@ -5,7 +5,7 @@ mixin AppLocale {
   static const String showMenu = 'showMenu';
   static const String setting = 'setting';
   static const String about = 'about';
-  static const String sort = 'sort';
+  static const String sort = 'sorting';
   static const String copy = 'copy';
   static const String paste = 'paste';
   static const String pasteText = 'pasteText';
@@ -108,7 +108,7 @@ mixin AppLocale {
     showMenu: 'Show menu',
     setting: 'Setting',
     about: 'About',
-    sort: 'Sort',
+    sort: 'Sorting',
     copy: 'Copy',
     paste: 'Paste',
     transferFile: 'Files',
