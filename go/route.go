@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -111,6 +112,9 @@ func mainProcess(conn net.Conn) {
 		if err := recover(); err != nil {
 			logrus.Error("panic:", err)
 			panicWriter.Write([]byte(fmt.Sprintf("%v\n", err)))
+			var stackBuf = make([]byte, 1024*1024)
+			n := runtime.Stack(stackBuf, false)
+			panicWriter.Write(stackBuf[:n])
 		}
 	}()
 	logrus.Info("remote addr:", conn.RemoteAddr().String())

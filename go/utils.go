@@ -410,7 +410,7 @@ func generateUniqueFilepath(filePath string) string {
 		} else {
 			filePath = filepath.Join(dir, fmt.Sprintf("%s(%d)", name, i))
 		}
-		if _, err := os.Stat(filePath); err != nil {
+		if !FileOrDirIsExist(filePath) {
 			return filePath
 		}
 	}
