@@ -62,7 +62,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 
 
-3. 电脑开启开启快速配对后，手机多点几次搜索，如果幸运的话，你将能看到Secretkey被自动填充。
+3. 电脑开启快速配对后，手机多点几次搜索，如果幸运的话，你将能看到Secretkey被自动填充。
 
    <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242149664.png" alt="image-20240124203042150" style="zoom:50%;" />
 
