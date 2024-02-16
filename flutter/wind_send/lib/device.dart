@@ -49,7 +49,7 @@ class Device {
   bool actionPasteFile = true;
   bool actionWebCopy = false;
   bool actionWebPaste = false;
-  static const Duration connectTimeout = Duration(seconds: 2);
+  // static const Duration connectTimeout = Duration(seconds: 2);
   static const int defaultPort = 6779;
   static const int respOkCode = 200;
   static const int unauthorizedCode = 401;
@@ -249,7 +249,7 @@ class Device {
       var ip = '$ipPrefix.$i';
       Device device = Device.copy(this);
       device.iP = ip;
-      pingDevice2(msgController, device);
+      pingDevice2(msgController, device, timeout: const Duration(seconds: 3));
       count++;
     }
     final String ip = await msgController.stream
@@ -260,7 +260,7 @@ class Device {
 
   Future<void> pingDevice2(
       StreamController<String> msgController, Device device,
-      {Duration timeout = connectTimeout}) async {
+      {Duration timeout = const Duration(seconds: 2)}) async {
     // var urlstr = 'https://$ip:${cnf.port}/ping';
     bool ok;
     try {
@@ -273,7 +273,8 @@ class Device {
     msgController.add(ok ? device.iP : '');
   }
 
-  Future<void> pingDevice({Duration timeout = connectTimeout}) async {
+  Future<void> pingDevice(
+      {Duration timeout = const Duration(seconds: 2)}) async {
     // print('checkServer: $ip:$port');
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
@@ -337,7 +338,7 @@ class Device {
 
   static Future<void> _matchDevice(
       StreamController<Device> msgController, String ip,
-      {Duration timeout = connectTimeout}) async {
+      {Duration timeout = const Duration(seconds: 2)}) async {
     // print('matchDevice: $ip');
     var device = Device(
       targetDeviceName: '',
@@ -393,7 +394,7 @@ class Device {
   }
 
   Future<(String, int)> doCopyAction(
-      [Duration connectTimeout = connectTimeout]) async {
+      [Duration connectTimeout = const Duration(seconds: 2)]) async {
     var conn = await SecureSocket.connect(
       iP,
       port,
@@ -655,7 +656,7 @@ class Device {
   Future<String> doPasteTextAction({
     String? text,
     String successMsg = 'Paste successfully',
-    Duration timeout = connectTimeout,
+    Duration timeout = const Duration(seconds: 2),
   }) async {
     String pasteText;
     if (text != null && text.isNotEmpty) {
