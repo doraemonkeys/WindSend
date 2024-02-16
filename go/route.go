@@ -297,7 +297,7 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 		return head, false
 	}
 
-	var myip = conn.LocalAddr().String()[0:strings.LastIndex(conn.RemoteAddr().String(), ":")]
+	var myip = conn.LocalAddr().String()[0:strings.LastIndex(conn.LocalAddr().String(), ":")]
 	if myip[0] == '[' && myip[len(myip)-1] == ']' {
 		myip = myip[1 : len(myip)-1] //去掉[]
 	}
