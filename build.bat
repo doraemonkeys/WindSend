@@ -120,4 +120,3 @@ if %errorlevel% equ 0 (
   echo Build Windows Failed!
 )
 
-pause
