@@ -99,6 +99,17 @@ bool hasImageExtension(String name) {
   return extList.contains(ext);
 }
 
+class MyLogFilter extends LogFilter {
+  @override
+  bool shouldLog(LogEvent event) {
+    var shouldLog = false;
+    if (event.level.value >= level!.value) {
+      shouldLog = true;
+    }
+    return shouldLog;
+  }
+}
+
 class SharedLogger {
   static SharedLogger? _instance;
   static late final Logger _logger;
@@ -131,6 +142,7 @@ class SharedLogger {
       logFile.createSync();
     }
     var l = Logger(
+      filter: MyLogFilter(),
       printer: PrettyPrinter(
         methodCount: 0,
         errorMethodCount: 10,
