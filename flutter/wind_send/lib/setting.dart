@@ -192,8 +192,7 @@ class _SettingPageState extends State<SettingPage> {
                             Navigator.pop(context, value);
                           },
                         ),
-                      )
-                      .toList(),
+                      ),
                   RadioListTile(
                     title:
                         Text(context.formatString(AppLocale.disableSync, [])),
@@ -256,8 +255,7 @@ class _SettingPageState extends State<SettingPage> {
                             Navigator.pop(context, value);
                           },
                         ),
-                      )
-                      .toList(),
+                      ),
                 ]);
           },
         );
