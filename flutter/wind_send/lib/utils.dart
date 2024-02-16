@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -124,7 +125,8 @@ class SharedLogger {
     if (!logDir.existsSync()) {
       logDir.createSync(recursive: true);
     }
-    var logFile = File('${logDir.path}/log.txt');
+    var logFile = File(filepathpkg.join(logDir.path, '$programName.log'));
+    log('log file: ${logFile.path}');
     if (!logFile.existsSync()) {
       logFile.createSync();
     }
