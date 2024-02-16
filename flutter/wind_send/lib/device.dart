@@ -280,7 +280,6 @@ class Device {
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
     SecureSocket conn;
-
     conn = await SecureSocket.connect(
       iP,
       port,
@@ -288,9 +287,8 @@ class Device {
         return true;
       },
       timeout: timeout,
-    );
+    ).timeout(timeout + const Duration(seconds: 1));
 
-    // print('connected to $ip:$port');
     final now = DateTime.now().toUtc();
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     final timeIpHead = utf8.encode('$timestr $iP');
@@ -305,8 +303,13 @@ class Device {
     await headInfo.writeToConnWithBody(conn, encryptedBody);
     await conn.flush();
 
-    var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
+    var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn)
+        .timeout(timeout, onTimeout: () {
+      conn.destroy();
+      throw Exception('ping timeout');
+    });
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      conn.destroy();
       throw UnauthorizedException(respHead.msg ?? '');
     }
     if (respHead.code != 200) {
