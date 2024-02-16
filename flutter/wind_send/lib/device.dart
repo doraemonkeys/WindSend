@@ -655,7 +655,7 @@ class Device {
   Future<String> doPasteTextAction({
     String? text,
     String successMsg = 'Paste successfully',
-    timeout = connectTimeout,
+    Duration timeout = connectTimeout,
   }) async {
     String pasteText;
     if (text != null && text.isNotEmpty) {

@@ -100,16 +100,16 @@ class AppSharedCnfService {
   static void set<T>(String key, T value) {
     Type type = value.runtimeType;
     switch (type) {
-      case String:
+      case const (String):
         _sp.setString(key, value as String);
         break;
-      case int:
+      case const (int):
         _sp.setInt(key, value as int);
         break;
-      case bool:
+      case const (bool):
         _sp.setBool(key, value as bool);
         break;
-      case double:
+      case const (double):
         _sp.setDouble(key, value as double);
         break;
       case const (List<String>):
@@ -355,32 +355,24 @@ class AppConfigModel {
 }
 
 class ShareDataModel {
-  late Stream<String> sharedTextStream;
-  late Stream<List<SharedMediaFile>> sharedFilesStream;
-  late Future<List<SharedMediaFile>> sharedFiles;
-  late Future<String?> sharedText;
+  late Stream<List<SharedMediaFile>> sharedStream;
+  late Future<List<SharedMediaFile>> shared;
 
   static late ShareDataModel _instance;
 
   static void initInstance(
-    Stream<String> sharedTextStream,
-    Stream<List<SharedMediaFile>> sharedFilesStream, {
-    required Future<String?> sharedText,
-    required Future<List<SharedMediaFile>> sharedFiles,
+    Stream<List<SharedMediaFile>> sharedStream, {
+    required Future<List<SharedMediaFile>> shared,
   }) {
     _instance = ShareDataModel._internal(
-      sharedTextStream,
-      sharedFilesStream,
-      sharedText: sharedText,
-      sharedFiles: sharedFiles,
+      sharedStream,
+      shared: shared,
     );
   }
 
   ShareDataModel._internal(
-    this.sharedTextStream,
-    this.sharedFilesStream, {
-    required this.sharedText,
-    required this.sharedFiles,
+    this.sharedStream, {
+    required this.shared,
   });
 
   factory ShareDataModel() {

@@ -76,23 +76,13 @@ class _MyAppState extends State<MyApp> {
 
     // -------------------------------- share --------------------------------
     if (!Platform.isWindows) {
-      // For sharing images coming from outside the app while the app is in the memory
-      var fileStream = ReceiveSharingIntent.getMediaStream();
+      var shareStream = ReceiveSharingIntent.getMediaStream();
 
-      // For sharing or opening urls/text coming from outside the app while the app is in the memory
-      var textStream = ReceiveSharingIntent.getTextStream();
-
-      // For sharing images coming from outside the app while the app is closed
-      var fileFuture = ReceiveSharingIntent.getInitialMedia();
-
-      // For sharing or opening urls/text coming from outside the app while the app is closed
-      var textFuture = ReceiveSharingIntent.getInitialText();
+      var shareFuture = ReceiveSharingIntent.getInitialMedia();
 
       ShareDataModel.initInstance(
-        textStream,
-        fileStream,
-        sharedText: textFuture,
-        sharedFiles: fileFuture,
+        shareStream,
+        shared: shareFuture,
       );
     }
     // -------------------------------- share --------------------------------
@@ -188,8 +178,6 @@ class MyHomePage extends StatefulWidget {
     required this.languageCodes,
     required this.onLanguageChanged,
     required this.onFollowSystemThemeChanged,
-    // required this.sharedFiles,
-    // required this.sharedText,
   });
 
   @override
@@ -254,8 +242,6 @@ class _MyHomePageState extends State<MyHomePage> {
       body: MainBody(
         devices: devices,
         devicesRebuild: devicesRebuild,
-        // sharedFiles: widget.sharedFiles,
-        // sharedText: widget.sharedText,
       ),
     );
   }
@@ -422,15 +408,10 @@ class MainBody extends StatefulWidget {
   final void Function() devicesRebuild;
   static const double maxBodyWidth = 600.0;
 
-  // final List<SharedMediaFile>? sharedFiles;
-  // final String? sharedText;
-
   const MainBody({
     super.key,
     required this.devices,
     required this.devicesRebuild,
-    // required this.sharedFiles,
-    // required this.sharedText,
   });
 
   @override
@@ -457,29 +438,7 @@ class _MainBodyState extends State<MainBody> {
           content: Text(err.toString()));
     }
 
-    ShareDataModel().sharedTextStream.listen(
-      (String? t) async {
-        if (t == null || t.isEmpty) {
-          return;
-        }
-        var defaultDevice = widget.devices.firstWhere(
-            (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
-        var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFunc(context, defaultDevice, (Device d) {
-          widget.devices[defaultDeviceIndex] = d;
-          AppSharedCnfService.devices = widget.devices;
-          widget.devicesRebuild();
-        }, () async {
-          await defaultDevice.doPasteTextAction(
-            text: t,
-          );
-          return shareSuccessMsg;
-        });
-      },
-      onError: handleOnError,
-    );
-
-    ShareDataModel().sharedFilesStream.listen(
+    ShareDataModel().sharedStream.listen(
       (List<SharedMediaFile> s) {
         if (s.isEmpty) {
           return;
@@ -492,37 +451,30 @@ class _MainBodyState extends State<MainBody> {
           AppSharedCnfService.devices = widget.devices;
           widget.devicesRebuild();
         }, () async {
-          await defaultDevice.doPasteFileAction(
-            filePath: s.map((e) => e.path).toList(),
-          );
+          List<String> fileList = [];
+          String? text;
+          for (var e in s) {
+            if (e.type == SharedMediaType.file ||
+                e.type == SharedMediaType.image ||
+                e.type == SharedMediaType.video) {
+              fileList.add(e.path);
+            } else {
+              text = e.path;
+            }
+          }
+          if (fileList.isNotEmpty) {
+            await defaultDevice.doPasteFileAction(filePath: fileList);
+          }
+          if (text != null) {
+            await defaultDevice.doPasteTextAction(text: text);
+          }
           return shareSuccessMsg;
         });
       },
       onError: handleOnError,
     );
 
-    ShareDataModel().sharedText.then(
-      (value) {
-        if (value == null || value.isEmpty) {
-          return;
-        }
-        var defaultDevice = widget.devices.firstWhere(
-            (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
-        var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFunc(context, defaultDevice, (Device d) {
-          widget.devices[defaultDeviceIndex] = d;
-          AppSharedCnfService.devices = widget.devices;
-          widget.devicesRebuild();
-        }, () async {
-          await defaultDevice.doPasteTextAction(
-            text: value,
-          );
-          return shareSuccessMsg;
-        });
-      },
-      onError: handleOnError,
-    );
-    ShareDataModel().sharedFiles.then(
+    ShareDataModel().shared.then(
       (List<SharedMediaFile> value) {
         if (value.isEmpty) {
           return;
@@ -535,9 +487,23 @@ class _MainBodyState extends State<MainBody> {
           AppSharedCnfService.devices = widget.devices;
           widget.devicesRebuild();
         }, () async {
-          await defaultDevice.doPasteFileAction(
-            filePath: value.map((e) => e.path).toList(),
-          );
+          List<String> fileList = [];
+          String? text;
+          for (var e in value) {
+            if (e.type == SharedMediaType.file ||
+                e.type == SharedMediaType.image ||
+                e.type == SharedMediaType.video) {
+              fileList.add(e.path);
+            } else {
+              text = e.path;
+            }
+          }
+          if (fileList.isNotEmpty) {
+            await defaultDevice.doPasteFileAction(filePath: fileList);
+          }
+          if (text != null) {
+            await defaultDevice.doPasteTextAction(text: text);
+          }
           return shareSuccessMsg;
         });
       },
