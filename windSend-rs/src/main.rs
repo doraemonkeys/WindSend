@@ -2,8 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crossbeam_channel;
+
 use std::{sync::OnceLock, thread};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
 mod icon_bytes;
@@ -56,14 +57,24 @@ fn main() {
 
 async fn async_main() {
     trace!("async_main");
-    let addr = format!(
-        "0.0.0.0:{}",
-        config::GLOBAL_CONFIG.lock().unwrap().server_port
-    );
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .expect("bind tcp listener error");
-    info!("program start, listening on {}", addr);
+    let server_port = config::GLOBAL_CONFIG
+        .lock()
+        .unwrap()
+        .server_port
+        .parse::<u16>()
+        .expect("parse server port error");
+    let socket = tokio::net::TcpSocket::new_v6().unwrap();
+    {
+        let socket_ref = socket2::SockRef::from(&socket);
+        if let Err(e) = socket_ref.set_only_v6(false) {
+            warn!("set_only_v6 error: {}", e);
+        }
+    }
+    socket
+        .bind((std::net::Ipv6Addr::UNSPECIFIED, server_port).into())
+        .expect("bind error");
+    let listener = socket.listen(1024).expect("listen error");
+    info!("program listening on {}", listener.local_addr().unwrap());
     let tls_acceptor = config::get_tls_acceptor()
         .expect("get tls acceptor error, please check your tls config file");
     loop {

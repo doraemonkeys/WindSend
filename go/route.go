@@ -297,15 +297,20 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 		return head, false
 	}
 
-	var myipv4 string
-	if strings.Contains(conn.LocalAddr().String(), ":") {
-		myipv4 = strings.Split(conn.LocalAddr().String(), ":")[0]
-	} else {
-		myipv4 = conn.LocalAddr().String()
+	var myip = conn.LocalAddr().String()[0:strings.LastIndex(conn.RemoteAddr().String(), ":")]
+	if myip[0] == '[' && myip[len(myip)-1] == ']' {
+		myip = myip[1 : len(myip)-1] //去掉[]
 	}
-	if ip != myipv4 {
-		logrus.Info("ip not match: ", ip, myipv4)
-		respError(conn, unauthorizedCode, fmt.Sprintf("ip not match: %s != %s", ip, myipv4))
+	if strings.Contains(myip, "%") {
+		// ipv6, 去掉%后的作用域id
+		myip = myip[0:strings.Index(myip, "%")]
+	}
+	if strings.Contains(ip, "%") {
+		ip = ip[:strings.Index(ip, "%")]
+	}
+	if ip != myip {
+		logrus.Infoln("ip not match, received ip:", ip, "my ip:", myip)
+		respError(conn, unauthorizedCode, fmt.Sprintf("ip not match: %s != %s", ip, myip))
 		return head, false
 	}
 	return head, true

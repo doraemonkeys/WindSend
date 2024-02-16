@@ -66,6 +66,7 @@ tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branc
 clipboard-files = { git = "https://github.com/doraemonkeys/clipboard-files" }
 hostname = "^0.3"
 walkdir = "2.4"
+socket2 = { features = ["all"], version = "0.5.5" }
 
 [build-dependencies]
 windres = "*"

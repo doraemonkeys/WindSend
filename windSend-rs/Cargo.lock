@@ -4106,6 +4106,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "socket2 0.5.5",
  "subslice",
  "tao",
  "time",

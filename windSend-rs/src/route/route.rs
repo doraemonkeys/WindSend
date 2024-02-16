@@ -260,14 +260,23 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
-    let myipv4 = conn
+    let myip = conn
         .get_ref()
         .0
         .local_addr()
-        .map_err(|e| error!("get local addr failed, err: {}", e))?;
-    debug!("ip: {}, myipv4: {}", ip, myipv4.ip());
-    if ip != myipv4.ip().to_string() {
-        let msg = format!("ip not match: {} != {}", ip, myipv4.ip());
+        .map_err(|e| error!("get local addr failed, err: {}", e))?
+        .ip()
+        .to_string();
+    debug!("ip: {}, myip: {}", ip, myip);
+    let myip = myip
+        .strip_prefix("::ffff:")
+        .unwrap_or_else(|| myip.as_str());
+    let mut ip = ip;
+    if ip.contains("%") {
+        ip = &ip[..ip.find('%').unwrap()];
+    }
+    if ip != myip {
+        let msg = format!("ip not match: {} != {}", ip, myip);
         error!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
