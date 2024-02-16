@@ -11,6 +11,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"image"
+	"image/draw"
+	_ "image/jpeg"
+	"image/png"
 	"io"
 	"math/big"
 	"net/http"
@@ -25,6 +29,7 @@ import (
 
 	"github.com/harry1453/go-common-file-dialog/cfd"
 	"github.com/wumansgy/goEncrypt/aes"
+	"golang.design/x/clipboard"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -385,16 +390,6 @@ func NewLazyFileWriterWithFile(filePath string, file *os.File) *LazyFileWriter {
 	return &LazyFileWriter{filePath: filePath, file: file}
 }
 
-func HasImageExt(name string) bool {
-	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp"}
-	for _, ext := range imageExts {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
-}
-
 // 产生不冲突的文件路径
 func generateUniqueFilepath(filePath string) string {
 	if !FileOrDirIsExist(filePath) {
@@ -452,9 +447,10 @@ func GenerateKeyPair() (rawCert, rawKey []byte, err error) {
 	return
 }
 
-func hasSpecificExtNames(name string, extNames ...string) bool {
-	for _, extName := range extNames {
-		if strings.HasSuffix(name, extName) {
+func HasImageExt(name string) bool {
+	imageExts := []string{".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico"}
+	for _, ext := range imageExts {
+		if strings.HasSuffix(name, ext) {
 			return true
 		}
 	}
@@ -500,4 +496,29 @@ func FilterNonPrintable(content string) string {
 		}
 	}
 	return string(validString)
+}
+
+// 将图片粘贴到剪贴板
+func SetImageToClipboard(imagePath string) error {
+	imgBytes, err := os.ReadFile(imagePath)
+	if err != nil {
+		return err
+	}
+	img, _, err := image.Decode(bytes.NewReader(imgBytes))
+	if err != nil {
+		return err
+	}
+	bounds := img.Bounds()
+	if bounds.Dx()*bounds.Dy() > 1024*1024*10 {
+		return fmt.Errorf("image size too large, dx:%d, dy:%d", bounds.Dx(), bounds.Dy())
+	}
+	rgba := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	draw.Draw(rgba, rgba.Bounds(), img, bounds.Min, draw.Src)
+	var imgBuf bytes.Buffer
+	err = png.Encode(&imgBuf, rgba)
+	if err != nil {
+		return err
+	}
+	clipboard.Write(clipboard.FmtImage, imgBuf.Bytes())
+	return nil
 }

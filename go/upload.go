@@ -15,7 +15,6 @@ import (
 
 	"github.com/doraemonkeys/WindSend/language"
 	"github.com/sirupsen/logrus"
-	"golang.design/x/clipboard"
 )
 
 type FileReceiver struct {
@@ -123,16 +122,18 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 	}
 	f.lock.Unlock()
 
-	// 仅接收一张图，且格式为png时(only support png)，粘贴到剪切板
+	// 仅接收一张图，粘贴到剪切板
 	if success && OpInfo.expNum == 1 &&
 		fileInfo.expSize < 1024*1024*4 &&
-		hasSpecificExtNames(fileInfo.filePath, ".png") {
-		image, err := os.ReadFile(fileInfo.filePath)
-		if err != nil {
-			logrus.Error("write to clipboard failed:", err)
-		} else {
-			clipboard.Write(clipboard.FmtImage, image)
-		}
+		HasImageExt(fileInfo.filePath) {
+		go func() {
+			now := time.Now()
+			err := SetImageToClipboard(fileInfo.filePath)
+			if err != nil {
+				logrus.Warningln("SetImageToClipboard error:", err)
+			}
+			logrus.Debugln("SetImageToClipboard cost:", time.Since(now))
+		}()
 	}
 	// 此次操作已经完成
 	if !isTimeout && OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
