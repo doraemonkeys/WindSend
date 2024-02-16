@@ -261,7 +261,7 @@ class Device {
   Future<void> pingDevice2(
       StreamController<String> msgController, Device device,
       {Duration timeout = const Duration(seconds: 2)}) async {
-    // var urlstr = 'https://$ip:${cnf.port}/ping';
+    // print('start pingDevice2: ${device.iP}');
     bool ok;
     try {
       await device.pingDevice(timeout: timeout);
@@ -269,7 +269,7 @@ class Device {
     } catch (e) {
       ok = false;
     }
-    // print('pingDevice2: ${device.iP} $ok');
+    // print('pingDevice2 result: ${device.iP} $ok');
     msgController.add(ok ? device.iP : '');
   }
 

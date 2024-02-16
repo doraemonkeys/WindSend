@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.doraemon.wind_send"
-    compileSdkVersion 34
+    compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
