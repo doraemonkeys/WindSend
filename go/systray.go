@@ -157,7 +157,11 @@ func onReady(quitch chan bool) {
 			mAddFils.SetTitle(language.Translate(language.AddFiles) + " - " + strconv.Itoa(filesNum))
 			mClearFiles.Disable()
 		case <-mUrl.ClickedCh:
-			OpenUrl(ProgramUrl)
+			err := OpenUrl(ProgramUrl)
+			if err != nil {
+				logrus.Error("failed to open url:", err)
+				Inform(err.Error(), ProgramName)
+			}
 			//logrus.Info("打开官网")
 		case <-mSubHide.ClickedCh:
 			systray.Quit()
@@ -165,7 +169,7 @@ func onReady(quitch chan bool) {
 			return
 		case <-mSubHideForever.ClickedCh:
 			GloballCnf.ShowToolbarIcon = false
-			GloballCnf.SaveAndSet()
+			_ = GloballCnf.SaveAndSet()
 			systray.Quit()
 			quitch <- false
 			return

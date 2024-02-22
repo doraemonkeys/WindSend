@@ -111,10 +111,10 @@ func mainProcess(conn net.Conn) {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Error("panic:", err)
-			panicWriter.Write([]byte(fmt.Sprintf("%v\n", err)))
+			_, _ = panicWriter.Write([]byte(fmt.Sprintf("%v\n", err)))
 			var stackBuf = make([]byte, 1024*1024)
 			n := runtime.Stack(stackBuf, false)
-			panicWriter.Write(stackBuf[:n])
+			_, _ = panicWriter.Write(stackBuf[:n])
 		}
 	}()
 	logrus.Info("remote addr:", conn.RemoteAddr().String())
@@ -170,7 +170,7 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 
 	go func() {
 		// time.Sleep(time.Millisecond * 100)
-		sendMsg(conn, "粘贴成功")
+		_ = sendMsg(conn, "粘贴成功")
 		completionSignal <- struct{}{}
 	}()
 
@@ -208,7 +208,7 @@ func pingHandler(conn net.Conn, head headInfo) {
 		return
 	}
 	// encryptedResp = []byte("pong")
-	sendMsgWithBody(conn, language.Translate(language.VerifySuccess), DataTypeText, encryptedResp)
+	_ = sendMsgWithBody(conn, language.Translate(language.VerifySuccess), DataTypeText, encryptedResp)
 }
 
 func readHead(conn net.Conn) (headInfo, error) {
@@ -326,7 +326,7 @@ func matchHandler(conn net.Conn, head headInfo) {
 		logrus.Error("json marshal failed, err:", err)
 		return
 	}
-	sendMsg(conn, string(respBuf))
+	_ = sendMsg(conn, string(respBuf))
 	closeAllowSearchCH <- struct{}{}
 }
 
@@ -438,11 +438,11 @@ func sendFiles(conn net.Conn) error {
 
 func sendImage(conn net.Conn) {
 	imageName := time.Now().Format("20060102150405") + ".png"
-	sendMsgWithBody(conn, imageName, DataTypeClipImage, clipboardWatchData)
+	_ = sendMsgWithBody(conn, imageName, DataTypeClipImage, clipboardWatchData)
 }
 
 func sendText(conn net.Conn) {
-	sendMsgWithBody(conn, "", DataTypeText, clipboardWatchData)
+	_ = sendMsgWithBody(conn, "", DataTypeText, clipboardWatchData)
 }
 
 func respCommonError(conn net.Conn, msg string) (ok bool) {

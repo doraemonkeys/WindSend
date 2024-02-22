@@ -92,7 +92,7 @@ func (a *CbcAESCrypt) rand16Byte() []byte {
 // randNByte returns a slice of n random bytes.
 func randNByte(n int) []byte {
 	b := make([]byte, n)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return b
 }
 
