@@ -230,7 +230,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
 
     if let Err(e) = decrypted {
         let msg = format!("decrypt failed, err: {}, remote_ip: {}", e, remote_ip.ip());
-        error!(msg);
+        info!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
