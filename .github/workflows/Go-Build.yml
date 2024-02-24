@@ -26,7 +26,7 @@ jobs:
 
       - name: Build
         working-directory: ./go
-        run: go build -v ./...  -ldflags "-H=windowsgui" -o WindSend-S-Go.exe
+        run: go build  -ldflags "-H=windowsgui" -o WindSend-S-Go.exe -v ./...
 
       - name: Test with the Go CLI
         working-directory: ./go
