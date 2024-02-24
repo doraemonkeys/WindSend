@@ -8,6 +8,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
+        arch: ["amd64", "arm64"]
         go-version: ["1.21.x", "1.22.x"]
 
     steps:
@@ -24,9 +25,11 @@ jobs:
         working-directory: ./go
         run: go get .
 
-      - name: Build
+      - name: Build ${{ matrix.arch }} binary
         working-directory: ./go
-        run: go build  -ldflags "-H=windowsgui" -o WindSend-S-Go.exe
+        env:
+          GOARCH: ${{ matrix.arch }}
+        run: go build  -ldflags "-H=windowsgui" -o WindSend-S-Go-${{ matrix.go-version }}-${{ matrix.arch }}.exe
 
       - name: Test with the Go CLI
         working-directory: ./go
@@ -35,5 +38,5 @@ jobs:
       - name: Upload Go Binary
         uses: actions/upload-artifact@v4
         with:
-          name: WindSend-S-Go
-          path: ./go/WindSend-S-Go.exe
+          name: WindSend-S-Go-${{ matrix.go-version }}-${{ matrix.arch }}
+          path: ./go/WindSend-S-Go-*.exe
