@@ -39,6 +39,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          target: aarch64-pc-windows-msvc
 
       - name: Build aarch64-pc-windows-msvc
         working-directory: ./windSend-rs
