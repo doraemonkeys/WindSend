@@ -26,11 +26,9 @@ jobs:
         with:
           command: build
           args: --verbose
-        working-directory: ./windSend-rs
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --verbose
-        working-directory: ./windSend-rs
