@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -22,13 +22,9 @@ jobs:
           override: true
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose
+        working-directory: ./windSend-rs
+        run: cargo build --verbose
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
+        working-directory: ./windSend-rs
+        run: cargo test --verbose
