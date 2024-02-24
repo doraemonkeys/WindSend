@@ -11,17 +11,17 @@ impl StartHelper {
     pub fn new(exe_name: String) -> Self {
         Self { exe_name }
     }
-
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     pub fn set_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(target_os = "windows")]
-        if cfg!(windows) {
-            return self.set_win_auto_start();
+        {
+            self.set_win_auto_start()
         }
         #[cfg(target_os = "macos")]
-        if cfg!(macos) {
-            return self.set_mac_auto_start();
+        {
+            self.set_mac_auto_start()
         }
-        return Err("不支持的操作系统".into());
+        //  #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
     }
 
     #[cfg(target_os = "windows")]
@@ -120,16 +120,16 @@ impl StartHelper {
         Ok(())
     }
 
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(target_os = "windows")]
-        if cfg!(windows) {
-            return self.unset_win_auto_start();
+        {
+            self.unset_win_auto_start()
         }
         #[cfg(target_os = "macos")]
-        if cfg!(macos) {
-            return self.unset_mac_auto_start();
+        {
+            self.unset_mac_auto_start()
         }
-        return Err("不支持的操作系统".into());
     }
 
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {

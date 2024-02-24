@@ -82,13 +82,13 @@ impl Config {
         self.empty_check()?;
         #[cfg(not(target_os = "linux"))]
         if self.auto_start {
-            START_HELPER
-                .set_auto_start()
-                .map_err(|err| err.to_string())?;
+            if let Err(e) = START_HELPER.set_auto_start() {
+                return Err(format!("set_auto_start error: {}", e.to_string()));
+            }
         } else {
-            START_HELPER
-                .unset_auto_start()
-                .map_err(|err| err.to_string())?;
+            if let Err(e) = START_HELPER.unset_auto_start() {
+                return Err(format!("unset_auto_start error: {}", e.to_string()));
+            }
         }
         crate::language::LANGUAGE_MANAGER
             .write()
