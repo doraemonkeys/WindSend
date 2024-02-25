@@ -4,6 +4,7 @@ use crate::PROGRAM_NAME;
 use tracing::error;
 
 pub struct StartHelper {
+    #[allow(dead_code)] // linux下未使用
     exe_name: String,
 }
 
