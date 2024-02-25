@@ -132,6 +132,7 @@ impl StartHelper {
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
             home::home_dir().ok_or_else(|| "获取当前Windows用户的home directory失败")?;
@@ -165,7 +166,9 @@ impl StartHelper {
     }
 }
 
-fn utf8_to_gbk(b: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+// 此函数目前仅在windows下使用
+#[allow(dead_code)]
+pub fn utf8_to_gbk(b: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     use encoding::all::GBK;
     use encoding::{EncoderTrap, Encoding};
     let content_bytes = GBK.encode(b, EncoderTrap::Strict)?;
