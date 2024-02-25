@@ -25,5 +25,59 @@ jobs:
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windSend-rs
-          path: windSend-rs/target
+          name: windSend-rs-windows
+          path: |
+            ./windSend-rs/target/aarch64-pc-windows-msvc/release/wind_send.exe
+            ./windSend-rs/target/release/wind_send.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
+
+      - name: Build linux-amd64
+        working-directory: ./windSend-rs
+        run: cargo build --verbose --release
+
+      - name: Build aarch64-unknown-linux-gnu
+        working-directory: ./windSend-rs
+        run: cargo build --target aarch64-unknown-linux-gnu --verbose --release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windSend-rs-linux
+          path: |
+            ./windSend-rs/target/aarch64-unknown-linux-gnu/release/wind_send
+            ./windSend-rs/target/release/wind_send
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+
+      - name: Build macos-amd64
+        working-directory: ./windSend-rs
+        run: cargo build --verbose --release
+
+      - name: Build aarch64-apple-darwin
+        working-directory: ./windSend-rs
+        run: cargo build --target aarch64-apple-darwin --verbose --release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windSend-rs-macos
+          path: |
+            ./windSend-rs/target/aarch64-apple-darwin/release/wind_send
+            ./windSend-rs/target/release/wind_send
