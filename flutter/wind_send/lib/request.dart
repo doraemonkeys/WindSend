@@ -174,6 +174,7 @@ class RespHead {
         return (respHeadInfo!, respBody);
       }
     }
+    // The server may have actively closed the connection
     var errMsg = 'readHeadAndBodyFromConn error';
     if (respHeadInfo != null) {
       errMsg =
