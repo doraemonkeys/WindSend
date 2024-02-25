@@ -44,7 +44,3 @@ jobs:
       - name: Build aarch64-pc-windows-msvc
         working-directory: ./windSend-rs
         run: cargo build --target aarch64-pc-windows-msvc --verbose
-
-      - name: Run tests
-        working-directory: ./windSend-rs
-        run: cargo test --target aarch64-pc-windows-msvc --verbose
