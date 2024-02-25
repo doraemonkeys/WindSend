@@ -32,7 +32,7 @@ dependencies:
     sdk: flutter
   shared_preferences: ^2.2.2
   flutter_localization: ^0.2.0
-  device_info_plus: ^10.0.0
+  device_info_plus: ^9.1.2
   path_provider: ^2.1.1
   file_picker: ^6.1.1
   receive_sharing_intent: ^1.6.7

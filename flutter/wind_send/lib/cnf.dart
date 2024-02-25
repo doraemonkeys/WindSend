@@ -53,6 +53,10 @@ class AppSharedCnfService {
           final linuxInfo = await deviceInfoPlugin.linuxInfo;
           deviceName = linuxInfo.prettyName;
           break;
+        case TargetPlatform.macOS:
+          final macOSInfo = await deviceInfoPlugin.macOsInfo;
+          deviceName = macOSInfo.computerName;
+          break;
         default:
           deviceName = 'Unknown${Random().nextInt(1000)}';
           break;
@@ -64,15 +68,28 @@ class AppSharedCnfService {
           fileSavePath = '/storage/emulated/0/Download/clips';
           await Directory(fileSavePath).create(recursive: true);
           break;
-        case TargetPlatform.windows:
-          try {
-            fileSavePath = (await getDownloadsDirectory())!.path;
-          } catch (e) {
-            fileSavePath = (await getApplicationDocumentsDirectory()).path;
-          }
-          break;
         default:
-          fileSavePath = (await getApplicationDocumentsDirectory()).path;
+          fileSavePath = "./";
+          loop:
+          for (var i = 0; i < 3; i++) {
+            try {
+              switch (i) {
+                case 0:
+                  fileSavePath = (await getDownloadsDirectory())!.path;
+                  break loop;
+                case 1:
+                  fileSavePath =
+                      (await getApplicationDocumentsDirectory()).path;
+                  break loop;
+                case 2:
+                  fileSavePath = (await getApplicationSupportDirectory()).path;
+                  break loop;
+              }
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
           break;
       }
     }
