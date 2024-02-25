@@ -38,11 +38,22 @@ pub fn gen_ca() -> Result<Certificate, Box<dyn std::error::Error>> {
             format!("invalid time: {}", params.not_after),
         ))?;
     // params.alg = &rcgen::PKCS_ECDSA_P256_SHA256;
+
     Ok(Certificate::from_params(params)?)
+
+    // rcgen main branch
+    // let key_pair = rcgen::KeyPair::generate()?;
+    // Ok((
+    //     Certificate::generate_self_signed(params, &key_pair)?,
+    //     key_pair,
+    // ))
 }
 
 pub fn generate_self_signed_cert_with_privkey(
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
+    // // rcgen main branch
+    // let (cert, key_pair) = gen_ca()?;
+
     let cert = gen_ca()?;
     let cert_crt = cert.serialize_pem()?;
 
