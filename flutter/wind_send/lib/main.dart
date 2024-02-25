@@ -75,7 +75,7 @@ class _MyAppState extends State<MyApp> {
     themeMode = getThemeMode();
 
     // -------------------------------- share --------------------------------
-    if (!Platform.isWindows) {
+    if (Platform.isAndroid || Platform.isIOS) {
       var shareStream = ReceiveSharingIntent.getMediaStream();
 
       var shareFuture = ReceiveSharingIntent.getInitialMedia();
@@ -427,8 +427,8 @@ class _MainBodyState extends State<MainBody> {
     super.initState();
 
     // -------------------------------- share --------------------------------
-    if (Platform.isWindows) {
-      // unable to share files on windows
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      // unsupported platform
       return;
     }
 
