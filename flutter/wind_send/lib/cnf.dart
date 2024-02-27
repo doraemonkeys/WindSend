@@ -100,20 +100,20 @@ class AppSharedCnfService {
           await Directory(imageSavePath).create(recursive: true);
           break;
         default:
-          fileSavePath = "./";
+          imageSavePath = "./";
           loop:
           for (var i = 0; i < 3; i++) {
             try {
               switch (i) {
                 case 0:
-                  fileSavePath = (await getDownloadsDirectory())!.path;
+                  imageSavePath = (await getDownloadsDirectory())!.path;
                   break loop;
                 case 1:
-                  fileSavePath =
+                  imageSavePath =
                       (await getApplicationDocumentsDirectory()).path;
                   break loop;
                 case 2:
-                  fileSavePath = (await getApplicationSupportDirectory()).path;
+                  imageSavePath = (await getApplicationSupportDirectory()).path;
                   break loop;
               }
               break;
