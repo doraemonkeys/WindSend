@@ -37,18 +37,22 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     }
 
     // 文件剪切板
-    let files = clipboard_files::read();
-    if files.is_ok() {
-        let files = files.unwrap().into_iter().map(|f| f.display().to_string());
-        let r = send_files(conn, files).await;
-        if r.is_ok() {
-            let r = crate::config::CLIPBOARD.lock().unwrap().clear();
-            if let Err(e) = r {
-                error!("clear clipboard failed, err: {}", e);
+    #[cfg(not(target_os = "linux"))]
+    {
+        match clipboard_files::read() {
+            Ok(files) => {
+                let files = files.into_iter().map(|f| f.display().to_string());
+                let r = send_files(conn, files).await;
+                if r.is_ok() {
+                    let r = crate::config::CLIPBOARD.lock().unwrap().clear();
+                    if let Err(e) = r {
+                        error!("clear clipboard failed, err: {}", e);
+                    }
+                    return;
+                }
             }
-            return;
+            Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
         }
-        return;
     }
 
     {
