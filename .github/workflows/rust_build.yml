@@ -3,6 +3,10 @@ name: Rust Build
 on:
   workflow_dispatch:
 
+env:
+  RUST_BACKTRACE: full
+  EXPECT_RUST_BINARY_NAME: WindSend-S-Rust
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -22,13 +26,18 @@ jobs:
         working-directory: ./windSend-rs
         run: cargo build --target aarch64-pc-windows-msvc --verbose --release
 
+      - name: Rename All Binary
+        run: |
+          mv ./windSend-rs/target/aarch64-pc-windows-msvc/release/wind_send.exe ./windSend-rs/target/aarch64-pc-windows-msvc/release/${{ env.EXPECT_RUST_BINARY_NAME }}.exe
+          mv ./windSend-rs/target/release/wind_send.exe ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}.exe
+
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windSend-rs-windows
           path: |
-            ./windSend-rs/target/aarch64-pc-windows-msvc/release/wind_send.exe
-            ./windSend-rs/target/release/wind_send.exe
+            ./windSend-rs/target/aarch64-pc-windows-msvc/release/${{ env.EXPECT_RUST_BINARY_NAME }}.exe
+            ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -52,12 +61,15 @@ jobs:
       #   working-directory: ./windSend-rs
       #   run: cargo build --target aarch64-unknown-linux-gnu --verbose --release
 
+      - name: Rename All Binary
+        run: mv ./windSend-rs/target/release/wind_send ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windSend-rs-linux
           path: |
-            ./windSend-rs/target/release/wind_send
+            ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
 
   build-macos:
     runs-on: macos-latest
@@ -77,10 +89,15 @@ jobs:
         working-directory: ./windSend-rs
         run: cargo build --target aarch64-apple-darwin --verbose --release
 
+      - name: Rename All Binary
+        run: |
+          mv ./windSend-rs/target/aarch64-apple-darwin/release/wind_send ./windSend-rs/target/aarch64-apple-darwin/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+          mv ./windSend-rs/target/release/wind_send ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windSend-rs-macos
           path: |
-            ./windSend-rs/target/aarch64-apple-darwin/release/wind_send
-            ./windSend-rs/target/release/wind_send
+            ./windSend-rs/target/aarch64-apple-darwin/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+            ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
