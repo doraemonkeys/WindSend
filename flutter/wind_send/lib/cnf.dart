@@ -65,7 +65,7 @@ class AppSharedCnfService {
     if (_sp.getString(_fileSavePathKey) == null) {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          fileSavePath = '/storage/emulated/0/Download/clips';
+          fileSavePath = '/storage/emulated/0/Download/WindSend';
           await Directory(fileSavePath).create(recursive: true);
           break;
         default:
@@ -96,18 +96,31 @@ class AppSharedCnfService {
     if (_sp.getString(_imageSavePathKey) == null) {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          imageSavePath = '/storage/emulated/0/Pictures/clips';
+          imageSavePath = '/storage/emulated/0/Pictures/WindSend';
           await Directory(imageSavePath).create(recursive: true);
           break;
-        case TargetPlatform.windows:
-          try {
-            imageSavePath = (await getDownloadsDirectory())!.path;
-          } catch (e) {
-            imageSavePath = (await getApplicationDocumentsDirectory()).path;
-          }
-          break;
         default:
-          imageSavePath = (await getApplicationDocumentsDirectory()).path;
+          fileSavePath = "./";
+          loop:
+          for (var i = 0; i < 3; i++) {
+            try {
+              switch (i) {
+                case 0:
+                  fileSavePath = (await getDownloadsDirectory())!.path;
+                  break loop;
+                case 1:
+                  fileSavePath =
+                      (await getApplicationDocumentsDirectory()).path;
+                  break loop;
+                case 2:
+                  fileSavePath = (await getApplicationSupportDirectory()).path;
+                  break loop;
+              }
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
           break;
       }
     }
