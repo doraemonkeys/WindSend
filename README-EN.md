@@ -1,5 +1,5 @@
 # WindSend
-English|[中文](README.md) 
+English | [中文](README.md) 
 
 
 ## What is WindSend

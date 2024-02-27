@@ -1,5 +1,5 @@
 # 风传 WindSend
-中文|[English](README-EN.md) 
+中文 | [English](README-EN.md) 
 
 
 ## 风传是什么
