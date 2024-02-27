@@ -113,7 +113,7 @@ The server-side code is available in both Go and Rust, and the main libraries ar
 |         | Windows | macOS | Linux | Android | iOS  |
 | ------- | ------- | ----- | ----- | ------- | ---- |
 | Compile | ✅       | ✅     | ❔     | ✅       | ✅    |
-| Run     | ✅       | ❔     | ❔     | ❔       | ❔    |
+| Run     | ✅       | ❔     | ❔     | ✅       | ❔    |
 
 
 
