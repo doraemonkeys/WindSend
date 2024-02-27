@@ -55,7 +55,6 @@ tokio-native-tls = "0.3.1"
 rustls-pemfile = "2.0.0"
 tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
 # tokio-rustls = "0.25.0"
-clipboard-files = { git = "https://github.com/doraemonkeys/clipboard-files" }
 hostname = "^0.3"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
@@ -76,6 +75,7 @@ tray-icon = "0.11.0"
 reqwest = { version = "0.11", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.13.0"
+clipboard-files = { git = "https://github.com/doraemonkeys/clipboard-files" }
 
 [build-dependencies]
 windres = "*"
