@@ -100,16 +100,36 @@ The two versions are almost the same in function and appearance, but there are s
 
 ## Cross-platform situation
 
-Currently only supports Android and Windows.
+Since the author only has Android and Windows devices, it is not guaranteed that the software will function normally on other platforms.
 
 
 
-### Mobile
-
-The mobile code is written in flutter, theoretically supports Android and IOS, but because the author is not familiar with IOS, and there is no related device test, so it is not supported for the time being, you can try to compile it yourself if you have strong hands-on ability.
+The server-side code is available in both Go and Rust, and the main libraries are cross-platform, so additional platform support and optimizations are only a matter of changing the source code slightly.The author's ability is  still shallow, and experts are welcome to PR.
 
 
 
-### PC
+### Flutter
 
-The PC-side code has two implementations of Go and Rust. The main libraries in the code are cross-platform. To provide support for other platforms, just modify the source code slightly. The author's ability is shallow, and experts are welcome to PR.
+|         | Windows | macOS | Linux | Android | iOS  |
+| ------- | ------- | ----- | ----- | ------- | ---- |
+| Compile | ✅       | ✅     | ❔     | ✅       | ✅    |
+| Run     | ✅       | ❔     | ❔     | ❔       | ❔    |
+
+
+
+### Rust
+
+|         | Windows | macOS | Linux | Android | iOS  |
+| ------- | ------- | ----- | ----- | ------- | ---- |
+| Compile | ✅       | ✅     | ✅     | ❕       | ❕    |
+| Run     | ✅       | ❔     | ❔     | ❕       | ❕    |
+
+
+
+### Go
+
+|         | Windows | macOS | Linux | Android | iOS  |
+| ------- | ------- | ----- | ----- | ------- | ---- |
+| Compile | ✅       | ❌     | ❌     | ❕       | ❕    |
+| Run     | ✅       | ❌     | ❌     | ❕       | ❕    |
+
