@@ -1,8 +1,6 @@
 // hide console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use crossbeam_channel;
-
 use std::{sync::OnceLock, thread};
 use tracing::{debug, error, info, trace, warn};
 mod config;
