@@ -359,7 +359,17 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
         // 不能一直阻塞在这里，否则右键点击托盘图标会没有反应
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
-                id if id == sub_hide_once_i.id() || id == sub_hide_forever_i.id() => {
+                id if id == sub_hide_once_i.id() => {
+                    *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
+                }
+                id if id == sub_hide_forever_i.id() => {
+                    {
+                        let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                        config.show_systray_icon = false;
+                        if let Err(err) = config.save() {
+                            error!("save config error: {}", err);
+                        }
+                    }
                     *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
                 }
                 id if id == lang_zh_i.id() => {
