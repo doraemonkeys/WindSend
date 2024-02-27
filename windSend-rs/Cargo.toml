@@ -58,7 +58,6 @@ tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branc
 hostname = "^0.3"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
-openssl = { version = "*", features = ["vendored"] }
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
@@ -69,6 +68,8 @@ openssl = { version = "*", features = ["vendored"] }
 # ] }
 # rustls = { path = "./rustls/rustls" }
 # tokio-rustls = { path = "./tokio-rustls" }
+[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
 tao = "0.26.0"

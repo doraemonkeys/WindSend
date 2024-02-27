@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use tracing::{debug, error, info, warn};
+
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::platform::run_return::EventLoopExtRunReturn;
-use tracing::{debug, error, info, warn};
 use tray_icon::menu::{
     AboutMetadata, CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
     Submenu, SubmenuBuilder,

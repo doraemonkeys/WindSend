@@ -12,6 +12,7 @@ mod language;
 mod route;
 mod utils;
 
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod systray;
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod web;
@@ -49,20 +50,21 @@ fn main() {
         rx_close_allow_to_be_searched: rx2,
     };
     #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-    let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
-    #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-    let return_code = match show_systray_icon {
-        true => systray::show_systray(rm),
-        false => systray::ReturnCode::HideIcon,
-    };
+    {
+        let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
+        let return_code = match show_systray_icon {
+            true => systray::show_systray(rm),
+            false => systray::ReturnCode::HideIcon,
+        };
+        info!("systray return code: {:?}", return_code);
+        match return_code {
+            systray::ReturnCode::QUIT => return,
+            systray::ReturnCode::HideIcon => main_handle.join().unwrap(),
+        }
+    }
     #[cfg(all(target_os = "linux", target_env = "musl"))]
-    let return_code = systray::ReturnCode::HideIcon;
-
-    info!("systray return code: {:?}", return_code);
-
-    match return_code {
-        systray::ReturnCode::QUIT => return,
-        systray::ReturnCode::HideIcon => main_handle.join().unwrap(),
+    {
+        main_handle.join().unwrap();
     }
 }
 
