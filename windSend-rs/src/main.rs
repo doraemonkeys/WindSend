@@ -18,7 +18,9 @@ mod systray;
 mod web;
 
 pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub static TX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 
 static PROGRAM_NAME: &str = "WindSend-S-Rust";
@@ -41,16 +43,16 @@ fn main() {
         RUNTIME.get().unwrap().block_on(async_main());
     });
 
-    let (tx1, rx1) = crossbeam_channel::bounded(1);
-    let (tx2, rx2) = crossbeam_channel::bounded(1);
-    TX_RESET_FILES_ITEM.set(tx1).unwrap();
-    TX_CLOSE_ALLOW_TO_BE_SEARCHED.set(tx2).unwrap();
-    let rm = systray::MenuReceiver {
-        rx_reset_files_item: rx1,
-        rx_close_allow_to_be_searched: rx2,
-    };
     #[cfg(not(all(target_os = "linux", target_env = "musl")))]
     {
+        let (tx1, rx1) = crossbeam_channel::bounded(1);
+        let (tx2, rx2) = crossbeam_channel::bounded(1);
+        TX_RESET_FILES_ITEM.set(tx1).unwrap();
+        TX_CLOSE_ALLOW_TO_BE_SEARCHED.set(tx2).unwrap();
+        let rm = systray::MenuReceiver {
+            rx_reset_files_item: rx1,
+            rx_close_allow_to_be_searched: rx2,
+        };
         let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
         let return_code = match show_systray_icon {
             true => systray::show_systray(rm),

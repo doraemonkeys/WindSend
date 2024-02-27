@@ -308,6 +308,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
         crate::route::resp::send_msg(conn, &String::from_utf8(action_resp.unwrap()).unwrap()).await;
     match r {
         Ok(_) => {
+            #[cfg(not(all(target_os = "linux", target_env = "musl")))]
             let _ = crate::TX_CLOSE_ALLOW_TO_BE_SEARCHED
                 .get()
                 .unwrap()
