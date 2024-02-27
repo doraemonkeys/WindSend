@@ -10,8 +10,10 @@ mod file;
 mod icon_bytes;
 mod language;
 mod route;
-mod systray;
 mod utils;
+
+mod systray;
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod web;
 
 pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
@@ -46,11 +48,16 @@ fn main() {
         rx_reset_files_item: rx1,
         rx_close_allow_to_be_searched: rx2,
     };
+    #[cfg(not(all(target_os = "linux", target_env = "musl")))]
     let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
+    #[cfg(not(all(target_os = "linux", target_env = "musl")))]
     let return_code = match show_systray_icon {
         true => systray::show_systray(rm),
         false => systray::ReturnCode::HideIcon,
     };
+    #[cfg(all(target_os = "linux", target_env = "musl"))]
+    let return_code = systray::ReturnCode::HideIcon;
+
     info!("systray return code: {:?}", return_code);
 
     match return_code {

@@ -37,6 +37,7 @@ pub struct MenuReceiver {
     pub rx_close_allow_to_be_searched: crossbeam_channel::Receiver<()>,
 }
 
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub fn show_systray(mr: MenuReceiver) -> ReturnCode {
     SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
     loop_systray(mr)
