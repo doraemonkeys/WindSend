@@ -3,6 +3,10 @@ name: Rust linux musl test
 on:
   workflow_dispatch:
 
+env:
+  RUST_BACKTRACE: full
+  CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG: true
+
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
