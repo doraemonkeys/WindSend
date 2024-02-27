@@ -33,7 +33,7 @@ func main() {
 	runtime.UnlockOSThread()
 	go clipboardWatcher()
 	var quitCh = make(chan bool)
-	if GloballCnf.ShowToolbarIcon {
+	if GloballCnf.ShowSystrayIcon {
 		quitCh = ShowStatusBar()
 	}
 

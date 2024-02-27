@@ -168,7 +168,7 @@ func onReady(quitch chan bool) {
 			quitch <- false
 			return
 		case <-mSubHideForever.ClickedCh:
-			GloballCnf.ShowToolbarIcon = false
+			GloballCnf.ShowSystrayIcon = false
 			_ = GloballCnf.SaveAndSet()
 			systray.Quit()
 			quitch <- false

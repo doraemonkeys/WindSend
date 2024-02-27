@@ -17,7 +17,7 @@ import (
 type Config struct {
 	ServerPort      string `yaml:"serverPort"`
 	SecretKeyHex    string `yaml:"secretKeyHex"`
-	ShowToolbarIcon bool   `yaml:"showToolbarIcon"`
+	ShowSystrayIcon bool   `yaml:"showToolbarIcon"`
 	// 自启动
 	AutoStart bool `yaml:"autoStart"`
 	// 文件保存路径
@@ -122,7 +122,7 @@ func generateDefaultConfig() Config {
 	var cnf Config
 	cnf.ServerPort = "6779"
 	cnf.SecretKeyHex = generateSecretKeyHex(32)
-	cnf.ShowToolbarIcon = true
+	cnf.ShowSystrayIcon = true
 	cnf.AutoStart = false
 	cnf.Language = GetSystemLang()
 	if cnf.Language == "" {
