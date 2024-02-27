@@ -46,7 +46,7 @@ pub struct Config {
     #[serde(rename = "secretKeyHex")]
     pub secret_key_hex: String,
     #[serde(rename = "showToolbarIcon")]
-    pub show_toolbar_icon: bool,
+    pub show_systray_icon: bool,
     #[serde(rename = "autoStart")]
     pub auto_start: bool,
     #[serde(rename = "savePath")]
@@ -104,7 +104,7 @@ impl Config {
         Self {
             server_port: "6779".to_string(),
             secret_key_hex: utils::encrypt::generate_secret_key_hex(32),
-            show_toolbar_icon: true,
+            show_systray_icon: true,
             auto_start: false,
             save_path: utils::get_desktop_path().unwrap_or_else(|err| {
                 warn!("get_desktop_path error: {}", err);
