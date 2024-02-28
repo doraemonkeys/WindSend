@@ -316,7 +316,7 @@ mod tests {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     match std::env::consts::OS {
         "windows" => {

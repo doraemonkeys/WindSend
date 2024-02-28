@@ -8,32 +8,29 @@ use tracing::{debug, error, warn};
 
 pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     // 用户选择的文件
-    #[cfg(not(feature = "disable_select_file"))]
-    {
-        let selected_files = crate::SELECTED_FILES.get();
-        let files = match selected_files {
-            Some(selected) => {
-                let selected = selected.lock().unwrap();
-                match selected.is_empty() {
-                    true => None,
-                    false => Some(selected.clone()),
-                }
+    let selected_files = crate::SELECTED_FILES.get();
+    let files = match selected_files {
+        Some(selected) => {
+            let selected = selected.lock().unwrap();
+            match selected.is_empty() {
+                true => None,
+                false => Some(selected.clone()),
             }
-            None => None,
-        };
-        if let Some(files) = files {
-            let r = send_files(conn, files).await;
-            if let Ok(_) = r {
-                crate::TX_RESET_FILES_ITEM
-                    .get()
-                    .unwrap()
-                    .try_send(())
-                    .unwrap();
-            }
-            *crate::SELECTED_FILES.get().unwrap().lock().unwrap() =
-                std::collections::HashSet::new();
-            return;
         }
+        None => None,
+    };
+    if let Some(files) = files {
+        let r = send_files(conn, files).await;
+        if let Ok(_) = r {
+            #[cfg(not(feature = "disable-systray-support"))]
+            crate::TX_RESET_FILES_ITEM
+                .get()
+                .unwrap()
+                .try_send(())
+                .unwrap();
+        }
+        *crate::SELECTED_FILES.get().unwrap().lock().unwrap() = std::collections::HashSet::new();
+        return;
     }
 
     // 文件剪切板

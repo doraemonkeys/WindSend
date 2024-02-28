@@ -9,23 +9,20 @@ mod language;
 mod route;
 mod utils;
 
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+// #[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 mod icon_bytes;
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 mod systray;
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 mod web;
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 pub static TX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
-#[cfg(not(all(target_os = "linux", target_env = "musl")))]
+#[cfg(not(feature = "disable-systray-support"))]
 pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 // pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 
-#[cfg(not(feature = "disable_select_file"))]
-use std::collections::HashSet;
-#[cfg(not(feature = "disable_select_file"))]
-use std::sync::Mutex;
-#[cfg(not(feature = "disable_select_file"))]
+use std::{collections::HashSet, sync::Mutex};
 pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 #[allow(dead_code)]
@@ -44,14 +41,13 @@ fn init() {
         .build()
         .unwrap();
     RUNTIME.set(r).unwrap();
-    #[cfg(not(feature = "disable_select_file"))]
     SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
 }
 
 fn main() {
     init();
 
-    #[cfg(not(all(target_os = "linux", target_env = "musl")))]
+    #[cfg(not(feature = "disable-systray-support"))]
     {
         let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
         if !show_systray_icon {
@@ -78,7 +74,7 @@ fn main() {
             systray::ReturnCode::HideIcon => main_handle.join().unwrap(),
         }
     }
-    #[cfg(all(target_os = "linux", target_env = "musl"))]
+    #[cfg(feature = "disable-systray-support")]
     {
         RUNTIME.get().unwrap().block_on(async_main());
     }
