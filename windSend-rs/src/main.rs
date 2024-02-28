@@ -42,6 +42,7 @@ fn init() {
         .build()
         .unwrap();
     RUNTIME.set(r).unwrap();
+    #[cfg(not(feature = "disable_select_file"))]
     SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
 }
 
