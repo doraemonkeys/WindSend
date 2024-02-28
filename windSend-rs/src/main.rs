@@ -2,7 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::OnceLock;
-use std::thread;
 use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
@@ -52,12 +51,17 @@ fn init() {
 fn main() {
     init();
 
-    let main_handle = thread::spawn(|| {
-        RUNTIME.get().unwrap().block_on(async_main());
-    });
-
     #[cfg(not(all(target_os = "linux", target_env = "musl")))]
     {
+        let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
+        if !show_systray_icon {
+            return RUNTIME.get().unwrap().block_on(async_main());
+        }
+
+        let main_handle = std::thread::spawn(|| {
+            RUNTIME.get().unwrap().block_on(async_main());
+        });
+
         let (tx1, rx1) = crossbeam_channel::bounded(1);
         let (tx2, rx2) = crossbeam_channel::bounded(1);
         TX_RESET_FILES_ITEM.set(tx1).unwrap();
@@ -66,11 +70,8 @@ fn main() {
             rx_reset_files_item: rx1,
             rx_close_quick_pair: rx2,
         };
-        let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
-        let return_code = match show_systray_icon {
-            true => systray::show_systray(rm),
-            false => systray::ReturnCode::HideIcon,
-        };
+
+        let return_code = systray::show_systray(rm);
         info!("systray return code: {:?}", return_code);
         match return_code {
             systray::ReturnCode::QUIT => return,
@@ -79,7 +80,7 @@ fn main() {
     }
     #[cfg(all(target_os = "linux", target_env = "musl"))]
     {
-        main_handle.join().unwrap();
+        RUNTIME.get().unwrap().block_on(async_main());
     }
 }
 
