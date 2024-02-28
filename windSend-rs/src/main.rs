@@ -1,8 +1,7 @@
 // hide console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::collections::HashSet;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 use std::thread;
 use tracing::{debug, error, info, trace, warn};
 mod config;
@@ -17,21 +16,25 @@ mod icon_bytes;
 mod systray;
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod web;
-
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub static TX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-// pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
+// pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 
-#[allow(unused_variables)]
-static PROGRAM_NAME: &str = "WindSend-S-Rust";
-#[allow(unused_variables)]
-static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
-#[allow(unused_variables)]
-static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
+#[cfg(not(feature = "disable_select_file"))]
+use std::collections::HashSet;
+#[cfg(not(feature = "disable_select_file"))]
+use std::sync::Mutex;
 #[cfg(not(feature = "disable_select_file"))]
 pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+#[allow(dead_code)]
+static PROGRAM_NAME: &str = "WindSend-S-Rust";
+#[allow(dead_code)]
+static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
+#[allow(dead_code)]
+static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
