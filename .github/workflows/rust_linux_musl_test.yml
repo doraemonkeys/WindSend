@@ -23,7 +23,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           target: x86_64-unknown-linux-musl
-          rustflags: ""
 
       - name: Install dependencies on Ubuntu
         if: matrix.os == 'ubuntu-20.04'
@@ -33,7 +32,7 @@ jobs:
           sudo apt-get install -y pkg-config libssl-dev build-essential linux-libc-dev
           sudo apt-get install -y musl-dev musl-tools
 
-      - name: Build ${{ matrix.os }}
+      - name: Build x86_64-unknown-linux-musl on ${{ matrix.os }}
         working-directory: ./windSend-rs
         run: cargo build --target x86_64-unknown-linux-musl --verbose
 
