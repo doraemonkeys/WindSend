@@ -101,3 +101,33 @@ jobs:
           path: |
             ./windSend-rs/target/aarch64-apple-darwin/release/${{ env.EXPECT_RUST_BINARY_NAME }}
             ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+
+  build-x86_64-unknown-linux-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+
+      - name: Install dependencies on Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev 
+          sudo apt-get install -y pkg-config libssl-dev build-essential linux-libc-dev
+
+      - name: Build x86_64-unknown-linux-musl
+        working-directory: ./windSend-rs
+        run: cargo build --target x86_64-unknown-linux-musl --verbose --release
+
+      - name: Rename All Binary
+        run: mv ./windSend-rs/target/x86_64-unknown-linux-musl/release/wind_send ./windSend-rs/target/x86_64-unknown-linux-musl/release/${{ env.EXPECT_RUST_BINARY_NAME }}
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windSend-rs-x86_64-unknown-linux-musl
+          path: |
+            ./windSend-rs/target/x86_64-unknown-linux-musl/release/${{ env.EXPECT_RUST_BINARY_NAME }}
