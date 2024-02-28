@@ -25,6 +25,7 @@ pub fn generate_secret_key_hex(byte_len: usize) -> String {
     hex::encode(bytes)
 }
 
+#[allow(dead_code)]
 pub fn compute_sha256(bytes: &[u8]) -> [u8; 32] {
     let mut hasher = sha2::Sha256::new();
     hasher.update(bytes);

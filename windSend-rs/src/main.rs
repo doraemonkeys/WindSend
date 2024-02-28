@@ -1,29 +1,39 @@
 // hide console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{sync::OnceLock, thread};
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
+use std::thread;
 use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
-mod icon_bytes;
 mod language;
 mod route;
 mod utils;
 
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
+mod icon_bytes;
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod systray;
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 mod web;
 
-pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub static TX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
+// pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
+pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 
+#[allow(unused_variables)]
 static PROGRAM_NAME: &str = "WindSend-S-Rust";
+#[allow(unused_variables)]
 static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
+#[allow(unused_variables)]
 static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
+#[cfg(not(feature = "disable_select_file"))]
+pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
 fn init() {
     config::init();
@@ -32,6 +42,7 @@ fn init() {
         .build()
         .unwrap();
     RUNTIME.set(r).unwrap();
+    SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
 }
 
 fn main() {
@@ -46,10 +57,10 @@ fn main() {
         let (tx1, rx1) = crossbeam_channel::bounded(1);
         let (tx2, rx2) = crossbeam_channel::bounded(1);
         TX_RESET_FILES_ITEM.set(tx1).unwrap();
-        TX_CLOSE_ALLOW_TO_BE_SEARCHED.set(tx2).unwrap();
+        TX_CLOSE_QUICK_PAIR.set(tx2).unwrap();
         let rm = systray::MenuReceiver {
             rx_reset_files_item: rx1,
-            rx_close_allow_to_be_searched: rx2,
+            rx_close_quick_pair: rx2,
         };
         let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
         let return_code = match show_systray_icon {

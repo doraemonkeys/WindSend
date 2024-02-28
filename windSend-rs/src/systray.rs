@@ -1,6 +1,3 @@
-use std::collections::HashSet;
-use std::sync::Mutex;
-use std::sync::OnceLock;
 use tracing::{debug, error, info, warn};
 
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
@@ -16,6 +13,7 @@ use crate::language::{Language, LanguageKey, LANGUAGE_MANAGER};
 use crate::utils;
 use crate::web;
 use crate::PROGRAM_NAME;
+use crate::SELECTED_FILES;
 
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{
@@ -25,8 +23,6 @@ use crate::PROGRAM_NAME;
 // use tray_icon::menu::accelerator::Accelerator;
 // use tray_icon::menu::accelerator::Modifiers;
 
-pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-
 #[derive(Debug)]
 pub enum ReturnCode {
     HideIcon = 1000,
@@ -35,12 +31,12 @@ pub enum ReturnCode {
 
 pub struct MenuReceiver {
     pub rx_reset_files_item: crossbeam_channel::Receiver<()>,
-    pub rx_close_allow_to_be_searched: crossbeam_channel::Receiver<()>,
+    // pub rx_close_allow_to_be_searched: crossbeam_channel::Receiver<()>,
+    pub rx_close_quick_pair: crossbeam_channel::Receiver<()>,
 }
 
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 pub fn show_systray(mr: MenuReceiver) -> ReturnCode {
-    SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
     loop_systray(mr)
 }
 
@@ -354,7 +350,7 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
             handle_menu_event_clear_files(&add_files_i, &clear_files_i);
             should_poll = false;
         }
-        if let Ok(_) = mr.rx_close_allow_to_be_searched.try_recv() {
+        if let Ok(_) = mr.rx_close_quick_pair.try_recv() {
             allow_to_be_search_i.set_checked(false);
             should_poll = false;
         }

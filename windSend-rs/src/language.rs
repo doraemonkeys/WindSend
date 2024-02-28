@@ -208,6 +208,7 @@ impl LanguageManager {
         self.cur_lang = lang;
     }
 
+    #[allow(dead_code)]
     pub fn get_language(&self) -> Language {
         self.cur_lang
     }

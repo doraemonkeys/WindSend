@@ -309,7 +309,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     match r {
         Ok(_) => {
             #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-            let _ = crate::TX_CLOSE_ALLOW_TO_BE_SEARCHED
+            let _ = crate::TX_CLOSE_QUICK_PAIR
                 .get()
                 .unwrap()
                 .try_send(())
