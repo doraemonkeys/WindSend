@@ -23,9 +23,9 @@ jobs:
         if: matrix.os == 'ubuntu-20.04'
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
 
-      - name: Run tests
+      - name: Build ${{ matrix.os }}
         working-directory: ./windSend-rs
-        run: cargo test --verbose
+        run: cargo build --verbose
 
       - name: Run clippy
         working-directory: ./windSend-rs
@@ -35,9 +35,9 @@ jobs:
         working-directory: ./windSend-rs
         run: cargo fmt -- --check
 
-      - name: Build ${{ matrix.os }}
+      - name: Run tests
         working-directory: ./windSend-rs
-        run: cargo build --verbose
+        run: cargo test --verbose
 
   build-aarch64-windows:
     runs-on: windows-latest
