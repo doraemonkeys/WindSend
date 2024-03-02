@@ -21,7 +21,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     };
     if let Some(files) = files {
         let r = send_files(conn, files).await;
-        if let Ok(_) = r {
+        if r.is_ok() {
             #[cfg(not(feature = "disable-systray-support"))]
             crate::TX_RESET_FILES_ITEM
                 .get()
@@ -52,11 +52,11 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
 
     {
         let r1 = send_text(conn).await;
-        if !r1.is_err() {
+        if r1.is_ok() {
             return;
         }
         let r2 = send_image(conn).await;
-        if !r2.is_err() {
+        if r2.is_ok() {
             return;
         }
         if let Err(e) = r1 {
@@ -88,8 +88,10 @@ async fn send_files<T: IntoIterator<Item = String>>(
                 continue;
             }
         };
-        let mut rpi: RoutePathInfo = RoutePathInfo::default();
-        rpi.path = path1.clone();
+        let mut rpi: RoutePathInfo = RoutePathInfo {
+            path: path1.clone(),
+            ..Default::default()
+        };
         if path_attr.is_file() {
             rpi.type_ = crate::route::PathInfoType::File;
             rpi.size = path_attr.len();
@@ -121,12 +123,14 @@ async fn send_files<T: IntoIterator<Item = String>>(
                 .display()
                 .to_string()
                 .replace(REVERSE_SEPARATOR, DEFAULT_SEPARATOR);
-            let mut rpi: RoutePathInfo = RoutePathInfo::default();
-            rpi.path = path2.clone();
-            rpi.type_ = if entry.file_type().is_dir() {
-                crate::route::PathInfoType::Dir
-            } else {
-                crate::route::PathInfoType::File
+            let mut rpi: RoutePathInfo = RoutePathInfo {
+                path: path2.clone(),
+                type_: if entry.file_type().is_dir() {
+                    crate::route::PathInfoType::Dir
+                } else {
+                    crate::route::PathInfoType::File
+                },
+                ..Default::default()
             };
             // dbg!(&dir_root);
             // dbg!(&path1, &path2);

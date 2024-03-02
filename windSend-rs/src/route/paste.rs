@@ -170,11 +170,11 @@ pub async fn create_dirs_only_handler(
             return resp_common_error_msg(conn, &err.to_string()).await.is_ok();
         }
     }
-    if let Err(_) = send_msg(conn, &"create dirs success".to_string()).await {
+    if (send_msg(conn, &"create dirs success".to_string()).await).is_err() {
         return false;
     };
     if !dirs.is_empty() && head.files_count_in_this_op == 0 {
-        crate::utils::inform(&"目录创建成功", &head.device_name);
+        crate::utils::inform("目录创建成功", &head.device_name);
     }
     true
 }

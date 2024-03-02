@@ -26,7 +26,7 @@ use crate::SELECTED_FILES;
 #[derive(Debug)]
 pub enum ReturnCode {
     HideIcon = 1000,
-    QUIT = 0,
+    Quit = 0,
 }
 
 pub struct MenuReceiver {
@@ -40,7 +40,7 @@ pub fn show_systray(mr: MenuReceiver) -> ReturnCode {
     loop_systray(mr)
 }
 
-fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
+fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     // let copy_from_web_shortcut = Accelerator::new(
     //     Some(Modifiers::CONTROL | Modifiers::ALT),
     //     tray_icon::menu::accelerator::Code::KeyY,
@@ -346,11 +346,11 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
             }
             false => *control_flow = ControlFlow::Wait,
         }
-        if let Ok(_) = mr.rx_reset_files_item.try_recv() {
+        if mr.rx_reset_files_item.try_recv().is_ok() {
             handle_menu_event_clear_files(&add_files_i, &clear_files_i);
             should_poll = false;
         }
-        if let Ok(_) = mr.rx_close_quick_pair.try_recv() {
+        if mr.rx_close_quick_pair.try_recv().is_ok() {
             allow_to_be_search_i.set_checked(false);
             should_poll = false;
         }
@@ -447,7 +447,7 @@ fn loop_systray<'a>(mr: MenuReceiver) -> ReturnCode {
     tray_icon.take(); //keep icon alive until the end of the program
     const HIDE_ICON_CODE: i32 = ReturnCode::HideIcon as i32;
     match return_code {
-        0 => ReturnCode::QUIT,
+        0 => ReturnCode::Quit,
         HIDE_ICON_CODE => ReturnCode::HideIcon,
         code => std::process::exit(code),
     }
@@ -504,7 +504,7 @@ async fn handle_menu_event_paste_to_web() {
                 .read()
                 .unwrap()
                 .translate(LanguageKey::ClipboardNotText),
-            &PROGRAM_NAME,
+            PROGRAM_NAME,
         );
         return;
     }
@@ -518,7 +518,7 @@ async fn handle_menu_event_paste_to_web() {
                 .read()
                 .unwrap()
                 .translate(LanguageKey::PasteToWebFailed),
-            &PROGRAM_NAME,
+            PROGRAM_NAME,
         );
         return;
     }
@@ -527,7 +527,7 @@ async fn handle_menu_event_paste_to_web() {
             .read()
             .unwrap()
             .translate(LanguageKey::PasteToWebSuccess),
-        &PROGRAM_NAME,
+        PROGRAM_NAME,
     );
 }
 
@@ -540,13 +540,13 @@ async fn handle_menu_event_copy_from_web() {
                 .read()
                 .unwrap()
                 .translate(LanguageKey::CopyFromWebFailed),
-            &PROGRAM_NAME,
+            PROGRAM_NAME,
         );
         return;
     }
     let content = result.unwrap();
     let content = String::from_utf8(content);
-    if let Err(_) = content {
+    if content.is_err() {
         error!("content is not utf8");
         return;
     }
@@ -557,7 +557,7 @@ async fn handle_menu_event_copy_from_web() {
         error!("set clipboard text error: {}", e);
         return;
     }
-    utils::inform(&content, &PROGRAM_NAME);
+    utils::inform(&content, PROGRAM_NAME);
 }
 
 fn handle_menu_event_clear_files(add_item: &MenuItem, clear_item: &MenuItem) {

@@ -30,7 +30,7 @@ impl StartHelper {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
         let win_user_home_dir =
-            home::home_dir().ok_or_else(|| "获取当前Windows用户的home directory失败")?;
+            home::home_dir().ok_or("获取当前Windows用户的home directory失败")?;
         let start_file = format!(
             r#"{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\{}_start.vbs"#,
             win_user_home_dir.to_str().unwrap(),
@@ -40,10 +40,10 @@ impl StartHelper {
         let path = std::env::current_dir().map_err(|err| {
             format!(
                 "获取当前文件目录失败: {}",
-                err.to_string().replace("\\", "\\\\")
+                err.to_string().replace('\\', "\\\\")
             )
         })?;
-        let path = path.to_str().unwrap().replace("\\", "\\\\");
+        let path = path.to_str().unwrap().replace('\\', "\\\\");
 
         let content = String::from(r#"Set objShell = CreateObject("WScript.Shell")"#)
             + "\r\n"
@@ -136,7 +136,7 @@ impl StartHelper {
     #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
-            home::home_dir().ok_or_else(|| "获取当前Windows用户的home directory失败")?;
+            home::home_dir().ok_or("获取当前Windows用户的home directory失败")?;
         let start_file = format!(
             r#"{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\{}_start.vbs"#,
             win_user_home_dir.to_str().unwrap(),
@@ -187,7 +187,7 @@ pub fn get_desktop_path() -> Result<String, String> {
 }
 
 /// 去除颜色
-pub fn eliminate_color<'a>(line: &'a [u8]) -> Cow<'a, [u8]> {
+pub fn eliminate_color(line: &[u8]) -> Cow<'_, [u8]> {
     //"\033[31m 红色 \033[0m"
     if subslice::bmh::find(line, b"\x1b[0m").is_some() {
         let mut buf = Vec::with_capacity(line.len());
@@ -214,7 +214,7 @@ pub fn eliminate_color<'a>(line: &'a [u8]) -> Cow<'a, [u8]> {
                 // }
                 let mut temp_index = end + 3;
                 while temp_index < line.len() && temp_index <= end + 6 {
-                    if line[temp_index] == 'm' as u8 {
+                    if line[temp_index] == b'm' {
                         start = temp_index + 1;
                         break;
                     }
@@ -321,7 +321,7 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     match std::env::consts::OS {
         "windows" => {
             let mut cmd = std::process::Command::new("cmd")
-                .args(&["/c", "start", uri])
+                .args(["/c", "start", uri])
                 .spawn()?;
             cmd.wait()?;
         }
@@ -371,11 +371,15 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
 }
 
 pub fn has_img_ext(name: &str) -> bool {
-    let ext = name.split(".").last().unwrap_or("");
-    match ext.to_lowercase().as_str() {
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico" => true,
-        _ => false,
-    }
+    let ext = name.split('.').last().unwrap_or("");
+    // match ext.to_lowercase().as_str() {
+    //     "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico" => true,
+    //     _ => false,
+    // }
+    matches!(
+        ext.to_lowercase().as_str(),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico"
+    )
 }
 
 // e.g. zh_CN.UTF-8 => zh_CN

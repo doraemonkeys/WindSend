@@ -186,7 +186,7 @@ impl FileReceiver {
         file_recv_map.insert(file_id, Arc::new(info));
         // check is this opID exist
         let mut ops_map = self.ops.lock().await;
-        if let None = ops_map.get(&head.op_id) {
+        if ops_map.get(&head.op_id).is_none() {
             ops_map.insert(
                 head.op_id,
                 OpInfo {

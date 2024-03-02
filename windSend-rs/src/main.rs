@@ -70,7 +70,7 @@ fn main() {
         let return_code = systray::show_systray(rm);
         info!("systray return code: {:?}", return_code);
         match return_code {
-            systray::ReturnCode::QUIT => return,
+            systray::ReturnCode::Quit => (),
             systray::ReturnCode::HideIcon => main_handle.join().unwrap(),
         }
     }

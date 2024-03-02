@@ -268,11 +268,9 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .ip()
         .to_string();
     debug!("ip: {}, myip: {}", ip, myip);
-    let myip = myip
-        .strip_prefix("::ffff:")
-        .unwrap_or_else(|| myip.as_str());
+    let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
     let mut ip = ip;
-    if ip.contains("%") {
+    if ip.contains('%') {
         ip = &ip[..ip.find('%').unwrap()];
     }
     if ip != myip {

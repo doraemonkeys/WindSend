@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, Clone, Default, Copy, Debug, Serialize, Deserialize)]
 pub enum Language {
+    #[default]
     #[serde(rename = "zh")]
     ZH,
     #[serde(rename = "en")]
@@ -24,17 +25,11 @@ impl std::str::FromStr for Language {
     }
 }
 
-impl Default for Language {
-    fn default() -> Self {
-        Language::ZH
-    }
-}
-
 impl Language {
     // pub fn get_all() -> Vec<Language> {
     //     vec![Language::ZH, Language::EN]
     // }
-    pub fn to_str(&self) -> &'static str {
+    pub fn to_str(self) -> &'static str {
         match self {
             Language::ZH => "zh",
             Language::EN => "en",

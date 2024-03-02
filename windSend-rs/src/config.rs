@@ -68,9 +68,9 @@ impl Config {
     pub fn save(&self) -> Result<(), String> {
         self.empty_check()?;
         let file = std::fs::File::create(CONFIG_FILE_PATH)
-            .map_err(|err| format!("create config file error: {}", err.to_string()))?;
+            .map_err(|err| format!("create config file error: {}", err))?;
         serde_yaml::to_writer(file, self)
-            .map_err(|err| format!("write config file error: {}", err.to_string()))?;
+            .map_err(|err| format!("write config file error: {}", err))?;
         Ok(())
     }
     pub fn save_and_set(&self) -> Result<(), String> {
@@ -83,13 +83,12 @@ impl Config {
         #[cfg(not(target_os = "linux"))]
         if self.auto_start {
             if let Err(e) = START_HELPER.set_auto_start() {
-                return Err(format!("set_auto_start error: {}", e.to_string()));
+                return Err(format!("set_auto_start error: {}", e));
             }
-        } else {
-            if let Err(e) = START_HELPER.unset_auto_start() {
-                return Err(format!("unset_auto_start error: {}", e.to_string()));
-            }
+        } else if let Err(e) = START_HELPER.unset_auto_start() {
+            return Err(format!("unset_auto_start error: {}", e));
         }
+
         crate::language::LANGUAGE_MANAGER
             .write()
             .unwrap()
@@ -145,9 +144,9 @@ impl LogWriter {
 
 impl std::io::Write for LogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.write(&utils::eliminate_color(buf))?;
+        self.0.write_all(&utils::eliminate_color(buf))?;
         if *LOG_LEVEL >= tracing::Level::DEBUG {
-            std::io::stdout().write(buf)?;
+            std::io::stdout().write_all(buf)?;
         }
         Ok(buf.len())
     }
@@ -235,7 +234,7 @@ fn init_tls_config() {
 pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::error::Error>> {
     use tokio_rustls::rustls;
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
-    let private_key_bytes = std::fs::read(&Path::new(TLS_DIR).join(TLS_KEY_FILE))?;
+    let private_key_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_KEY_FILE))?;
     let mut private_key: Option<PrivateKeyDer<'static>> = None;
 
     let pkcs8_private_key =
@@ -251,7 +250,7 @@ pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::erro
     }
     let private_key = private_key.unwrap();
 
-    let ca_cert_bytes = std::fs::read(&Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
+    let ca_cert_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
     let ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())
         .next()
         .ok_or("ca_cert is none")??;
