@@ -153,7 +153,7 @@ impl StartHelper {
 
     #[cfg(target_os = "macos")]
     fn unset_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let home_dir = home::home_dir().ok_or_else(|| "获取当前用户的home directory失败")?;
+        let home_dir = home::home_dir().ok_or("获取当前用户的home directory失败")?;
         let start_file = format!(
             "{}/Library/LaunchAgents/{}_start.plist",
             home_dir.to_str().unwrap(),
