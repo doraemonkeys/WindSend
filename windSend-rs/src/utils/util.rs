@@ -68,7 +68,7 @@ impl StartHelper {
     }
     #[cfg(target_os = "macos")]
     fn set_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let home_dir = home::home_dir().ok_or_else(|| "获取当前用户的home directory失败")?;
+        let home_dir = home::home_dir().ok_or("获取当前用户的home directory失败")?;
         let start_file = format!(
             "{}/Library/LaunchAgents/{}_start.plist",
             home_dir.to_str().unwrap(),
@@ -77,7 +77,7 @@ impl StartHelper {
         let cur_path = std::env::current_dir().map_err(|err| {
             format!(
                 "获取当前文件目录失败: {}",
-                err.to_string().replace("\\", "\\\\")
+                err.to_string().replace('\\', "\\\\")
             )
         })?;
         let mac_list_file = format!(
