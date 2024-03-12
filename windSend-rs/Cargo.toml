@@ -17,7 +17,7 @@ aes = "0.8.3"
 hex = "0.4.3"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-image = "0.24"
+image = "0.25"
 crossbeam-channel = "0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -77,7 +77,7 @@ openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
 tao = "0.26.0"
-tray-icon = "0.11.0"
+tray-icon = "0.12"
 reqwest = { version = "0.11", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.13.0"

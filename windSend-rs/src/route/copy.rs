@@ -195,7 +195,7 @@ async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::
     .ok_or("image::ImageBuffer::from_vec failed")?;
     let mut cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
     let img_buf = image::DynamicImage::ImageRgba8(img_buf);
-    img_buf.write_to(&mut cursor_buf, image::ImageOutputFormat::Png)?;
+    img_buf.write_to(&mut cursor_buf, image::ImageFormat::Png)?;
     send_msg_with_body(
         conn,
         &image_name,
