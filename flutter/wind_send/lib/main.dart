@@ -446,7 +446,8 @@ class _MainBodyState extends State<MainBody> {
         var defaultDevice = widget.devices.firstWhere(
             (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
         var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFunc(context, defaultDevice, (Device d) {
+        DeviceItem.commonActionFuncWithToastr(context, defaultDevice,
+            (Device d) {
           widget.devices[defaultDeviceIndex] = d;
           AppSharedCnfService.devices = widget.devices;
           widget.devicesRebuild();
@@ -482,7 +483,8 @@ class _MainBodyState extends State<MainBody> {
         var defaultDevice = widget.devices.firstWhere(
             (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
         var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFunc(context, defaultDevice, (Device d) {
+        DeviceItem.commonActionFuncWithToastr(context, defaultDevice,
+            (Device d) {
           widget.devices[defaultDeviceIndex] = d;
           AppSharedCnfService.devices = widget.devices;
           widget.devicesRebuild();
@@ -557,7 +559,48 @@ class DeviceItem extends StatefulWidget {
     required this.onDelete,
   });
 
-  static Future<void> commonActionFunc(
+  /// throw Exception if failed
+  static Future<String> commonActionFunc(
+      Device device,
+      void Function(Device device) onChanged,
+      Future<String> Function() task) async {
+    String successMsg = '';
+    String errorMsg = '';
+    for (var i = 0;; i++) {
+      dynamic tempErr;
+      try {
+        successMsg = await task();
+        break; // success exit
+      } catch (e, s) {
+        tempErr = e;
+        SharedLogger()
+            .logger
+            .e('commonActionFunc failed(try: $i)', error: e, stackTrace: s);
+        // print('commonActionFunc err: $err\n, $s');
+      }
+      if (i == 0 &&
+          tempErr != null &&
+          device.autoSelect &&
+          (tempErr is SocketException || tempErr is UnauthorizedException)) {
+        if (!await device.findServer()) {
+          errorMsg = tempErr.toString();
+          break;
+        }
+        onChanged(device);
+        continue;
+      }
+      if (i >= 1) {
+        errorMsg = tempErr.toString();
+        break;
+      }
+    }
+    if (errorMsg.isNotEmpty) {
+      throw Exception(errorMsg);
+    }
+    return successMsg;
+  }
+
+  static Future<void> commonActionFuncWithToastr(
       BuildContext context,
       Device device,
       void Function(Device device) onChanged,
@@ -575,30 +618,10 @@ class DeviceItem extends StatefulWidget {
       },
     );
     dialog.whenComplete(() => exited = true);
-    for (var i = 0; i < 2; i++) {
-      dynamic err;
-      try {
-        msg = await task();
-        break;
-      } catch (e, s) {
-        err = e;
-        msg = e.toString();
-        SharedLogger()
-            .logger
-            .e('commonActionFunc failed', error: e, stackTrace: s);
-        // print('commonActionFunc err: $err\n, $s');
-      }
-      if (err != null &&
-          !exited &&
-          device.autoSelect &&
-          (err is SocketException || err is UnauthorizedException)) {
-        if (!await device.findServer()) {
-          break;
-        }
-        onChanged(device);
-        continue;
-      }
-      break;
+    try {
+      msg = await commonActionFunc(device, onChanged, task);
+    } catch (e) {
+      msg = e.toString();
     }
     if (context.mounted && !exited) {
       Navigator.of(context).pop();
@@ -765,8 +788,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFunc(context, device, onChanged,
-                () async {
+            await DeviceItem.commonActionFuncWithToastr(
+                context, device, onChanged, () async {
               var (c, count) = await device.doCopyAction();
               if (count != 0) {
                 return context.formatString(AppLocale.filesSaved, [count]);
@@ -792,7 +815,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFunc(context, device, onChanged, () {
+            await DeviceItem.commonActionFuncWithToastr(
+                context, device, onChanged, () {
               String successMsg =
                   context.formatString(AppLocale.pasteSuccess, []);
               Future<void> f = device.doPasteTextAction();
@@ -820,8 +844,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onTap: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
-            await DeviceItem.commonActionFunc(context, device, onChanged,
-                () async {
+            await DeviceItem.commonActionFuncWithToastr(
+                context, device, onChanged, () async {
               await device.doPasteFileAction();
               return successMsg;
             });
@@ -829,8 +853,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onLongPress: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
-            await DeviceItem.commonActionFunc(context, device, onChanged,
-                () async {
+            await DeviceItem.commonActionFuncWithToastr(
+                context, device, onChanged, () async {
               await device.doPasteDirAction();
               return successMsg;
             });
@@ -855,8 +879,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
         onTap: () async {
           String successMsg =
               context.formatString(AppLocale.operationSuccess, []);
-          await DeviceItem.commonActionFunc(context, device, onChanged,
-              () async {
+          await DeviceItem.commonActionFuncWithToastr(
+              context, device, onChanged, () async {
             String msg = await device.doCopyActionWeb();
             return msg.isEmpty ? successMsg : '$successMsg\n$msg';
           });
@@ -880,8 +904,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
         onTap: () async {
           String successMsg =
               context.formatString(AppLocale.operationSuccess, []);
-          await DeviceItem.commonActionFunc(context, device, onChanged,
-              () async {
+          await DeviceItem.commonActionFuncWithToastr(
+              context, device, onChanged, () async {
             await device.doPasteTextActionWeb();
             return successMsg;
           });

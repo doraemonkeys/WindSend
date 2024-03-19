@@ -7,6 +7,7 @@ import 'cnf.dart';
 import 'language.dart';
 import 'utils.dart';
 import 'device.dart';
+import 'main.dart';
 
 enum SendTextMethod {
   p2p("P2P"),
@@ -124,7 +125,11 @@ class TextEditPageState extends State<TextEditPage> {
               var success = true;
               try {
                 if (_sendType == SendTextMethod.p2p) {
-                  await widget.device.doPasteTextAction(text: _controller.text);
+                  await DeviceItem.commonActionFunc(widget.device, (_) {}, () {
+                    return widget.device
+                        .doPasteTextAction(text: _controller.text)
+                        .then((_) => successMsg);
+                  });
                 } else {
                   await widget.device
                       .doPasteTextActionWeb(text: _controller.text);
