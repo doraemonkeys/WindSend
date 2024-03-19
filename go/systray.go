@@ -137,7 +137,7 @@ func onReady(quitch chan bool) {
 				logrus.Error("failed to select files:", err)
 				continue
 			}
-			if err == nil && n == 0 {
+			if n == 0 {
 				// user canceled
 				continue
 			}

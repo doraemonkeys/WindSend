@@ -172,7 +172,7 @@ func (f *FileReceiver) ReportFilePart(fileID uint32, start, end int64, recvErr e
 		return false, false
 	}
 	file.part = append(file.part, FilePart{start: start, end: end})
-	done = f.check(fileID, file)
+	done = f.check(file)
 	if done {
 		file.isDone = true
 		file.downChan <- true
@@ -181,7 +181,7 @@ func (f *FileReceiver) ReportFilePart(fileID uint32, start, end int64, recvErr e
 }
 
 // 检查是否完成
-func (f *FileReceiver) check(fileID uint32, file *recvfileInfo) bool {
+func (f *FileReceiver) check(file *recvfileInfo) bool {
 	sort.Slice(file.part, func(i, j int) bool {
 		return file.part[i].start < file.part[j].start
 	})

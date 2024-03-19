@@ -136,12 +136,12 @@ func mainProcess(conn net.Conn) {
 		case pasteFileAction:
 			ok = pasteFileHandler(conn, head)
 		case copyAction:
-			copyHandler(conn, head)
+			copyHandler(conn)
 			return
 		case downloadAction:
 			ok = downloadHandler(conn, head)
 		case matchAction:
-			matchHandler(conn, head)
+			matchHandler(conn)
 			return
 		default:
 			respCommonError(conn, "unknown action:"+head.Action)
@@ -309,6 +309,13 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 		ip = ip[:strings.Index(ip, "%")]
 	}
 	if ip != myip {
+		if len(GloballCnf.ExternalIPs) > 0 {
+			for _, v := range GloballCnf.ExternalIPs {
+				if v == ip {
+					return head, true
+				}
+			}
+		}
 		logrus.Infoln("ip not match, received ip:", ip, "my ip:", myip)
 		respError(conn, unauthorizedCode, fmt.Sprintf("ip not match: %s != %s", ip, myip))
 		return head, false
@@ -316,7 +323,7 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 	return head, true
 }
 
-func matchHandler(conn net.Conn, head headInfo) {
+func matchHandler(conn net.Conn) {
 	resp := MatchActionResp{
 		DeviceName:   GetDeviceName(),
 		SecretKeyHex: GloballCnf.SecretKeyHex,
@@ -330,7 +337,7 @@ func matchHandler(conn net.Conn, head headInfo) {
 	closeAllowSearchCH <- struct{}{}
 }
 
-func copyHandler(conn net.Conn, head headInfo) {
+func copyHandler(conn net.Conn) {
 
 	// 用户选择的文件
 	if len(SelectedFiles) != 0 {

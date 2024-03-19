@@ -23,6 +23,8 @@ type Config struct {
 	// 文件保存路径
 	SavePath string `yaml:"savePath"`
 	Language string `yaml:"language"`
+	// 外部IP
+	ExternalIPs []string `yaml:"externalIPs"`
 }
 
 var configFilePath string = "config.yaml"
@@ -128,6 +130,7 @@ func generateDefaultConfig() Config {
 	if cnf.Language == "" {
 		cnf.Language = language.ZH_CN_CODE
 	}
+	cnf.ExternalIPs = []string{"test1", "test2"}
 	temp, err := GetDesktopPath()
 	if err != nil {
 		logrus.Error("GetDesktopPath error:", err)

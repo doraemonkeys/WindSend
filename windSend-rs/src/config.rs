@@ -53,6 +53,8 @@ pub struct Config {
     pub save_path: String,
     #[serde(rename = "language")]
     pub language: crate::language::Language,
+    #[serde(rename = "externalIPs")]
+    pub external_ips: Option<Vec<String>>,
 }
 
 impl Config {
@@ -110,6 +112,7 @@ impl Config {
                 "./".to_string()
             }),
             language: lang.unwrap_or_default(),
+            external_ips: None,
         }
     }
 }

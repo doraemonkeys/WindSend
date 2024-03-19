@@ -5,6 +5,7 @@ use tokio_rustls::server::TlsStream;
 use tracing::info;
 use tracing::{debug, error, trace, warn};
 
+use crate::config::GLOBAL_CONFIG;
 use crate::route::resp::resp_error_msg;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -274,6 +275,12 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         ip = &ip[..ip.find('%').unwrap()];
     }
     if ip != myip {
+        {
+            let external_ips = &GLOBAL_CONFIG.lock().unwrap().external_ips;
+            if !external_ips.is_none() && external_ips.as_ref().unwrap().contains(&ip.to_string()) {
+                return Ok(head);
+            }
+        }
         let msg = format!("ip not match: {} != {}", ip, myip);
         error!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
