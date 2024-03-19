@@ -29,8 +29,6 @@
 
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
-123云盘：[www.123pan.com](https://www.123pan.com/s/yfFAjv-lymn.html) 提取码:c1at
-
 
 
 ### PC端
