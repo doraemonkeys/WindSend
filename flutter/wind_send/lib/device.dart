@@ -656,9 +656,8 @@ class Device {
     }
   }
 
-  Future<String> doPasteTextAction({
+  Future<void> doPasteTextAction({
     String? text,
-    String successMsg = 'Paste successfully',
     Duration timeout = const Duration(seconds: 2),
   }) async {
     String pasteText;
@@ -700,10 +699,6 @@ class Device {
     if (respHead.code != 200) {
       throw Exception(respHead.msg);
     }
-    if (respHead.msg != null && respHead.msg!.isNotEmpty) {
-      return respHead.msg!;
-    }
-    return successMsg;
   }
 
   Future<void> doPasteTextActionWeb({

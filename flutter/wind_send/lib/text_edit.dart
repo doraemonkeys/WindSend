@@ -50,6 +50,7 @@ class TextEditPageState extends State<TextEditPage> {
   // 发送方式
   late SendTextMethod _sendType;
   String msg = '';
+  late final String successMsg;
 
   // _handleSendStatus(Status status) {
   //   _isSendButtonReset = (status == Status.done);
@@ -70,6 +71,7 @@ class TextEditPageState extends State<TextEditPage> {
         ? SendTextMethod.p2p
         : SendTextMethod.web;
     _sendType = widget.device.actionPasteText ? _sendType : SendTextMethod.web;
+    successMsg = context.formatString(AppLocale.pasteSuccess, []);
     super.initState();
   }
 
@@ -121,11 +123,13 @@ class TextEditPageState extends State<TextEditPage> {
               });
               var success = true;
               try {
-                _sendType == SendTextMethod.p2p
-                    ? msg = await widget.device
-                        .doPasteTextAction(text: _controller.text)
-                    : await widget.device
-                        .doPasteTextActionWeb(text: _controller.text);
+                if (_sendType == SendTextMethod.p2p) {
+                  await widget.device.doPasteTextAction(text: _controller.text);
+                } else {
+                  await widget.device
+                      .doPasteTextActionWeb(text: _controller.text);
+                }
+                msg = successMsg;
               } catch (e) {
                 msg = e.toString();
                 success = false;

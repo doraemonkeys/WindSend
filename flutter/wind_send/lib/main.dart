@@ -793,9 +793,10 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           ),
           onTap: () async {
             await DeviceItem.commonActionFunc(context, device, onChanged, () {
-              return device.doPasteTextAction(
-                successMsg: context.formatString(AppLocale.pasteSuccess, []),
-              );
+              String successMsg =
+                  context.formatString(AppLocale.pasteSuccess, []);
+              Future<void> f = device.doPasteTextAction();
+              return f.then((_) => successMsg);
             });
           },
         ),
