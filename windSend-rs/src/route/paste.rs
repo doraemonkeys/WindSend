@@ -37,8 +37,8 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         {
             let clipboard = &mut crate::config::CLIPBOARD.lock().unwrap();
             let r = clipboard.set_text(body);
-            if let Err(e) = r {
-                let msg = format!("set clipboard text failed, err: {}", e);
+            if r.is_err() && cur_clipboard_text.is_err() {
+                let msg = format!("set clipboard text failed, err: {}", r.unwrap_err());
                 error!("{}", msg);
                 let _ = resp_common_error_msg(conn, &msg);
                 return;
