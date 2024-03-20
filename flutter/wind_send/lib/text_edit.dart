@@ -51,7 +51,7 @@ class TextEditPageState extends State<TextEditPage> {
   // 发送方式
   late SendTextMethod _sendType;
   String msg = '';
-  late final String successMsg;
+  late String successMsg;
 
   // _handleSendStatus(Status status) {
   //   _isSendButtonReset = (status == Status.done);
@@ -72,7 +72,6 @@ class TextEditPageState extends State<TextEditPage> {
         ? SendTextMethod.p2p
         : SendTextMethod.web;
     _sendType = widget.device.actionPasteText ? _sendType : SendTextMethod.web;
-    successMsg = context.formatString(AppLocale.pasteSuccess, []);
     super.initState();
   }
 
@@ -84,6 +83,7 @@ class TextEditPageState extends State<TextEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    successMsg = context.formatString(AppLocale.pasteSuccess, []);
     return Scaffold(
       appBar: AppBar(
         title: Row(

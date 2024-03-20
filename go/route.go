@@ -45,6 +45,7 @@ const (
 	pingAction      = "ping"
 	downloadAction  = "download"
 	matchAction     = "match"
+	syncTextAction  = "syncText"
 	webIp           = "web"
 )
 
@@ -143,6 +144,8 @@ func mainProcess(conn net.Conn) {
 		case matchAction:
 			matchHandler(conn)
 			return
+		case syncTextAction:
+			syncTextHandler(conn, head)
 		default:
 			respCommonError(conn, "unknown action:"+head.Action)
 			logrus.Error("unknown action:", head.Action)
@@ -182,6 +185,26 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 		Inform(string(contentRune), head.DeviceName)
 	}
 	<-completionSignal
+}
+
+func syncTextHandler(conn net.Conn, head headInfo) {
+	var curClipboardText = make([]byte, 0)
+	if clipboarDataType == clipboardWatchDataTypeText {
+		curClipboardText = clipboardWatchData
+	}
+	if head.DataLen > 0 {
+		var bodyBuf = make([]byte, head.DataLen)
+		_, err := io.ReadFull(conn, bodyBuf)
+		if err != nil {
+			// logrus.Error("read body error: ", err)
+			logrus.Errorf("read body error: %v, dataLen:%d, bodyBuf:%s\n", err, head.DataLen, string(bodyBuf))
+			logrus.Info("head:", head)
+			respCommonError(conn, ErrorIncompleteData+": "+err.Error())
+			return
+		}
+		clipboard.Write(clipboard.FmtText, bodyBuf)
+	}
+	var _ = sendMsgWithBody(conn, "SyncSuccess", DataTypeText, curClipboardText)
 }
 
 func pingHandler(conn net.Conn, head headInfo) {

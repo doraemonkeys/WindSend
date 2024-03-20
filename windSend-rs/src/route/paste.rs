@@ -1,5 +1,5 @@
-use crate::route::resp::{resp_common_error_msg, send_msg};
-use crate::route::RouteRecvHead;
+use crate::route::resp::{resp_common_error_msg, send_msg, send_msg_with_body};
+use crate::route::{RouteDataType, RouteRecvHead};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -22,6 +22,37 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     }
     crate::utils::inform(&body, &head.device_name);
     send_msg(conn, &"粘贴成功".to_string()).await.ok();
+}
+
+pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
+    let cur_clipboard_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
+    if head.data_len > 0 {
+        let mut body_buf = vec![0u8; head.data_len as usize];
+        let r = conn.read_exact(&mut body_buf).await;
+        if let Err(e) = r {
+            error!("read body failed, err: {}", e);
+        }
+        let body = String::from_utf8_lossy(&body_buf);
+        debug!("paste text data: {}", body);
+        {
+            let clipboard = &mut crate::config::CLIPBOARD.lock().unwrap();
+            let r = clipboard.set_text(body);
+            if let Err(e) = r {
+                let msg = format!("set clipboard text failed, err: {}", e);
+                error!("{}", msg);
+                let _ = resp_common_error_msg(conn, &msg);
+                return;
+            }
+        }
+    }
+    send_msg_with_body(
+        conn,
+        &"".to_string(),
+        RouteDataType::Text,
+        cur_clipboard_text.unwrap_or_default().as_ref(),
+    )
+    .await
+    .ok();
 }
 
 /// 返回是否应该继续循环(比如没有遇到Socket Error)

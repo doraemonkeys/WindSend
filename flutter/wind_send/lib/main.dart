@@ -3,6 +3,7 @@ import 'dart:async';
 // import 'dart:isolate';
 // import 'dart:typed_data';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -227,6 +228,10 @@ class _MyHomePageState extends State<MyHomePage> {
               return AddNewDeviceDialog(
                 devices: devices,
                 onAddDevice: () {
+                  if (devices.length == 1) {
+                    AppConfigModel().defaultSyncDevice =
+                        devices.first.targetDeviceName;
+                  }
                   devicesRebuild();
                 },
               );
@@ -523,23 +528,63 @@ class _MainBodyState extends State<MainBody> {
         width: MediaQuery.of(context).size.width > MainBody.maxBodyWidth
             ? MainBody.maxBodyWidth
             : null,
-        child: ListView.builder(
-          itemCount: widget.devices.length,
-          itemBuilder: (context, index) {
-            // print('build MainBody,index: $index');
-            return DeviceItem(
-              device: widget.devices[index],
-              devices: widget.devices,
-              saveChange: (device) {
-                widget.devices[index] = device;
-                AppSharedCnfService.devices = widget.devices;
+        child: RefreshIndicator(
+          onRefresh: () async {
+            if (AppConfigModel().defaultSyncDevice == null) {
+              return;
+            }
+            if (!widget.devices.any((element) =>
+                element.targetDeviceName ==
+                AppConfigModel().defaultSyncDevice!)) {
+              return;
+            }
+            var defaultDevice = widget.devices.firstWhere((e) =>
+                e.targetDeviceName == AppConfigModel().defaultSyncDevice!);
+            return DeviceItem.commonActionFuncWithToastr(
+              context,
+              defaultDevice,
+              (_) => widget.devicesRebuild(),
+              () async {
+                var (respText, sentText) =
+                    await defaultDevice.doSyncTextAction();
+                if (respText.isNotEmpty && sentText.isEmpty) {
+                  return '${context.formatString(AppLocale.copySuccess, [])}\n$respText';
+                }
+                if (respText.isEmpty && sentText.isNotEmpty) {
+                  return context.formatString(AppLocale.pasteSuccess, []);
+                }
+                return context.formatString(AppLocale.syncTextSuccess, []);
               },
-              onDelete: () {
-                widget.devices.removeAt(index);
-                widget.devicesRebuild();
-              },
+              showIndicator: false,
             );
           },
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.stylus,
+              },
+            ),
+            child: ListView.builder(
+              itemCount: widget.devices.length,
+              itemBuilder: (context, index) {
+                // print('build MainBody,index: $index');
+                return DeviceItem(
+                  device: widget.devices[index],
+                  devices: widget.devices,
+                  saveChange: (device) {
+                    widget.devices[index] = device;
+                    AppSharedCnfService.devices = widget.devices;
+                  },
+                  onDelete: () {
+                    widget.devices.removeAt(index);
+                    widget.devicesRebuild();
+                  },
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -604,26 +649,29 @@ class DeviceItem extends StatefulWidget {
       BuildContext context,
       Device device,
       void Function(Device device) onChanged,
-      Future<String> Function() task) async {
+      Future<String> Function() task,
+      {bool showIndicator = true}) async {
     String msg = '';
-    var exited = false;
+    var indicatorExited = false;
     // Show loading spinner
-    var dialog = showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
-    dialog.whenComplete(() => exited = true);
+    if (showIndicator) {
+      var dialog = showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+      dialog.whenComplete(() => indicatorExited = true);
+    }
     try {
       msg = await commonActionFunc(device, onChanged, task);
     } catch (e) {
       msg = e.toString();
     }
-    if (context.mounted && !exited) {
+    if (showIndicator && context.mounted && !indicatorExited) {
       Navigator.of(context).pop();
     }
     if (context.mounted) {

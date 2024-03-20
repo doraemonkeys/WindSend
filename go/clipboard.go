@@ -29,9 +29,8 @@ func clipboardWatcher() {
 		for data := range ch {
 			clipboarDataType = clipboardWatchDataTypeText
 			clipboardWatchData = data
-			//fmt.Println("text:", string(data))
+			// fmt.Println("text:", string(data))
 		}
-
 	}()
 	ch := clipboard.Watch(context.TODO(), clipboard.FmtImage)
 	for data := range ch {

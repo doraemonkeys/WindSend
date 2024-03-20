@@ -48,6 +48,7 @@ mixin AppLocale {
   static const String copySuccess = 'copySuccess';
   static const String pasteSuccess = 'pasteSuccess';
   static const String filesSaved = 'filesSaved';
+  static const String syncTextSuccess = 'syncTextSuccess';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -71,7 +72,7 @@ mixin AppLocale {
     addDevice: '添加设备',
     deviceName: '设备名称',
     followSystemTheme: '跟随系统主题',
-    defaultSyncDevice: '默认同步设备',
+    defaultSyncDevice: '默认同步设备(主页下拉)',
     defaultShareDevice: '默认分享设备',
     deviceNameLocal: '本机设备名称',
     fileSavePath: '文件保存路径',
@@ -99,6 +100,7 @@ mixin AppLocale {
     copySuccess: '复制成功',
     pasteSuccess: '粘贴成功',
     filesSaved: '%a 个文件已保存',
+    syncTextSuccess: '同步文本成功',
   };
 
   static const Map<String, dynamic> en = {
@@ -123,7 +125,7 @@ mixin AppLocale {
     addDevice: 'Add device',
     deviceName: 'Device name',
     followSystemTheme: 'Follow system theme',
-    defaultSyncDevice: 'Default sync device',
+    defaultSyncDevice: 'Default sync device (home page drop down)',
     defaultShareDevice: 'Default share device',
     deviceNameLocal: 'Local device name',
     fileSavePath: 'File save path',
@@ -151,6 +153,7 @@ mixin AppLocale {
     copySuccess: 'Copied',
     pasteSuccess: 'Paste successfully',
     filesSaved: '%a files saved',
+    syncTextSuccess: 'Sync text success',
   };
 
   static List<String> getSupportLanguageCode() {

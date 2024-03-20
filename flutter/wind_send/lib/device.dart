@@ -27,7 +27,9 @@ enum DeviceAction {
   pasteFile("pasteFile"),
   downloadAction("download"),
   webCopy("webCopy"),
-  webPaste("webPaste");
+  webPaste("webPaste"),
+  syncText("syncText"),
+  unKnown("unKnown");
 
   const DeviceAction(this.name);
   final String name;
@@ -450,6 +452,54 @@ class Device {
     throw Exception('Unknown data type: ${respHead.dataType}');
   }
 
+  /// 返回接收到的部分文本与发送出去的文本
+  Future<(String, String)> doSyncTextAction({
+    String? text,
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    String pasteText = '';
+    if (text != null && text.isNotEmpty) {
+      pasteText = text;
+    } else {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      if (clipboardData != null && clipboardData.text != null) {
+        pasteText = clipboardData.text!;
+      }
+    }
+
+    var conn = await SecureSocket.connect(
+      iP,
+      port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
+      },
+      timeout: timeout,
+    );
+    Uint8List pasteTextUint8 = utf8.encode(pasteText);
+    var headInfo = HeadInfo(AppConfigModel().deviceName,
+        DeviceAction.syncText.name, generateTimeipHeadHex(),
+        dataLen: pasteTextUint8.length);
+    await headInfo.writeToConnWithBody(conn, pasteTextUint8);
+    await conn.flush();
+    var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
+    conn.destroy();
+    if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      throw UnauthorizedException(respHead.msg ?? '');
+    }
+    if (respHead.code != respOkCode) {
+      throw Exception(respHead.msg);
+    }
+
+    final content = utf8.decode(respBody);
+    if (content.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: content));
+    }
+    if (content.length > 40) {
+      return ('${content.substring(0, 40)}...', pasteText);
+    }
+    return (content, pasteText);
+  }
+
   Future<int> _downloadFiles(List<TargetPaths> winFilePaths) async {
     // print('downloadFiles: ${jsonEncode(winFilePaths)}');
     String imageSavePath = AppConfigModel().imageSavePath;
@@ -696,7 +746,7 @@ class Device {
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
     }
-    if (respHead.code != 200) {
+    if (respHead.code != respOkCode) {
       throw Exception(respHead.msg);
     }
   }

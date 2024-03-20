@@ -8,10 +8,8 @@ use tracing::{debug, error, trace, warn};
 use crate::config::GLOBAL_CONFIG;
 use crate::route::resp::resp_error_msg;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum RouteAction {
-    #[default]
-    Unknown,
     #[serde(rename = "ping")]
     Ping,
     #[serde(rename = "pasteText")]
@@ -24,6 +22,16 @@ pub enum RouteAction {
     Download,
     #[serde(rename = "match")]
     Match,
+    #[serde(rename = "syncText")]
+    SyncText,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+impl std::default::Default for RouteAction {
+    fn default() -> Self {
+        RouteAction::Unknown("unknown".to_string())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -148,8 +156,11 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
             RouteAction::Match => {
                 let _ = match_handler(&mut conn).await;
             }
-            RouteAction::Unknown => {
-                let msg = format!("unknown action: {:?}", head.action);
+            RouteAction::SyncText => {
+                crate::route::paste::sync_text_handler(&mut conn, head).await;
+            }
+            RouteAction::Unknown(action) => {
+                let msg = format!("unknown action: {:?}", action);
                 let _ = crate::route::resp::resp_common_error_msg(&mut conn, &msg).await;
                 error!("{}", msg);
             }
