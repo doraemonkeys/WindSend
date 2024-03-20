@@ -108,6 +108,8 @@ if %errorlevel% equ 0 (
   pause
 )
 
+
+pause
 call flutter build windows --release
 
 if %errorlevel% equ 0 (
