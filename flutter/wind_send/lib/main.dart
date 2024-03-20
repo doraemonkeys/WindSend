@@ -529,6 +529,8 @@ class _MainBodyState extends State<MainBody> {
             ? MainBody.maxBodyWidth
             : null,
         child: RefreshIndicator(
+          triggerMode: RefreshIndicatorTriggerMode.anywhere,
+          displacement: 20,
           onRefresh: () async {
             if (AppConfigModel().defaultSyncDevice == null) {
               return;
