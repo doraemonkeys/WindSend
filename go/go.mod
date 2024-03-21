@@ -24,7 +24,7 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20240222234643-814bf88cf225 // indirect
+	golang.org/x/exp/shiny v0.0.0-20240318143956-a85f2c67cd81 // indirect
 	golang.org/x/image v0.15.0 // indirect
-	golang.org/x/mobile v0.0.0-20240213143359-d1f7d3436075 // indirect
+	golang.org/x/mobile v0.0.0-20240320162201-c76e57eead38 // indirect
 )
