@@ -394,3 +394,29 @@ pub fn get_system_lang() -> String {
     }
     lang
 }
+
+pub struct ClipboardManager {
+    lock: std::sync::Mutex<()>, // 用于确保同一时间只有一个线程尝试访问剪贴板
+}
+
+impl ClipboardManager {
+    pub fn new() -> Self {
+        Self {
+            lock: std::sync::Mutex::new(()),
+        }
+    }
+
+    pub fn with_clipboard<F, T, E>(&self, f: F) -> Result<T, String>
+    where
+        F: FnOnce(&mut arboard::Clipboard) -> Result<T, E>,
+        E: std::fmt::Debug,
+    {
+        let _guard = self
+            .lock
+            .lock()
+            .map_err(|e| format!("Failed to lock clipboard access: {}", e))?;
+        let mut clipboard = arboard::Clipboard::new()
+            .map_err(|e| format!("Failed to initialize clipboard: {}", e))?;
+        f(&mut clipboard).map_err(|e| format!("Failed to access clipboard: {:?}", e))
+    }
+}

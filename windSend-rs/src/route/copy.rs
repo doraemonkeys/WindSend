@@ -40,7 +40,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
             let files = files.into_iter().map(|f| f.display().to_string());
             let r = send_files(conn, files).await;
             if r.is_ok() {
-                let r = crate::config::CLIPBOARD.lock().unwrap().clear();
+                let r = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.clear());
                 if let Err(e) = r {
                     error!("clear clipboard failed, err: {}", e);
                 }
@@ -181,10 +181,9 @@ async fn send_files<T: IntoIterator<Item = String>>(
 
 async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
-    let raw_image = crate::config::CLIPBOARD.lock().unwrap().get_image();
+    let raw_image = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_image());
     if let Err(err) = raw_image {
-        let info = format!("{}", err);
-        return Err(info.into());
+        return Err(err.into());
     }
     let raw_image = raw_image.unwrap();
     let img_buf = image::ImageBuffer::from_vec(
@@ -208,12 +207,7 @@ async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::
 }
 
 async fn send_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
-    let data_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
-    if let Err(e) = data_text {
-        let info = format!("{}", e);
-        return Err(info);
-    }
-    let data_text = data_text.unwrap();
+    let data_text = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_text())?;
     send_msg_with_body(
         conn,
         &"".to_string(),

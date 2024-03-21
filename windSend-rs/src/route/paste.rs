@@ -14,8 +14,8 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
     {
-        let clipboard = &mut crate::config::CLIPBOARD.lock().unwrap();
-        let r = clipboard.set_text(body.clone());
+        let r =
+            crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.set_text(body.clone()));
         if let Err(e) = r {
             error!("set clipboard text failed, err: {}", e);
         }
@@ -25,25 +25,35 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
 }
 
 pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
-    let cur_clipboard_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
+    // let cur_clipboard_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
+    let mut body: Option<_> = None;
+    let mut body_buf = vec![0u8; head.data_len as usize];
     if head.data_len > 0 {
-        let mut body_buf = vec![0u8; head.data_len as usize];
         let r = conn.read_exact(&mut body_buf).await;
         if let Err(e) = r {
             error!("read body failed, err: {}", e);
         }
-        let body = String::from_utf8_lossy(&body_buf);
-        debug!("paste text data: {}", body);
-        {
-            let clipboard = &mut crate::config::CLIPBOARD.lock().unwrap();
-            let r = clipboard.set_text(body);
-            if r.is_err() && cur_clipboard_text.is_err() {
-                let msg = format!("set clipboard text failed, err: {}", r.unwrap_err());
+        body = Some(String::from_utf8_lossy(&body_buf));
+        debug!("paste text data: {}", body.as_ref().unwrap());
+    }
+
+    let mut cur_clipboard_text: Result<_, arboard::Error> = Ok("".to_string());
+    let f = |clipboard: &mut arboard::Clipboard| {
+        cur_clipboard_text = clipboard.get_text();
+        if let Some(body) = body {
+            if let Err(e) = clipboard.set_text(body) {
+                let msg = format!("set clipboard text failed, err: {}", e);
                 error!("{}", msg);
-                let _ = resp_common_error_msg(conn, &msg);
-                return;
+                if cur_clipboard_text.is_err() {
+                    return Err(msg);
+                }
             }
         }
+        Ok(())
+    };
+    if let Err(e) = crate::config::CLIPBOARD.with_clipboard(f) {
+        let _ = resp_common_error_msg(conn, &e).await;
+        return;
     }
     send_msg_with_body(
         conn,

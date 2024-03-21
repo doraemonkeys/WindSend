@@ -496,7 +496,7 @@ async fn handle_menu_event_save_path() {
 }
 
 async fn handle_menu_event_paste_to_web() {
-    let clipboard_text = config::CLIPBOARD.lock().unwrap().get_text();
+    let clipboard_text = config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_text());
     if let Err(e) = clipboard_text {
         error!("get clipboard text error: {}", e);
         utils::inform(
@@ -552,7 +552,7 @@ async fn handle_menu_event_copy_from_web() {
     }
     let content = content.unwrap();
     debug!("content: {}", content);
-    let result = config::CLIPBOARD.lock().unwrap().set_text(&content);
+    let result = config::CLIPBOARD.with_clipboard(|clipboard| clipboard.set_text(&content));
     if let Err(e) = result {
         error!("set clipboard text error: {}", e);
         return;

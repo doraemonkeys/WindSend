@@ -25,8 +25,7 @@ lazy_static! {
     pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
 }
 lazy_static! {
-    pub static ref CLIPBOARD: Mutex<arboard::Clipboard> =
-        Mutex::new(arboard::Clipboard::new().unwrap());
+    pub static ref CLIPBOARD: utils::ClipboardManager = utils::ClipboardManager::new();
 }
 lazy_static! {
     pub static ref ALLOW_TO_BE_SEARCHED: Mutex<bool> = Mutex::new(false);
@@ -279,9 +278,7 @@ pub async fn set_clipboard_from_img_bytes(bytes: &[u8]) -> Result<(), ()> {
         bytes: Cow::from(rgba8_img.into_bytes()),
     };
     crate::config::CLIPBOARD
-        .lock()
-        .map_err(|e| error!("get clipboard lock failed, err: {}", e))?
-        .set_image(img_data)
+        .with_clipboard(|clipboard| clipboard.set_image(img_data))
         .map_err(|e| error!("set clipboard image failed, err: {}", e))?;
     Ok(())
 }
