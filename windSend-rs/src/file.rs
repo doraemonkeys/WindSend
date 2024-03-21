@@ -165,6 +165,7 @@ impl FileReceiver {
         let file = tokio::fs::OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(false)
             .open(&actual_save_path)
             .await?;
         if already_exist {
