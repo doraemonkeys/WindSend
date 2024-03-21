@@ -10,6 +10,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
 import 'package:wind_send/request.dart';
+import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
 import 'cnf.dart';
@@ -426,6 +427,7 @@ class MainBody extends StatefulWidget {
 class _MainBodyState extends State<MainBody> {
   var shareSuccessMsg =
       'Successfully shared to ${AppConfigModel().defaultShareDevice}';
+  // bool _showRefreshCompleteIndicator = false;
 
   @override
   void initState() {
@@ -528,9 +530,47 @@ class _MainBodyState extends State<MainBody> {
         width: MediaQuery.of(context).size.width > MainBody.maxBodyWidth
             ? MainBody.maxBodyWidth
             : null,
-        child: RefreshIndicator(
-          triggerMode: RefreshIndicatorTriggerMode.anywhere,
-          displacement: 20,
+        child: CustomRefreshIndicator(
+          // offsetToArmed: 20, // << Change it to whatever fit your requirement
+          // durations: const RefreshIndicatorDurations(
+          //   completeDuration: Duration(milliseconds: 1000),
+          // ),
+          builder: (context, child, controller) {
+            return Stack(
+              children: [
+                AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, _) {
+                    // 使用controller的value来获取当前进度，这个值在0和1之间变化
+                    final progress = controller.value;
+                    // 根据进度调整透明度，使得CircularProgressIndicator逐渐显示
+                    final opacity = progress.clamp(0.0, 1.0);
+                    return Positioned(
+                      top: 40.0 * opacity - 25.0, // 根据进度调整位置，使其看起来像是下拉显示的
+                      left: 0.0,
+                      right: 0.0,
+                      child: Opacity(
+                        opacity: opacity,
+                        // 显示一个旋转的进度指示器
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value:
+                                controller.isLoading ? null : controller.value,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // 这里是滚动视图或列表
+                Transform.translate(
+                  offset: Offset(0.0,
+                      60.0 * controller.value), // 根据进度下移child，给顶部的进度指示器留出空间
+                  child: child,
+                ),
+              ],
+            );
+          },
           onRefresh: () async {
             if (AppConfigModel().defaultSyncDevice == null) {
               return;
@@ -654,6 +694,7 @@ class DeviceItem extends StatefulWidget {
       Future<String> Function() task,
       {bool showIndicator = true}) async {
     String msg = '';
+    bool isErrored = false;
     var indicatorExited = false;
     // Show loading spinner
     if (showIndicator) {
@@ -672,6 +713,7 @@ class DeviceItem extends StatefulWidget {
       msg = await commonActionFunc(device, onChanged, task);
     } catch (e) {
       msg = e.toString();
+      isErrored = true;
     }
     if (showIndicator && context.mounted && !indicatorExited) {
       Navigator.of(context).pop();
@@ -682,6 +724,14 @@ class DeviceItem extends StatefulWidget {
         context,
         duration: 3,
         position: FlutterToastr.bottom,
+        border: Border.all(
+          // color: Theme.of(context).colorScheme.inversePrimary,
+          color: isErrored
+              ? Theme.of(context).colorScheme.error
+              : Theme.of(context).colorScheme.inversePrimary,
+          width: 2.5,
+          style: BorderStyle.solid,
+        ),
       );
     }
   }
