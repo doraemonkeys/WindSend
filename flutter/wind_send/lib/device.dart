@@ -491,7 +491,8 @@ class Device {
     }
 
     final content = utf8.decode(respBody);
-    if (content.isNotEmpty) {
+    // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+    if (content.isNotEmpty && content != pasteText) {
       await Clipboard.setData(ClipboardData(text: content));
     }
     if (content.length > 40) {

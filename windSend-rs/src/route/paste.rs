@@ -41,6 +41,10 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
     let f = |clipboard: &mut arboard::Clipboard| {
         cur_clipboard_text = clipboard.get_text();
         if let Some(body) = body {
+            // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+            if cur_clipboard_text.is_ok() && cur_clipboard_text.as_ref().unwrap() == &body {
+                return Ok(());
+            }
             if let Err(e) = clipboard.set_text(body) {
                 let msg = format!("set clipboard text failed, err: {}", e);
                 error!("{}", msg);

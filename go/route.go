@@ -202,7 +202,10 @@ func syncTextHandler(conn net.Conn, head headInfo) {
 			respCommonError(conn, ErrorIncompleteData+": "+err.Error())
 			return
 		}
-		clipboard.Write(clipboard.FmtText, bodyBuf)
+		// 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+		if string(bodyBuf) != string(curClipboardText) {
+			clipboard.Write(clipboard.FmtText, bodyBuf)
+		}
 	}
 	var _ = sendMsgWithBody(conn, "SyncSuccess", DataTypeText, curClipboardText)
 }
