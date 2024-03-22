@@ -10,7 +10,7 @@ A set of applications for quickly and securely transferring clipboards, transfer
 
 - **Security** - All data is transmitted encrypted (even if it is a LAN, some people want to be more secure, such as me)
 - **Simple** - The interface is simple and easy to use, open source, free of advertising, and focuses on information transmission
-- **Comprehensive** - Automatically match the computer with the same key in the LAN, and don't worry about switching wifi. It also provides solutions for computers that are not in the same LAN
+- **Comprehensive** - Automatically match the computer with the same key in the LAN, and don't worry about switching wifi
 - **Worry-free** - Don't worry about the connection status with the computer anymore, as long as the computer is online, the mobile phone can send
 - **Fast** - Use multi-threaded asynchronous transmission of files to make full use of bandwidth.
 - **Lightweight** - Does not depend on additional runtime environment, memory usage is less than 10M when idle, and basically no CPU consumption
