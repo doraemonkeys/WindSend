@@ -3,6 +3,9 @@ name: Rust Tests
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "windSend-rs/**"
+      - "!windSend-rs/.gitingore"
   workflow_dispatch:
 
 jobs:
