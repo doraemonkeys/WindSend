@@ -3,6 +3,8 @@ name: Go Tests
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "go/**"
   workflow_dispatch:
 
 jobs:
