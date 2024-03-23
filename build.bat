@@ -23,12 +23,12 @@ call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" 
 go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
 
 cd ../bin
-md %goServerProgramName%-amd64-windows
-move ../go/%goServerProgramName%.exe %goServerProgramName%-amd64-windows/%goServerProgramName%.exe
-xcopy ..\README.md %goServerProgramName%-amd64-windows /y
-xcopy ..\README-EN.md %goServerProgramName%-amd64-windows /y
-xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-amd64-windows /y
-zip -r %goServerProgramName%-amd64-windows.zip %goServerProgramName%-amd64-windows
+md %goServerProgramName%-x86_64-windows
+move ../go/%goServerProgramName%.exe %goServerProgramName%-x86_64-windows/%goServerProgramName%.exe
+xcopy ..\README.md %goServerProgramName%-x86_64-windows /y
+xcopy ..\README-EN.md %goServerProgramName%-x86_64-windows /y
+xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-x86_64-windows /y
+zip -r %goServerProgramName%-x86_64-windows.zip %goServerProgramName%-x86_64-windows
 cd ../go  
 
 
@@ -64,12 +64,12 @@ call sed -i '0,/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/s/version = "[0-9]\+\.[0-9
 
 cargo build --release
 cd ../bin
-md %rustServerProgramName%-amd64-windows
-move ..\windSend-rs\target\release\%rustPjName%.exe %rustServerProgramName%-amd64-windows/%rustServerProgramName%.exe
-xcopy ..\README.md %rustServerProgramName%-amd64-windows /y
-xcopy ..\README-EN.md %rustServerProgramName%-amd64-windows /y
-xcopy "..\windSend-rs\%ServerProgramIconName%" %rustServerProgramName%-amd64-windows /y
-zip -r %rustServerProgramName%-amd64-windows.zip %rustServerProgramName%-amd64-windows
+md %rustServerProgramName%-x86_64-windows
+move ..\windSend-rs\target\release\%rustPjName%.exe %rustServerProgramName%-x86_64-windows/%rustServerProgramName%.exe
+xcopy ..\README.md %rustServerProgramName%-x86_64-windows /y
+xcopy ..\README-EN.md %rustServerProgramName%-x86_64-windows /y
+xcopy "..\windSend-rs\%ServerProgramIconName%" %rustServerProgramName%-x86_64-windows /y
+zip -r %rustServerProgramName%-x86_64-windows.zip %rustServerProgramName%-x86_64-windows
 
 
 
@@ -114,10 +114,10 @@ call flutter build windows --release
 
 if %errorlevel% equ 0 (
   echo Build Windows Success!
-  xcopy /s /y build\windows\x64\runner\Release ..\..\bin\%appName%-flutter-amd64-windows\
-  xcopy ..\..\README.md ..\..\bin\%appName%-flutter-amd64-windows\ /y
+  xcopy /s /y build\windows\x64\runner\Release ..\..\bin\%appName%-flutter-x86_64-windows\
+  xcopy ..\..\README.md ..\..\bin\%appName%-flutter-x86_64-windows\ /y
   cd ..\..\bin
-  zip -r %appName%-flutter-client-amd64-windows.zip %appName%-flutter-amd64-windows
+  zip -r %appName%-flutter-client-x86_64-windows.zip %appName%-flutter-x86_64-windows
 ) else (
   echo Build Windows Failed!
 )
