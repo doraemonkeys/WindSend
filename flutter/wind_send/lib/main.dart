@@ -807,6 +807,7 @@ class _DeviceItemState extends State<DeviceItem> {
   Widget build(BuildContext context) {
     // print('build DeviceItem');
     return Card(
+      margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
       child: ExpansionTile(
         key: ValueKey(
             '${widget.device.targetDeviceName}${widget.device.unFold}'),
@@ -832,6 +833,10 @@ class _DeviceItemState extends State<DeviceItem> {
           widget.saveChange(widget.device);
         },
         shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            width: 2,
+          ),
           borderRadius: BorderRadius.circular(10),
         ),
         trailing: Row(
@@ -962,6 +967,14 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
         ),
       );
     }
+  }
+  if (device.actionWebCopy || device.actionWebPaste) {
+    result.add(Divider(
+      // color: Theme.of(context).colorScheme.onSurfaceVariant,
+      height: 1,
+      color: Theme.of(context).colorScheme.surface,
+      thickness: 2,
+    ));
   }
   if (device.actionWebCopy) {
     result.add(
