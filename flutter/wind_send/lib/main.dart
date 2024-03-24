@@ -453,7 +453,7 @@ class _MainBodyState extends State<MainBody> {
         var defaultDevice = widget.devices.firstWhere(
             (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
         var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFuncWithToastr(context, defaultDevice,
+        DeviceCard.commonActionFuncWithToastr(context, defaultDevice,
             (Device d) {
           widget.devices[defaultDeviceIndex] = d;
           AppSharedCnfService.devices = widget.devices;
@@ -490,7 +490,7 @@ class _MainBodyState extends State<MainBody> {
         var defaultDevice = widget.devices.firstWhere(
             (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
         var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-        DeviceItem.commonActionFuncWithToastr(context, defaultDevice,
+        DeviceCard.commonActionFuncWithToastr(context, defaultDevice,
             (Device d) {
           widget.devices[defaultDeviceIndex] = d;
           AppSharedCnfService.devices = widget.devices;
@@ -582,7 +582,7 @@ class _MainBodyState extends State<MainBody> {
             }
             var defaultDevice = widget.devices.firstWhere((e) =>
                 e.targetDeviceName == AppConfigModel().defaultSyncDevice!);
-            return DeviceItem.commonActionFuncWithToastr(
+            return DeviceCard.commonActionFuncWithToastr(
               context,
               defaultDevice,
               (_) => widget.devicesRebuild(),
@@ -612,7 +612,7 @@ class _MainBodyState extends State<MainBody> {
               itemCount: widget.devices.length,
               itemBuilder: (context, index) {
                 // print('build MainBody,index: $index');
-                return DeviceItem(
+                return DeviceCard(
                   device: widget.devices[index],
                   devices: widget.devices,
                   saveChange: (device) {
@@ -633,12 +633,12 @@ class _MainBodyState extends State<MainBody> {
   }
 }
 
-class DeviceItem extends StatefulWidget {
+class DeviceCard extends StatefulWidget {
   final Device device;
   final List<Device> devices;
   final void Function(Device device) saveChange;
   final void Function() onDelete;
-  const DeviceItem({
+  const DeviceCard({
     super.key,
     required this.device,
     required this.devices,
@@ -737,10 +737,83 @@ class DeviceItem extends StatefulWidget {
   }
 
   @override
-  State<DeviceItem> createState() => _DeviceItemState();
+  State<DeviceCard> createState() => _DeviceCardState();
 }
 
-class _DeviceItemState extends State<DeviceItem> {
+class _DeviceCardState extends State<DeviceCard> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // print('build DeviceItem');
+    return Card(
+      elevation: 2,
+      // shadowColor: Theme.of(context).colorScheme.secondaryContainer,
+      margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+      child: ExpansionTile(
+        key: ValueKey(
+            '${widget.device.targetDeviceName}${widget.device.unFold}'),
+        title: GestureDetector(
+          onLongPress: () {
+            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
+          },
+          child: Text(
+            widget.device.targetDeviceName,
+            textAlign: TextAlign.center,
+          ),
+        ),
+        leading: const Icon(Icons.computer),
+        subtitle: GestureDetector(
+          onLongPress: () {
+            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
+          },
+          child: Text(widget.device.iP, textAlign: TextAlign.center),
+        ),
+        initiallyExpanded: widget.device.unFold,
+        onExpansionChanged: (value) {
+          widget.device.unFold = value;
+          widget.saveChange(widget.device);
+        },
+        shape: RoundedRectangleBorder(
+          // side: BorderSide(
+          //   color: Theme.of(context).colorScheme.secondaryContainer,
+          //   width: 2,
+          // ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_square),
+              onPressed: () async {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TextEditPage(
+                      device: widget.device,
+                      onChanged: () => setState(() {
+                        widget.saveChange(widget.device);
+                      }),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        children: deviceItemChilden(context, widget.device, (Device d) {
+          setState(() {
+            widget.saveChange(d);
+          });
+        }),
+      ),
+    );
+  }
+
   void deviceItemLongPressDialog(BuildContext context, String title) {
     showDialog(
       context: context,
@@ -802,67 +875,6 @@ class _DeviceItemState extends State<DeviceItem> {
       },
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    // print('build DeviceItem');
-    return Card(
-      margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-      child: ExpansionTile(
-        key: ValueKey(
-            '${widget.device.targetDeviceName}${widget.device.unFold}'),
-        title: GestureDetector(
-          onLongPress: () {
-            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
-          },
-          child: Text(
-            widget.device.targetDeviceName,
-            textAlign: TextAlign.center,
-          ),
-        ),
-        leading: const Icon(Icons.computer),
-        subtitle: GestureDetector(
-          onLongPress: () {
-            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
-          },
-          child: Text(widget.device.iP, textAlign: TextAlign.center),
-        ),
-        initiallyExpanded: widget.device.unFold,
-        onExpansionChanged: (value) {
-          widget.device.unFold = value;
-          widget.saveChange(widget.device);
-        },
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit_square),
-              onPressed: () async {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TextEditPage(device: widget.device),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        children: deviceItemChilden(context, widget.device, (Device d) {
-          setState(() {
-            widget.saveChange(d);
-          });
-        }),
-      ),
-    );
-  }
 }
 
 List<Widget> deviceItemChilden(BuildContext context, Device device,
@@ -893,7 +905,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFuncWithToastr(
+            await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               var (c, count) = await device.doCopyAction();
               if (count != 0) {
@@ -920,7 +932,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
-            await DeviceItem.commonActionFuncWithToastr(
+            await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () {
               String successMsg =
                   context.formatString(AppLocale.pasteSuccess, []);
@@ -949,7 +961,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onTap: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
-            await DeviceItem.commonActionFuncWithToastr(
+            await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               await device.doPasteFileAction();
               return successMsg;
@@ -958,7 +970,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onLongPress: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
-            await DeviceItem.commonActionFuncWithToastr(
+            await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               await device.doPasteDirAction();
               return successMsg;
@@ -992,7 +1004,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
         onTap: () async {
           String successMsg =
               context.formatString(AppLocale.operationSuccess, []);
-          await DeviceItem.commonActionFuncWithToastr(
+          await DeviceCard.commonActionFuncWithToastr(
               context, device, onChanged, () async {
             String msg = await device.doCopyActionWeb();
             return msg.isEmpty ? successMsg : '$successMsg\n$msg';
@@ -1017,7 +1029,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
         onTap: () async {
           String successMsg =
               context.formatString(AppLocale.operationSuccess, []);
-          await DeviceItem.commonActionFuncWithToastr(
+          await DeviceCard.commonActionFuncWithToastr(
               context, device, onChanged, () async {
             await device.doPasteTextActionWeb();
             return successMsg;
