@@ -985,7 +985,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
       // color: Theme.of(context).colorScheme.onSurfaceVariant,
       height: 1,
       color: Theme.of(context).colorScheme.surface,
-      thickness: 2,
+      thickness: 1,
     ));
   }
   if (device.actionWebCopy) {
