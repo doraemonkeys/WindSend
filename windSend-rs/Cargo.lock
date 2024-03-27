@@ -4578,6 +4578,7 @@ dependencies = [
  "aes",
  "anyhow",
  "arboard",
+ "aws-lc-sys",
  "cbc",
  "chrono",
  "cipher",

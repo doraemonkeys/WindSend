@@ -74,6 +74,7 @@ socket2 = { features = ["all"], version = "0.5.5" }
 # tokio-rustls = { path = "./tokio-rustls" }
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
 openssl = { version = "*", features = ["vendored"] }
+aws-lc-sys = { version = "*", features = ["bindgen"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
 tao = "0.26.0"
