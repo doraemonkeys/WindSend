@@ -29,12 +29,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
 
       - name: Install NASM for tokio-rustls(aws-lc-rs) on Windows
+        if: matrix.os == 'windows-latest'
         uses: ilammy/setup-nasm@v1
 
       - name: Install ninja-build tool for tokio-rustls(aws-lc-rs) on Windows
+        if: matrix.os == 'windows-latest'
         uses: seanmiddleditch/gha-setup-ninja@v4
 
       - name: CMake Action
+        if: matrix.os == 'windows-latest'
         uses: threeal/cmake-action@v1.3.0
 
       - name: Build ${{ matrix.os }}
@@ -62,6 +65,15 @@ jobs:
         with:
           toolchain: stable
           target: aarch64-pc-windows-msvc
+
+      - name: Install NASM for tokio-rustls(aws-lc-rs) on Windows
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install ninja-build tool for tokio-rustls(aws-lc-rs) on Windows
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: CMake Action
+        uses: threeal/cmake-action@v1.3.0
 
       - name: Build aarch64-pc-windows-msvc
         working-directory: ./windSend-rs
