@@ -55,7 +55,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### 移动端
 
-1. 安装APP(一般选 app-armeabi-v8a-release.apk)。
+1. 安装APP(一般选 flutter-arm64-v8a-release.apk)。
 2. 打开APP，点击右下角的加号配置。
 
 

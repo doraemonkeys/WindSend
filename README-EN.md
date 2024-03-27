@@ -52,7 +52,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### Mobile
 
-1. Install the APP (generally select app-armeabi-v8a-release.apk).
+1. Install the APP (generally select flutter-arm64-v8a-release.apk).
 2. Open the app and click the Add button to add a device.
 
    <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242148381.png" alt="image-20240124214205549" style="zoom:50%;" />
