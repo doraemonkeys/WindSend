@@ -116,18 +116,26 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
             .is_ok();
     }
     let mut file_writer = file_writer.unwrap();
-    // 8 is a magic number
-    let buf_size = std::cmp::max((data_len / 8) as usize, 4096);
-    let buf_size = std::cmp::min(buf_size, 50 * 1024 * 1024);
+
     let (conn_reader, mut conn_writer) = tokio::io::split(conn);
-    // let mut reader =
-    //     tokio::io::BufReader::with_capacity(buf_size, conn_reader.take(data_len as u64));
-    let mut buf_writer = tokio::io::BufWriter::with_capacity(buf_size, &mut file_writer);
-    // rust需要写缓冲速度才会上来，go读缓冲速度最快。
+    // 8 is a magic number
+    // let write_buf_size = std::cmp::max((data_len / 8) as usize, 4096);
+    // let write_buf_size = std::cmp::min(write_buf_size, 50 * 1024 * 1024);
+    let mut write_buf_size = std::cmp::min(data_len, 4 * 1024 * 1024) as usize;
+    if (data_len / 8) > (4 * 1024 * 1024) && (data_len / 8) < (10 * 1024 * 1024) {
+        write_buf_size = (data_len / 8) as usize;
+    }
+    // let write_buf_size = std::cmp::min(write_buf_size, 50 * 1024 * 1024);
+    // let copy_buffer_size = std::cmp::min(data_len, 3 * 1024 * 1024) as usize;
+    // let mut conn_buf_reader =
+    //     tokio::io::BufReader::with_capacity(copy_buffer_size, conn_reader.take(data_len as u64));
+    let mut file_buf_writer = tokio::io::BufWriter::with_capacity(write_buf_size, &mut file_writer);
+
+    // rust需要写缓冲速度才会上来。
     // rust只开启读缓冲或同时开启写缓冲和读缓冲速度都很慢。
-    let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut buf_writer).await;
-    // let n = tokio::io::copy(&mut reader, &mut file_writer).await;
-    if let Err(err) = buf_writer.flush().await {
+    let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut file_buf_writer).await;
+    // let n = tokio::io::copy_buf(&mut conn_buf_reader, &mut file_buf_writer).await;
+    if let Err(err) = file_buf_writer.flush().await {
         error!("flush file writer failed, err: {}", err);
         return resp_common_error_msg(
             &mut conn_writer,

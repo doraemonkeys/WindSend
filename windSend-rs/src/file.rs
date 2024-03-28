@@ -172,6 +172,16 @@ impl FileReceiver {
             return Ok(file);
         }
 
+        let mut file = file;
+        if head.file_size != 0 {
+            // file.set_len(head.file_size as u64).await?;
+            use tokio::io::AsyncWriteExt;
+            file.seek(SeekFrom::Start((head.file_size - 1) as u64))
+                .await?;
+            file.write_all(&[0x11]).await?;
+        }
+        let file = file;
+
         let (tx, rx) = tokio::sync::oneshot::channel();
         let items = LockedItem {
             part: Vec::new(),

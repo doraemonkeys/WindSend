@@ -75,6 +75,14 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	if fileSize != 0 {
+		// 第一次调用WriteAt并发写入文件时产生了较大的性能问题(等待1s-6s)，
+		// 所以在这里文件预分配空间。0x11是一个随意的字节。
+		if _, err = file.WriteAt([]byte{0x11}, fileSize-1); err != nil {
+			_ = file.Close()
+			return nil, err
+		}
+	}
 	var Info = &recvfileInfo{file: file, filePath: filePath, expSize: fileSize}
 	Info.partLock = new(sync.Mutex)
 	Info.downChan = make(chan bool, 1)
@@ -241,34 +249,33 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 		logrus.Error(errMsg)
 		return respCommonError(conn, errMsg)
 	}
-
-	var bufSize = max(int(dataLen/8), 4096) // 8 is a magic number
-	bufSize = min(bufSize, 50*1024*1024)
+	// var bufSize = max(int(dataLen/8), 4096) // 8 is a magic number
+	// bufSize = min(bufSize, 50*1024*1024)
 	// fmt.Println("bufSize:", bufSize)
-	reader := bufio.NewReaderSize(conn, bufSize)
+	// reader := bufio.NewReaderSize(conn, bufSize)
 	file, err := GlobalFileReceiver.GetFile(head)
 	if err != nil {
 		logrus.Error("create file error:", err)
 		return respCommonError(conn, err.Error())
 	}
-	fileWriter := NewFileWriter(file, int(head.Start), int(head.End))
-	// fileBufWriter := bufio.NewWriterSize(fileWriter, bufSize)
-	// n, err := io.CopyN(fileWriter, reader, dataLen)
-	n, err := io.CopyN(fileWriter, reader, dataLen)
-	// n, err := reader.WriteTo(fileWriter)
-	if err != nil && err != io.EOF {
+	fileWriter := NewPartFileWriter(file, int(head.Start), int(head.End))
+	fileWriterbufSize := min(dataLen, 4*1024*1024)
+	fileWriterWithBuf := bufio.NewWriterSize(fileWriter, int(fileWriterbufSize))
+	// 在网速快的时候测试，conn大概每次调用Read能读取8000字节(windows)
+	copyBufferSize := min(dataLen, 3*1024*1024)
+	// n, err := io.CopyN(fileWriterWithBuf, conn, dataLen)
+	written, err := io.CopyBuffer(fileWriterWithBuf, io.LimitReader(conn, dataLen),
+		make([]byte, copyBufferSize))
+	if err != nil {
 		logrus.Error("write file error:", err)
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
 		return respCommonError(conn, err.Error())
 	}
-	if n < dataLen {
-		logrus.Errorln("write file error, n:", n, " dataLen:", dataLen)
-		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, errors.New(ErrorIncompleteData))
-		return respCommonError(conn, ErrorIncompleteData)
-	}
-	if n > dataLen {
-		// should not happen
-		logrus.Warnln("write file error, n:", n, "dataLen:", dataLen)
+	if written < dataLen {
+		// conn stopped early
+		err = errors.New(ErrorIncompleteData)
+		logrus.Errorln(err)
+		return respCommonError(conn, err.Error())
 	}
 	// part written successfully
 	noSocketErr = true
@@ -318,29 +325,30 @@ func createDirOnlyHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 	return true
 }
 
-type FileWriter struct {
+type PartFileWriter struct {
 	pos  int
 	end  int
 	file *os.File
 }
 
-func NewFileWriter(file *os.File, pos int, end int) *FileWriter {
-	return &FileWriter{
+func NewPartFileWriter(file *os.File, pos int, end int) *PartFileWriter {
+	return &PartFileWriter{
 		pos:  pos,
 		end:  end,
 		file: file,
 	}
 }
 
-func (fw *FileWriter) Write(p []byte) (n int, err error) {
+func (fw *PartFileWriter) Write(p []byte) (n int, err error) {
+	now := time.Now()
+	fmt.Println("end:", fw.end, " write file:", len(p), " pos:", fw.pos, " time:", now)
 	if len(p)+fw.pos > fw.end {
-		logrus.Warnln("write file error, len(p):", len(p), " pos:", fw.pos, " end:", fw.end)
-		p = p[:fw.end-fw.pos]
+		// logrus.Warnln("write file error, len(p):", len(p), " pos:", fw.pos, " end:", fw.end)
+		// p = p[:fw.end-fw.pos]
+		return 0, fmt.Errorf("write file overflow, len(p):%d, pos:%d, end:%d", len(p), fw.pos, fw.end)
 	}
 	n, err = fw.file.WriteAt(p, int64(fw.pos))
 	fw.pos += n
-	if fw.pos >= fw.end && err == nil {
-		err = io.EOF
-	}
+	fmt.Println("end:", fw.end, "write file cost:", time.Since(now))
 	return
 }
