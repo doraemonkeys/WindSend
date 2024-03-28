@@ -243,6 +243,7 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 	}
 
 	var bufSize = max(int(dataLen/8), 4096) // 8 is a magic number
+	bufSize = min(bufSize, 50*1024*1024)
 	// fmt.Println("bufSize:", bufSize)
 	reader := bufio.NewReaderSize(conn, bufSize)
 	file, err := GlobalFileReceiver.GetFile(head)
