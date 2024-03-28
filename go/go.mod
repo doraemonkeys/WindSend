@@ -1,6 +1,6 @@
 module github.com/doraemonkeys/WindSend
 
-go 1.21
+go 1.22
 
 require (
 	fyne.io/systray v1.10.0
@@ -24,7 +24,7 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20240318143956-a85f2c67cd81 // indirect
+	golang.org/x/exp/shiny v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/image v0.15.0 // indirect
-	golang.org/x/mobile v0.0.0-20240320162201-c76e57eead38 // indirect
+	golang.org/x/mobile v0.0.0-20240326195318-268e6c3a80d1 // indirect
 )
