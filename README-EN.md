@@ -31,7 +31,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### PC
 
-1. Unzip **WindSend-S-XX-amd64-windows.zip** to any directory (providing Rust and Go implementations).
+1. Unzip **WindSend-S-XX-x86_64-windows.zip** to any directory (providing Rust and Go implementations).
 
 2. Double-click the exe file to run:
    Please click to allow windows firewall, **Note** check the public network (bold check, all content is encrypted).

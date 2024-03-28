@@ -33,7 +33,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### PC端
 
-1. 解压 **WindSend-S-XX-amd64-windows.zip** 到任意目录(提供Rust与Go两种实现) 。
+1. 解压 **WindSend-S-XX-x86_64-windows.zip** 到任意目录(提供Rust与Go两种实现) 。
 
 2. 双击exe文件运行：
 
