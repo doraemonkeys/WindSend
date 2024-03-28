@@ -474,6 +474,11 @@ class FileDownloader {
     // print('newFile fileSavePath: $fileSavePath');
     // print('------------------------------------');
     var fileAccess = await file.open(mode: FileMode.write);
+    if (targetFileSize != 0) {
+      // 预分配空间
+      fileAccess.setPositionSync(targetFileSize - 1);
+      fileAccess.writeByteSync(1);
+    }
 
     int partSize = targetFileSize ~/ threadNum;
     if (partSize < minPartSize) {
