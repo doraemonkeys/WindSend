@@ -36,10 +36,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: seanmiddleditch/gha-setup-ninja@v4
 
-      - name: CMake Action
-        if: matrix.os == 'windows-latest'
-        uses: threeal/cmake-action@v1.3.0
-
       - name: Build ${{ matrix.os }}
         working-directory: ./windSend-rs
         run: cargo build --verbose
@@ -71,9 +67,6 @@ jobs:
 
       - name: Install ninja-build tool for tokio-rustls(aws-lc-rs) on Windows
         uses: seanmiddleditch/gha-setup-ninja@v4
-
-      - name: CMake Action
-        uses: threeal/cmake-action@v1.3.0
 
       - name: Build aarch64-pc-windows-msvc
         working-directory: ./windSend-rs
