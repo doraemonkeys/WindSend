@@ -66,7 +66,7 @@ class AppSharedCnfService {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
           fileSavePath = '/storage/emulated/0/Download/WindSend';
-          await Directory(fileSavePath).create(recursive: true);
+          // await Directory(fileSavePath).create(recursive: true); // 可能没有权限
           break;
         default:
           fileSavePath = "./";
@@ -97,7 +97,7 @@ class AppSharedCnfService {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
           imageSavePath = '/storage/emulated/0/Pictures/WindSend';
-          await Directory(imageSavePath).create(recursive: true);
+          // await Directory(imageSavePath).create(recursive: true);
           break;
         default:
           imageSavePath = "./";

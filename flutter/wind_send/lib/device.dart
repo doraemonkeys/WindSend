@@ -572,7 +572,8 @@ class Device {
       // check permission
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
-        if (!await Permission.manageExternalStorage.request().isGranted) {
+        if (androidInfo.version.sdkInt >= 30 &&
+            !await Permission.manageExternalStorage.request().isGranted) {
           throw Exception('need manageExternalStorage permission');
         }
         if (androidInfo.version.sdkInt > 32) {
@@ -623,7 +624,8 @@ class Device {
     // check permission
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (!await Permission.manageExternalStorage.request().isGranted) {
+      if (androidInfo.version.sdkInt >= 30 &&
+          !await Permission.manageExternalStorage.request().isGranted) {
         throw Exception('need manageExternalStorage permission');
       }
       if (androidInfo.version.sdkInt > 32) {
