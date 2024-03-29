@@ -652,7 +652,6 @@ class DeviceCard extends StatefulWidget {
       void Function(Device device) onChanged,
       Future<String> Function() task) async {
     String successMsg = '';
-    String errorMsg = '';
     for (var i = 0;; i++) {
       dynamic tempErr;
       try {
@@ -662,7 +661,7 @@ class DeviceCard extends StatefulWidget {
         tempErr = e;
         SharedLogger()
             .logger
-            .e('commonActionFunc failed(try: $i)', error: e, stackTrace: s);
+            .i('commonActionFunc failed(try: $i)', error: e, stackTrace: s);
         // print('commonActionFunc err: $err\n, $s');
       }
       if (i == 0 &&
@@ -670,19 +669,15 @@ class DeviceCard extends StatefulWidget {
           device.autoSelect &&
           (tempErr is SocketException || tempErr is UnauthorizedException)) {
         if (!await device.findServer()) {
-          errorMsg = tempErr.toString();
-          break;
+          // errorMsg = tempErr.toString();
+          throw tempErr;
         }
         onChanged(device);
         continue;
       }
       if (i >= 1) {
-        errorMsg = tempErr.toString();
-        break;
+        throw tempErr;
       }
-    }
-    if (errorMsg.isNotEmpty) {
-      throw Exception(errorMsg);
     }
     return successMsg;
   }
