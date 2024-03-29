@@ -368,7 +368,7 @@ class FileDownloader {
     this.device,
     this.localDeviceName, {
     this.threadNum = 6,
-    this.maxChunkSize = 1024 * 1024 * 50,
+    this.maxChunkSize = 1024 * 1024 * 25,
     this.minPartSize = 1024 * 1024 * 3,
     this.connTimeout = const Duration(seconds: 4),
   }) {
