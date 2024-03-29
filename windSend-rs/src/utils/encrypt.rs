@@ -1,4 +1,3 @@
-use aes;
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 // use anyhow::Ok;
 use rand::thread_rng;
@@ -30,13 +29,6 @@ pub fn compute_sha256(bytes: &[u8]) -> [u8; 32] {
     let mut hasher = sha2::Sha256::new();
     hasher.update(bytes);
     hasher.finalize().into()
-}
-
-pub trait AsymCryptor {
-    fn encrypt(&self, data: &[u8]) -> anyhow::Result<&[u8]>;
-    fn decrypt(&self, data: &[u8]) -> anyhow::Result<&[u8]>;
-    fn sign(&self, data: &[u8]) -> anyhow::Result<&[u8]>;
-    fn verify(&self, data: &[u8], signature: &[u8]) -> bool;
 }
 
 pub trait SymCryptor {
