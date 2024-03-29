@@ -3,10 +3,13 @@ use rcgen::{
     KeyUsagePurpose, SanType,
 };
 
-use std::io::{Error, ErrorKind};
+use std::{
+    io::{Error, ErrorKind},
+    str::FromStr,
+};
 use time::{ext::NumericalDuration, OffsetDateTime};
 
-pub fn gen_ca() -> Result<Certificate, Box<dyn std::error::Error>> {
+pub fn gen_ca() -> Result<(Certificate, rcgen::KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, crate::PROGRAM_NAME);
@@ -21,7 +24,7 @@ pub fn gen_ca() -> Result<Certificate, Box<dyn std::error::Error>> {
     ];
     params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     params.subject_alt_names = vec![
-        SanType::DnsName("localhost".to_string()),
+        SanType::DnsName(rcgen::Ia5String::from_str("localhost")?),
         SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))),
         SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::new(
             0, 0, 0, 0, 0, 0, 0, 1,
@@ -39,24 +42,14 @@ pub fn gen_ca() -> Result<Certificate, Box<dyn std::error::Error>> {
         ))?;
     // params.alg = &rcgen::PKCS_ECDSA_P256_SHA256;
 
-    Ok(Certificate::from_params(params)?)
-
-    // rcgen main branch
-    // let key_pair = rcgen::KeyPair::generate()?;
-    // Ok((
-    //     Certificate::generate_self_signed(params, &key_pair)?,
-    //     key_pair,
-    // ))
+    let key_pair = rcgen::KeyPair::generate()?;
+    Ok((params.self_signed(&key_pair)?, key_pair))
 }
 
 pub fn generate_self_signed_cert_with_privkey(
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
-    // // rcgen main branch
-    // let (cert, key_pair) = gen_ca()?;
-
-    let cert = gen_ca()?;
-    let cert_crt = cert.serialize_pem()?;
-
-    let private_key = cert.serialize_private_key_pem();
+    let (cert, key_pair) = gen_ca()?;
+    let cert_crt = cert.pem();
+    let private_key = key_pair.serialize_pem();
     Ok((cert_crt, private_key))
 }
