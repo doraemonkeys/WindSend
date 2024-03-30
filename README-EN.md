@@ -28,10 +28,15 @@ A set of applications for quickly and securely transferring clipboards, transfer
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
 
+> PC: You can choose to download **WindSend-S**-XX-x86_64-XXXXX.zip (Provide two implementations of Rust and Go)
+>
+> Mobile: You can choose to download **WindSend-flutter**-arm64-v8a-release.apk
+
+
 
 ### PC
 
-1. Unzip **WindSend-S-XX-x86_64-windows.zip** to any directory (providing Rust and Go implementations).
+1. Unzip **WindSend-S-XX-x86_64-windows.zip** to any directory (Take Windows).
 
 2. Double-click the exe file to run:
    Please click to allow windows firewall, **Note** check the public network (bold check, all content is encrypted).
@@ -52,7 +57,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### Mobile
 
-1. Install the APP (generally select flutter-arm64-v8a-release.apk).
+1. Install the APP.
 2. Open the app and click the Add button to add a device.
 
    <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242148381.png" alt="image-20240124214205549" style="zoom:50%;" />
@@ -88,7 +93,7 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 
 
 
-## Difference between Rust implementation and Go implementation?
+## Difference between Rust implementation and Go implementation
 
 The two versions are almost the same in function and appearance, but there are still slight differences in some aspects.
 

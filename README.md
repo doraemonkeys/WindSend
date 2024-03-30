@@ -29,11 +29,15 @@
 
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
+> PC端: 一般可以选择下载 **WindSend-S**-XX-x86_64-XXXXX.zip (提供Rust与Go两种实现)
+>
+> 移动端：一般可以选择下载 **WindSend-flutter**-arm64-v8a-release.apk
+
 
 
 ### PC端
 
-1. 解压 **WindSend-S-XX-x86_64-windows.zip** 到任意目录(提供Rust与Go两种实现) 。
+1. 解压 **WindSend-S-XX-x86_64-windows.zip** 到任意目录(以Windows为例)。
 
 2. 双击exe文件运行：
 
@@ -55,7 +59,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### 移动端
 
-1. 安装APP(一般选 flutter-arm64-v8a-release.apk)。
+1. 安装APP。
 2. 打开APP，点击右下角的加号配置。
 
 
@@ -125,7 +129,7 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 
-## Rust实现与Go实现有哪些区别？
+## Rust实现与Go实现有哪些区别
 
 这两个版本在在功能与外观上几乎没有区别，但某些方面还是有细微差别。
 
