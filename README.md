@@ -30,6 +30,7 @@
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
 > PC端: 一般可以选择下载 **WindSend-S**-XX-x86_64-XXXXX.zip (提供Rust与Go两种实现)
+> 
 > 移动端：一般可以选择下载 **WindSend-flutter**-arm64-v8a-release.apk
 
 
