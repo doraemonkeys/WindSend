@@ -29,7 +29,6 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 
 > PC: You can choose to download **WindSend-S**-XX-x86_64-XXXXX.zip (Provide two implementations of Rust and Go)
->
 > Mobile: You can choose to download **WindSend-flutter**-arm64-v8a-release.apk
 
 
