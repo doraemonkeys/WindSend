@@ -319,7 +319,7 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 	}
 	now := time.Now()
 	if now.Sub(t).Seconds() > MaxTimeDiff {
-		msg := fmt.Sprintf("time expired! received time: %s, local time: %s", timeStr, now.Format(TimeFormat))
+		msg := fmt.Sprintf("time expired! received time: %s, local time: %s", t.String(), now.Format(TimeFormat))
 		logrus.Debugln(msg)
 		respError(conn, unauthorizedCode, msg)
 		return head, false
