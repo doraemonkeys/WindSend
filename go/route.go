@@ -317,9 +317,11 @@ func commonAuth(conn net.Conn) (headInfo, bool) {
 		respError(conn, unauthorizedCode, err.Error())
 		return head, false
 	}
-	if time.Since(t).Seconds() > MaxTimeDiff {
-		logrus.Info("time expired: ", t.String())
-		respError(conn, unauthorizedCode, "time expired: "+t.String())
+	now := time.Now()
+	if now.Sub(t).Seconds() > MaxTimeDiff {
+		msg := fmt.Sprintf("time expired! received time: %s, local time: %s", timeStr, now.Format(TimeFormat))
+		logrus.Debugln(msg)
+		respError(conn, unauthorizedCode, msg)
 		return head, false
 	}
 

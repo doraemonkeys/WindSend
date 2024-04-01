@@ -262,13 +262,10 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     trace!("time_str: {}, ip: {}", time_str, ip);
     let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
         .map_err(|e| error!("parse time failed, err: {}", e))?;
-    if chrono::Utc::now()
-        .signed_duration_since(t.and_utc())
-        .num_seconds()
-        > MAX_TIME_DIFF
-    {
-        let msg = format!("time expired: {}", t);
-        error!(msg);
+    let now = chrono::Utc::now();
+    if now.signed_duration_since(t.and_utc()).num_seconds() > MAX_TIME_DIFF {
+        let msg = format!("time expired! recv time: {}, local time: {}", t, now);
+        debug!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
