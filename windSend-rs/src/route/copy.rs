@@ -33,34 +33,36 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
         return;
     }
 
-    {
-        match send_text(conn).await {
-            Ok(_) => return,
-            Err(e) => info!("send text failed, err: {}", e),
-        }
-        match send_image(conn).await {
-            Ok(_) => return,
-            Err(e) => info!("send image failed, err: {}", e),
-        }
-    }
-
-    // 文件剪切板
+    // 文件剪切板(在读文本剪切板之前查看，文件地址可能会被当做文本读取到)
     match clipboard_rs::ClipboardContext::new() {
         Ok(cctx) => {
             use clipboard_rs::Clipboard;
             match cctx.get_files() {
                 Ok(files) => {
-                    if send_files(conn, files).await.is_ok() {
+                    if files.is_empty() {
+                        error!("clipboard_rs get_files unexpected empty files");
+                    } else if send_files(conn, files).await.is_ok() {
                         if let Err(e) = cctx.clear() {
                             error!("clear clipboard failed, err: {}", e);
                         }
                         return;
                     }
                 }
-                Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
+                Err(e) => debug!("clipboard_rs read failed, err: {:?}", e),
             }
         }
-        Err(e) => error!("clipboard_files::new failed, err: {:?}", e),
+        Err(e) => error!("clipboard_rs new failed, err: {:?}", e),
+    }
+
+    {
+        match send_clipboard_text(conn).await {
+            Ok(_) => return,
+            Err(e) => info!("send text failed, err: {}", e),
+        }
+        match send_clipboard_image(conn).await {
+            Ok(_) => return,
+            Err(e) => info!("send image failed, err: {}", e),
+        }
     }
 
     let clipboard_is_empty = LANGUAGE_MANAGER
@@ -176,7 +178,9 @@ async fn send_files<T: IntoIterator<Item = String>>(
     send_msg_with_body(conn, copy_successfully, RouteDataType::Files, &body).await
 }
 
-async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::error::Error>> {
+async fn send_clipboard_image(
+    conn: &mut TlsStream<TcpStream>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
     let raw_image = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_image());
     if let Err(err) = raw_image {
@@ -203,7 +207,7 @@ async fn send_image(conn: &mut TlsStream<TcpStream>) -> Result<(), Box<dyn std::
     Ok(())
 }
 
-async fn send_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
+async fn send_clipboard_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
     let data_text = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_text())?;
     send_msg_with_body(
         conn,
