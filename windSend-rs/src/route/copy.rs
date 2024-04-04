@@ -4,7 +4,7 @@ use crate::route::{RouteDataType, RoutePathInfo, RouteRecvHead, RouteRespHead};
 use std::path::PathBuf;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     // 用户选择的文件
@@ -33,39 +33,34 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
         return;
     }
 
-    // 文件剪切板
-    #[cfg(not(target_os = "linux"))]
-    match clipboard_files::read() {
-        Ok(files) => {
-            let files = files.into_iter().map(|f| f.display().to_string());
-            let r = send_files(conn, files).await;
-            if r.is_ok() {
-                let r = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.clear());
-                if let Err(e) = r {
-                    error!("clear clipboard failed, err: {}", e);
-                }
-                return;
-            }
+    {
+        match send_text(conn).await {
+            Ok(_) => return,
+            Err(e) => info!("send text failed, err: {}", e),
         }
-        Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
+        match send_image(conn).await {
+            Ok(_) => return,
+            Err(e) => info!("send image failed, err: {}", e),
+        }
     }
 
+    // 文件剪切板
     {
-        let r1 = send_text(conn).await;
-        if r1.is_ok() {
-            return;
-        }
-        let r2 = send_image(conn).await;
-        if r2.is_ok() {
-            return;
-        }
-        if let Err(e) = r1 {
-            warn!("send text failed, err: {}", e);
-        }
-        if let Err(e) = r2 {
-            warn!("send image failed, err: {}", e);
+        use clipboard_rs::Clipboard;
+        let cctx = clipboard_rs::ClipboardContext::new().unwrap();
+        match cctx.get_files() {
+            Ok(files) => {
+                if send_files(conn, files).await.is_ok() {
+                    if let Err(e) = cctx.clear() {
+                        error!("clear clipboard failed, err: {}", e);
+                    }
+                    return;
+                }
+            }
+            Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
         }
     }
+
     let clipboard_is_empty = LANGUAGE_MANAGER
         .read()
         .unwrap()
