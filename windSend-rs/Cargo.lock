@@ -598,16 +598,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "clipboard-files"
-version = "0.1.1"
-source = "git+https://github.com/doraemonkeys/clipboard-files#9292db11d3bdb7b382f79e2834c7fafac733fd9a"
+name = "clipboard-rs"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd9bfaea7ebc077b73ef6ec9e1618b6ad29ab17075d835c51e0f1f0a23e7cea0"
 dependencies = [
  "clipboard-win",
- "gtk",
- "objc",
- "objc-foundation",
- "objc_id",
- "urlencoding",
+ "cocoa",
+ "image 0.25.0",
+ "x11rb",
 ]
 
 [[package]]
@@ -617,6 +616,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f9a0700e0127ba15d1d52dd742097f821cd9c65939303a44d970465040a297"
 dependencies = [
  "error-code",
+ "windows-win",
 ]
 
 [[package]]
@@ -4437,7 +4437,7 @@ dependencies = [
  "cbc",
  "chrono",
  "cipher",
- "clipboard-files",
+ "clipboard-rs",
  "crossbeam-channel",
  "encoding",
  "hex",
@@ -4644,6 +4644,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75aa004c988e080ad34aff5739c39d0312f4684699d6d71fc8a198d057b8b9b4"
 dependencies = [
  "windows-targets 0.52.3",
+]
+
+[[package]]
+name = "windows-win"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e23e33622b3b52f948049acbec9bcc34bf6e26d74176b88941f213c75cf2dc"
+dependencies = [
+ "error-code",
 ]
 
 [[package]]
