@@ -83,7 +83,7 @@ async fn send_files<T: IntoIterator<Item = String>>(
         let path_attr = match path_attr {
             Ok(attr) => attr,
             Err(err) => {
-                error!("get file attr failed, err: {}", err);
+                error!("get [{}] attr failed, err: {}", &path1, err);
                 continue;
             }
         };
