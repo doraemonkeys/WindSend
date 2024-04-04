@@ -45,20 +45,22 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     }
 
     // 文件剪切板
-    {
-        use clipboard_rs::Clipboard;
-        let cctx = clipboard_rs::ClipboardContext::new().unwrap();
-        match cctx.get_files() {
-            Ok(files) => {
-                if send_files(conn, files).await.is_ok() {
-                    if let Err(e) = cctx.clear() {
-                        error!("clear clipboard failed, err: {}", e);
+    match clipboard_rs::ClipboardContext::new() {
+        Ok(cctx) => {
+            use clipboard_rs::Clipboard;
+            match cctx.get_files() {
+                Ok(files) => {
+                    if send_files(conn, files).await.is_ok() {
+                        if let Err(e) = cctx.clear() {
+                            error!("clear clipboard failed, err: {}", e);
+                        }
+                        return;
                     }
-                    return;
                 }
+                Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
             }
-            Err(e) => debug!("clipboard_files::read failed, err: {:?}", e),
         }
+        Err(e) => error!("clipboard_files::new failed, err: {:?}", e),
     }
 
     let clipboard_is_empty = LANGUAGE_MANAGER
