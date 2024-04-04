@@ -39,9 +39,11 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
             use clipboard_rs::Clipboard;
             match cctx.get_files() {
                 Ok(files) => {
-                    if files.is_empty() {
-                        error!("clipboard_rs get_files unexpected empty files");
-                    } else if send_files(conn, files).await.is_ok() {
+                    let files = files
+                        .into_iter()
+                        .map(|f| f.trim_start_matches("file://").to_string())
+                        .collect::<Vec<_>>();
+                    if !files.is_empty() && send_files(conn, files).await.is_ok() {
                         if let Err(e) = cctx.clear() {
                             error!("clear clipboard failed, err: {}", e);
                         }
