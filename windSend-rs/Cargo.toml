@@ -45,7 +45,7 @@ cipher = "0.4"
 chrono = "0.4.31"
 subslice = "0.2.3"
 regex = "1.9.6"
-arboard = { version = "3.3.0", features = [
+arboard = { version = "3.3", features = [
     "core-graphics",
     "image",
     "image-data",
