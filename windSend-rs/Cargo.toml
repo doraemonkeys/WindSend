@@ -59,7 +59,7 @@ tokio-native-tls = "0.3.1"
 rustls-pemfile = "2.0.0"
 tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
 # tokio-rustls = "0.25.0"
-hostname = "^0.3"
+hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
 
@@ -76,7 +76,7 @@ socket2 = { features = ["all"], version = "0.5.5" }
 openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
-tao = "0.26.0"
+tao = "0.27"
 tray-icon = "0.13"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
@@ -88,4 +88,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.26.0"
+tao = "0.27"
