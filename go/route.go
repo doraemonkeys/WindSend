@@ -189,6 +189,7 @@ func pasteTextHandler(conn net.Conn, head headInfo) {
 
 func syncTextHandler(conn net.Conn, head headInfo) {
 	var curClipboardText = make([]byte, 0)
+	clipboarDataType, clipboardWatchData := clipboardData.Get()
 	if clipboarDataType == clipboardWatchDataTypeText {
 		curClipboardText = clipboardWatchData
 	}
@@ -395,6 +396,8 @@ func copyHandler(conn net.Conn) {
 		return
 	}
 
+	clipboarDataType, _ := clipboardData.Get()
+
 	// 空剪切板
 	if clipboarDataType == clipboardWatchDataEmpty {
 		respCommonError(conn, language.Translate(language.ClipboardIsEmpty))
@@ -473,10 +476,12 @@ func sendFiles(conn net.Conn) error {
 
 func sendImage(conn net.Conn) {
 	imageName := time.Now().Format("20060102150405") + ".png"
+	_, clipboardWatchData := clipboardData.Get()
 	_ = sendMsgWithBody(conn, imageName, DataTypeClipImage, clipboardWatchData)
 }
 
 func sendText(conn net.Conn) {
+	_, clipboardWatchData := clipboardData.Get()
 	_ = sendMsgWithBody(conn, "", DataTypeText, clipboardWatchData)
 }
 

@@ -200,6 +200,7 @@ func onReady(quitch chan bool) {
 			}
 
 		case <-mPasteToWeb.ClickedCh:
+			clipboarDataType, clipboardWatchData := clipboardData.Get()
 			if clipboarDataType != clipboardWatchDataTypeText {
 				Inform(language.Translate(language.ClipboardNotText), ProgramName)
 			} else if clipboarDataType == clipboardWatchDataTypeText {

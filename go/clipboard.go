@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"golang.design/x/clipboard"
 
@@ -16,29 +17,45 @@ const (
 	clipboardWatchDataEmpty     = "empty"
 )
 
-var clipboarDataType string
+var clipboardData = clipboardDataStruct{
+	dataType: clipboardWatchDataEmpty,
+	data:     nil,
+	lock:     new(sync.RWMutex)}
 
-var clipboardWatchData []byte
+type clipboardDataStruct struct {
+	dataType string
+	data     []byte
+	lock     *sync.RWMutex
+}
 
-// 监测剪切板变化
+func (c *clipboardDataStruct) Set(dataType string, data []byte) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.dataType = dataType
+	c.data = data
+}
+
+func (c *clipboardDataStruct) Get() (dataType string, data []byte) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.dataType, c.data
+}
+
 func clipboardWatcher() {
-	clipboarDataType = clipboardWatchDataEmpty
-	// 剪切板一般不会更新太快，所以不用加锁
 	go func() {
 		ch := clipboard.Watch(context.TODO(), clipboard.FmtText)
 		for data := range ch {
-			clipboarDataType = clipboardWatchDataTypeText
-			clipboardWatchData = data
+			clipboardData.Set(clipboardWatchDataTypeText, data)
 			// fmt.Println("text:", string(data))
 		}
 	}()
 	ch := clipboard.Watch(context.TODO(), clipboard.FmtImage)
 	for data := range ch {
-		clipboarDataType = clipboardWatchDataTypeImage
-		clipboardWatchData = data
+		clipboardData.Set(clipboardWatchDataTypeImage, data)
 		//fmt.Println("image")
 	}
 }
+
 func (c *ClipboardService) withOpenClipboard(f func() error) error {
 	if !win.OpenClipboard(c.hwnd) {
 		return errors.New("OpenClipboard failed")
