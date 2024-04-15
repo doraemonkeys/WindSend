@@ -267,7 +267,13 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 	written, err := io.CopyBuffer(fileWriterWithBuf, io.LimitReader(conn, dataLen),
 		make([]byte, copyBufferSize))
 	if err != nil {
-		logrus.Error("write file error:", err)
+		logrus.Errorf("file part %d-%d write error:%v", head.Start, head.End, err)
+		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
+		return respCommonError(conn, err.Error())
+	}
+	err = fileWriterWithBuf.Flush()
+	if err != nil {
+		logrus.Errorf("file part %d-%d flush error:%v", head.Start, head.End, err)
 		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
 		return respCommonError(conn, err.Error())
 	}
