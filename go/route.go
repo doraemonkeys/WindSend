@@ -24,17 +24,9 @@ const TimeFormat = "2006-01-02 15:04:05"
 const MaxTimeDiff float64 = 300
 
 const (
-	// 服务器内部错误
-	ErrorInternal = "internal error"
-	// 无效的验证数据
-	ErrorInvalidAuthData = "invalid auth data"
-	// 过期的验证数据
-	ErrorExpiredAuthData = "expired auth data"
-	// 剪切板数据过大
-	ErrorClipboardDataTooLarge = "clipboard data too large"
-	// 损坏的数据
+	// ErrorInvalidData 损坏的数据
 	ErrorInvalidData = "invalid data"
-	// 不完整的数据
+	// ErrorIncompleteData 不完整的数据
 	ErrorIncompleteData = "incomplete data"
 )
 
@@ -119,7 +111,9 @@ func mainProcess(conn net.Conn) {
 		}
 	}()
 	logrus.Info("remote addr:", conn.RemoteAddr().String())
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	for {
 		head, ok := commonAuth(conn)

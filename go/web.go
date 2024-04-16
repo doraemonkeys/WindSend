@@ -38,7 +38,7 @@ func InitMyUrl(secretKeyHex string) error {
 }
 
 func GetContentFromWeb() ([]byte, error) {
-	client, err := Get_client()
+	client, err := GetClient()
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,9 @@ func GetContentFromWeb() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -81,7 +83,7 @@ func PostContentToWeb(context []byte) error {
 	}
 	encryptedataHex := hex.EncodeToString(encryptedata)
 
-	client, err := Get_client()
+	client, err := GetClient()
 	if err != nil {
 		return err
 	}
@@ -113,7 +115,9 @@ func PostContentToWeb(context []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -134,7 +138,9 @@ func getPostCsrfmiddlewaretoken(client *http.Client) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err

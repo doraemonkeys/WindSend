@@ -94,11 +94,6 @@ func (c *ClipboardService) Files() (filenames []string, err error) {
 
 var clipboardS ClipboardService
 
-// Clipboard returns an object that provides access to the system clipboard.
-func Clipboard() *ClipboardService {
-	return &clipboardS
-}
-
 // ClipboardService provides access to the system clipboard.
 type ClipboardService struct {
 	hwnd win.HWND

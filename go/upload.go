@@ -55,9 +55,9 @@ type FilePart struct {
 
 func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	var (
-		fileID   uint32 = head.FileID
-		fileSize int64  = head.FileSize
-		filePath string = filepath.Join(GloballCnf.SavePath, head.Path)
+		fileID   = head.FileID
+		fileSize = head.FileSize
+		filePath = filepath.Join(GloballCnf.SavePath, head.Path)
 	)
 
 	filePath = filepath.Clean(filePath)
@@ -102,8 +102,8 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 }
 
 func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool) {
-	var success bool = false
-	var isTimeout bool = false
+	var success = false
+	var isTimeout = false
 	select {
 	case success = <-downCh:
 	case <-time.After(time.Minute * 60):
@@ -120,7 +120,7 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 	}
 	fileInfo := f.file[fileID]
 	OpInfo := f.OPs[opID]
-	fileInfo.file.Close()
+	_ = fileInfo.file.Close()
 	fileInfo.file = nil // 防止再次使用
 	// 不管是否下载成功，都要删除，因为下一次传输同一个文件时，fileID是不一样的。
 	delete(f.file, fileID)

@@ -27,7 +27,7 @@ type Config struct {
 	ExternalIPs []string `yaml:"externalIPs"`
 }
 
-var configFilePath string = "config.yaml"
+var configFilePath = "config.yaml"
 var GloballCnf *Config
 var startHelper *StartHelper
 var AppIconPath string
@@ -60,7 +60,9 @@ func initGlobalConfig() Config {
 	if err != nil {
 		logrus.Panic(err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&GloballCnf)
 	if err != nil {
@@ -145,7 +147,9 @@ func saveConfig(path string, cnf Config) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	yamlData, err := yaml.Marshal(cnf)
 	if err != nil {
 		return err

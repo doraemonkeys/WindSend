@@ -28,7 +28,9 @@ func downloadHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 		logrus.Error("open file failed, err:", err)
 		return respCommonError(conn, "open file failed, err:"+err.Error())
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	expectedSize := head.End - head.Start
 	const maxBufSize = 1024 * 1024 * 30

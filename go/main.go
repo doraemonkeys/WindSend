@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"net"
 	"runtime"
 
 	"github.com/sirupsen/logrus"
@@ -54,7 +55,9 @@ func runRoute() {
 		logrus.Panic(err)
 		return
 	}
-	defer listener.Close()
+	defer func(listener net.Listener) {
+		_ = listener.Close()
+	}(listener)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

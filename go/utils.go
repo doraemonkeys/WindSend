@@ -51,16 +51,6 @@ func NewAESCryptFromHex(HexSecretKey string) (*CbcAESCrypt, error) {
 	return &CbcAESCrypt{secretKey: secretKey}, err
 }
 
-// NewAESCryptFromHex 创建AES加密器, HexSecretKey为16进制字符串。
-// 第三方库使用 CBC模式，PKCS5填充。
-func NewAESCrypt(SecretKey []byte) (*CbcAESCrypt, error) {
-	// 128, 192, or 256 bits
-	if len(SecretKey) != 16 && len(SecretKey) != 24 && len(SecretKey) != 32 {
-		return nil, errors.New("SecretKey length must be 16, 24 or 32")
-	}
-	return &CbcAESCrypt{secretKey: SecretKey}, nil
-}
-
 // Encrypt 加密后返回 密文+16字节IV。
 func (a *CbcAESCrypt) Encrypt(plainText []byte) ([]byte, error) {
 	if len(plainText) == 0 {
@@ -173,7 +163,9 @@ func (s *StartHelper) SetAutoStart() error {
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %v", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	_, err = file.Write(contentBytes)
 	if err != nil {
 		return fmt.Errorf("写入文件失败: %v", err)
@@ -243,7 +235,9 @@ func (s *StartHelper) setMacAutoStart() error {
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %v", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	_, err = file.Write([]byte(macListFile))
 	if err != nil {
 		return fmt.Errorf("写入文件失败: %v", err)
@@ -334,7 +328,7 @@ func GetSha256(content []byte) ([]byte, error) {
 	}
 	return hash.Sum(nil), nil
 }
-func Get_client() (http.Client, error) {
+func GetClient() (http.Client, error) {
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	return http.Client{Jar: jar}, nil
 }
@@ -489,7 +483,7 @@ func NewPair[T1, T2 any](first T1, second T2) Pair[T1, T2] {
 
 // 过滤字符串中的不可打印字符
 func FilterNonPrintable(content string) string {
-	var validString []rune = make([]rune, 0, len(content))
+	var validString = make([]rune, 0, len(content))
 	for _, v := range content {
 		if unicode.IsPrint(v) {
 			validString = append(validString, v)
