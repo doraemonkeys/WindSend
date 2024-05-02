@@ -87,29 +87,29 @@ impl tokio::io::AsyncWrite for FilePartWriter {
     }
 }
 
-pub struct FileReceiver {
+pub struct FileReceiveSessionManager {
     /// key: fileID value: RecvFileInfo
     ///
     /// fileID在每次传输一个文件时都是随机的，
     /// 即使再次传输同一个文件，也会重新生成一个fileID
-    file: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
+    file_sessions: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     /// key: opID value: OpInfo
-    ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
+    operation_sessions: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct OpInfo {
-    req_device_name: String,
-    exp_num: i32,
-    succ_num: i32,
-    fail_num: i32,
+    requested_device_name: String,
+    expected_count: i32,
+    success_count: i32,
+    failure_count: i32,
 }
 
 #[derive(Debug)]
 pub struct RecvFileInfo {
-    exp_size: i64,
+    expected_size: i64,
     /// part、is_done、first_err、down_chan
-    items: TokioMutex<LockedItem>,
+    metadata: TokioMutex<LockedItem>,
 }
 
 #[derive(Debug)]
@@ -129,11 +129,11 @@ pub struct FilePart {
     end: i64,
 }
 
-impl FileReceiver {
+impl FileReceiveSessionManager {
     fn new() -> Self {
         Self {
-            file: Arc::new(TokioMutex::new(HashMap::new())),
-            ops: Arc::new(TokioMutex::new(HashMap::new())),
+            file_sessions: Arc::new(TokioMutex::new(HashMap::new())),
+            operation_sessions: Arc::new(TokioMutex::new(HashMap::new())),
         }
     }
 
@@ -146,9 +146,9 @@ impl FileReceiver {
         // debug!("create file: {}", file_path);
         let actual_save_path;
         let already_exist;
-        let mut file_recv_map = self.file.lock().await;
+        let mut file_recv_map = self.file_sessions.lock().await;
         if let Some(info) = file_recv_map.get(&file_id) {
-            actual_save_path = info.items.lock().await.save_path.clone();
+            actual_save_path = info.metadata.lock().await.save_path.clone();
             already_exist = true;
         } else {
             already_exist = false;
@@ -191,35 +191,38 @@ impl FileReceiver {
             first_err: None,
         };
         let info = RecvFileInfo {
-            exp_size: file_size,
-            items: TokioMutex::new(items),
+            expected_size: file_size,
+            metadata: TokioMutex::new(items),
         };
         file_recv_map.insert(file_id, Arc::new(info));
         // check is this opID exist
-        let mut ops_map = self.ops.lock().await;
+        let mut ops_map = self.operation_sessions.lock().await;
         if ops_map.get(&head.op_id).is_none() {
             ops_map.insert(
                 head.op_id,
                 OpInfo {
-                    req_device_name: head.device_name.clone(),
-                    exp_num: head.files_count_in_this_op,
-                    succ_num: 0,
-                    fail_num: 0,
+                    requested_device_name: head.device_name.clone(),
+                    expected_count: head.files_count_in_this_op,
+                    success_count: 0,
+                    failure_count: 0,
                 },
             );
         }
-        crate::RUNTIME.get().unwrap().spawn(recv_monitor(
-            self.file.clone(),
-            self.ops.clone(),
-            file_id,
-            head.op_id,
-            rx,
-        ));
+        crate::RUNTIME
+            .get()
+            .unwrap()
+            .spawn(monitor_single_file_reception(
+                self.file_sessions.clone(),
+                self.operation_sessions.clone(),
+                file_id,
+                head.op_id,
+                rx,
+            ));
         Ok(file)
     }
 
     /// 返回值：(是否完成，是否发生错误(不包括自己))
-    pub async fn report_file_part(
+    pub async fn report_file_part_completion(
         &self,
         file_id: u32,
         start: i64,
@@ -228,13 +231,13 @@ impl FileReceiver {
     ) -> (bool, bool) {
         let recv_file;
         {
-            let files_recv = self.file.lock().await;
+            let files_recv = self.file_sessions.lock().await;
             recv_file = match files_recv.get(&file_id) {
                 Some(file) => file.clone(),
                 None => return (false, true),
             };
         }
-        let mut recv_items = recv_file.items.lock().await;
+        let mut recv_items = recv_file.metadata.lock().await;
         if recv_items.is_done {
             return (true, false);
         }
@@ -247,7 +250,9 @@ impl FileReceiver {
             return (false, false);
         }
         recv_items.part.push(FilePart { start, end });
-        let done = self.check(&mut recv_items.part, recv_file.exp_size).await;
+        let done = self
+            .verify_file_completeness(&mut recv_items.part, recv_file.expected_size)
+            .await;
         if done {
             recv_items.is_done = true;
             recv_items.down_chan.take().unwrap().send(true).ok();
@@ -255,7 +260,11 @@ impl FileReceiver {
         (done, false)
     }
 
-    pub async fn check(&self, all_part: &mut Vec<FilePart>, exp_size: i64) -> bool {
+    pub async fn verify_file_completeness(
+        &self,
+        all_part: &mut Vec<FilePart>,
+        exp_size: i64,
+    ) -> bool {
         let part = all_part;
         part.sort_by(|a, b| a.start.cmp(&b.start));
         debug!("file part: {:?}", part);
@@ -284,7 +293,7 @@ impl FileReceiver {
     }
 }
 
-pub async fn recv_monitor(
+pub async fn monitor_single_file_reception(
     files_recv_info: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
     file_id: u32,
@@ -312,12 +321,12 @@ pub async fn recv_monitor(
     }
     let mut ops = ops.lock().await;
     if success {
-        ops.get_mut(&op_id).unwrap().succ_num += 1;
+        ops.get_mut(&op_id).unwrap().success_count += 1;
     } else {
-        ops.get_mut(&op_id).unwrap().fail_num += 1;
+        ops.get_mut(&op_id).unwrap().failure_count += 1;
     }
     let op_info = ops.get(&op_id).unwrap().clone();
-    if op_info.succ_num + op_info.fail_num == op_info.exp_num {
+    if op_info.success_count + op_info.failure_count == op_info.expected_count {
         // 此次操作已经完成
         ops.remove(&op_id);
     }
@@ -325,10 +334,10 @@ pub async fn recv_monitor(
     let file_recv_info = files_recv_info.lock().await.remove(&file_id).unwrap();
 
     // 仅接收一张图，粘贴到剪切板
-    let save_path = &file_recv_info.items.lock().await.save_path;
+    let save_path = &file_recv_info.metadata.lock().await.save_path;
     if success
-        && op_info.exp_num == 1
-        && file_recv_info.exp_size < 1024 * 1024 * 4
+        && op_info.expected_count == 1
+        && file_recv_info.expected_size < 1024 * 1024 * 4
         && crate::utils::has_img_ext(save_path)
     {
         let image = tokio::fs::read(save_path).await;
@@ -344,17 +353,17 @@ pub async fn recv_monitor(
         .unwrap()
         .translate(LanguageKey::NFilesSavedTo);
     // 此次操作已经完成
-    if !is_timeout && op_info.succ_num + op_info.fail_num == op_info.exp_num {
+    if !is_timeout && op_info.success_count + op_info.failure_count == op_info.expected_count {
         let mut msg = format!(
             "{} {} {}",
-            op_info.succ_num,
+            op_info.success_count,
             files_saved_to,
             crate::config::GLOBAL_CONFIG.lock().unwrap().save_path
         );
-        if op_info.fail_num > 0 {
-            msg = format!("{}\n{} files failed to save", msg, op_info.fail_num);
+        if op_info.failure_count > 0 {
+            msg = format!("{}\n{} files failed to save", msg, op_info.failure_count);
         }
-        crate::utils::inform(&msg, &op_info.req_device_name);
+        crate::utils::inform(&msg, &op_info.requested_device_name);
     }
 }
 
@@ -403,5 +412,5 @@ fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Resul
 }
 
 lazy_static::lazy_static!(
-    pub static ref GLOBAL_FILE_RECEIVER:FileReceiver = FileReceiver::new();
+    pub static ref GLOBAL_RECEIVER_SESSION_MANAGER:FileReceiveSessionManager = FileReceiveSessionManager::new();
 );

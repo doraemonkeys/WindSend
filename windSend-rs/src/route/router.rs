@@ -56,7 +56,7 @@ pub struct RouteRecvHead {
     pub end: i64,
     #[serde(rename = "dataLen")]
     pub data_len: i64,
-    /// 操作ID
+    /// 此次上传操作的ID
     #[serde(rename = "opID")]
     pub op_id: u32,
     /// 此次操作想要上传的文件数量

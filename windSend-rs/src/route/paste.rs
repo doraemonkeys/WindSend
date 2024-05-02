@@ -99,7 +99,9 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         return resp_common_error_msg(conn, err_msg).await.is_ok();
     }
     // let file = (*crate::file::GLOBAL_FILE_RECEIVER).clone().borrow_mut();
-    let file = crate::file::GLOBAL_FILE_RECEIVER.get_file(&head).await;
+    let file = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+        .get_file(&head)
+        .await;
     if let Err(err) = file {
         error!("create file error: {}", err);
         return resp_common_error_msg(conn, &format!("create file error: {}", err))
@@ -135,6 +137,16 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     // rust只开启读缓冲或同时开启写缓冲和读缓冲速度都很慢。
     let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut file_buf_writer).await;
     // let n = tokio::io::copy_buf(&mut conn_buf_reader, &mut file_buf_writer).await;
+    if let Err(err) = n {
+        let msg = format!("write file error: {}", err);
+        error!("{}", msg);
+        let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
+        crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+            .report_file_part_completion(head.file_id, head.start, head.end, Some(msg))
+            .await;
+        return resp_success;
+    }
+    let n = n.unwrap();
     if let Err(err) = file_buf_writer.flush().await {
         error!("flush file writer failed, err: {}", err);
         return resp_common_error_msg(
@@ -144,22 +156,12 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         .await
         .is_ok();
     }
-    if let Err(err) = n {
-        let msg = format!("write file error: {}", err);
-        error!("{}", msg);
-        let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
-        crate::file::GLOBAL_FILE_RECEIVER
-            .report_file_part(head.file_id, head.start, head.end, Some(msg))
-            .await;
-        return resp_success;
-    }
-    let n = n.unwrap();
     if n < data_len as u64 {
         let msg = format!("write file error, n: {}, dataLen: {}", n, data_len);
         error!("{}", msg);
         let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
-        crate::file::GLOBAL_FILE_RECEIVER
-            .report_file_part(head.file_id, head.start, head.end, Some(msg))
+        crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+            .report_file_part_completion(head.file_id, head.start, head.end, Some(msg))
             .await;
         return resp_success;
     }
@@ -181,8 +183,8 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         "write file part success, fileID: {}, start: {}, end: {}",
         head.file_id, head.start, head.end
     );
-    let (done, err_occurred) = crate::file::GLOBAL_FILE_RECEIVER
-        .report_file_part(head.file_id, head.start, head.end, None)
+    let (done, err_occurred) = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+        .report_file_part_completion(head.file_id, head.start, head.end, None)
         .await;
     if err_occurred {
         return resp_success;

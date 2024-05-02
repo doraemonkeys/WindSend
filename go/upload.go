@@ -17,13 +17,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type FileReceiver struct {
+type FileReceiveSessionManager struct {
 	// key: fileID value: RecvFileInfo
 	//
 	// fileID在每次传输一个文件时都是随机的，
 	// 即使再次传输同一个文件，也会重新生成一个fileID
-	file map[uint32]*recvfileInfo
-	OPs  map[uint32]*OpInfo
+	fileSessions      map[uint32]*recvfileInfo
+	operationSessions map[uint32]*OpInfo
 	// 用于保证file和Ops的并发安全
 	lock *sync.Mutex
 }
@@ -53,7 +53,8 @@ type FilePart struct {
 	end   int64
 }
 
-func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
+// 返回的文件在下载结束后会自动关闭
+func (f *FileReceiveSessionManager) GetFile(head headInfo) (*os.File, error) {
 	var (
 		fileID   = head.FileID
 		fileSize = head.FileSize
@@ -63,7 +64,7 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	filePath = filepath.Clean(filePath)
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	if file, ok := f.file[fileID]; ok {
+	if file, ok := f.fileSessions[fileID]; ok {
 		return file.file, nil
 	}
 	filePath = generateUniqueFilepath(filePath)
@@ -86,22 +87,22 @@ func (f *FileReceiver) GetFile(head headInfo) (*os.File, error) {
 	var Info = &recvfileInfo{file: file, filePath: filePath, expSize: fileSize}
 	Info.partLock = new(sync.Mutex)
 	Info.downChan = make(chan bool, 1)
-	f.file[fileID] = Info
+	f.fileSessions[fileID] = Info
 
 	// check is this opID exist
-	if _, ok := f.OPs[head.OpID]; !ok {
-		f.OPs[head.OpID] = &OpInfo{
+	if _, ok := f.operationSessions[head.OpID]; !ok {
+		f.operationSessions[head.OpID] = &OpInfo{
 			op:      head.OpID,
 			reqHead: head,
 			expNum:  head.FilesCountInThisOp,
 		}
 	}
 
-	go f.recvMonitor(fileID, head.OpID, Info.downChan)
+	go f.monitorSingleFileReception(fileID, head.OpID, Info.downChan)
 	return file, nil
 }
 
-func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool) {
+func (f *FileReceiveSessionManager) monitorSingleFileReception(fileID uint32, opID uint32, downCh chan bool) {
 	var success = false
 	var isTimeout = false
 	select {
@@ -114,19 +115,19 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 
 	f.lock.Lock()
 	if success {
-		f.OPs[opID].succNum++
+		f.operationSessions[opID].succNum++
 	} else {
-		f.OPs[opID].failNum++
+		f.operationSessions[opID].failNum++
 	}
-	fileInfo := f.file[fileID]
-	OpInfo := f.OPs[opID]
+	fileInfo := f.fileSessions[fileID]
+	OpInfo := f.operationSessions[opID]
 	_ = fileInfo.file.Close()
 	fileInfo.file = nil // 防止再次使用
 	// 不管是否下载成功，都要删除，因为下一次传输同一个文件时，fileID是不一样的。
-	delete(f.file, fileID)
+	delete(f.fileSessions, fileID)
 	// 此次操作已经完成
 	if OpInfo.succNum+OpInfo.failNum == OpInfo.expNum {
-		delete(f.OPs, opID)
+		delete(f.operationSessions, opID)
 	}
 	f.lock.Unlock()
 
@@ -154,12 +155,12 @@ func (f *FileReceiver) recvMonitor(fileID uint32, opID uint32, downCh chan bool)
 }
 
 // previousErr是不同连接接收同一个文件时，第一个连接发生的错误(不包括自己)，如果没有错误，则为nil
-func (f *FileReceiver) ReportFilePart(fileID uint32, start, end int64, recvErr error) (done bool, errOccurred bool) {
+func (f *FileReceiveSessionManager) ReportFilePartCompletion(fileID uint32, start, end int64, recvErr error) (done bool, errOccurred bool) {
 	var file *recvfileInfo
 	var ok bool
 
 	f.lock.Lock()
-	file, ok = f.file[fileID]
+	file, ok = f.fileSessions[fileID]
 	f.lock.Unlock()
 	// 可能已经发生错误，fileID已经被删除了
 	if !ok {
@@ -180,7 +181,7 @@ func (f *FileReceiver) ReportFilePart(fileID uint32, start, end int64, recvErr e
 		return false, false
 	}
 	file.part = append(file.part, FilePart{start: start, end: end})
-	done = f.check(file)
+	done = f.verifyFileCompleteness(file)
 	if done {
 		file.isDone = true
 		file.downChan <- true
@@ -189,7 +190,7 @@ func (f *FileReceiver) ReportFilePart(fileID uint32, start, end int64, recvErr e
 }
 
 // 检查是否完成
-func (f *FileReceiver) check(file *recvfileInfo) bool {
+func (f *FileReceiveSessionManager) verifyFileCompleteness(file *recvfileInfo) bool {
 	sort.Slice(file.part, func(i, j int) bool {
 		return file.part[i].start < file.part[j].start
 	})
@@ -217,12 +218,12 @@ func (f *FileReceiver) check(file *recvfileInfo) bool {
 	return false
 }
 
-func NewFileReceiver() *FileReceiver {
-	var r = &FileReceiver{
+func NewFileReceiver() *FileReceiveSessionManager {
+	var r = &FileReceiveSessionManager{
 		lock: new(sync.Mutex),
 	}
-	r.file = make(map[uint32]*recvfileInfo)
-	r.OPs = make(map[uint32]*OpInfo)
+	r.fileSessions = make(map[uint32]*recvfileInfo)
+	r.operationSessions = make(map[uint32]*OpInfo)
 	return r
 }
 
@@ -268,13 +269,13 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 		make([]byte, copyBufferSize))
 	if err != nil {
 		logrus.Errorf("file part %d-%d write error:%v", head.Start, head.End, err)
-		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
+		GlobalFileReceiver.ReportFilePartCompletion(head.FileID, head.Start, head.End, err)
 		return respCommonError(conn, err.Error())
 	}
 	err = fileWriterWithBuf.Flush()
 	if err != nil {
 		logrus.Errorf("file part %d-%d flush error:%v", head.Start, head.End, err)
-		GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, err)
+		GlobalFileReceiver.ReportFilePartCompletion(head.FileID, head.Start, head.End, err)
 		return respCommonError(conn, err.Error())
 	}
 	if written < dataLen {
@@ -290,7 +291,7 @@ func pasteFileHandler(conn net.Conn, head headInfo) (noSocketErr bool) {
 		noSocketErr = false
 	}
 	logrus.Debugln("write file part success, fileID:", head.FileID, " start:", head.Start, " end:", head.End)
-	done, errOccurred := GlobalFileReceiver.ReportFilePart(head.FileID, head.Start, head.End, nil)
+	done, errOccurred := GlobalFileReceiver.ReportFilePartCompletion(head.FileID, head.Start, head.End, nil)
 	if errOccurred {
 		return true
 	}
@@ -346,8 +347,7 @@ func NewPartFileWriter(file *os.File, pos int, end int) *PartFileWriter {
 }
 
 func (fw *PartFileWriter) Write(p []byte) (n int, err error) {
-	now := time.Now()
-	fmt.Println("end:", fw.end, " write file:", len(p), " pos:", fw.pos, " time:", now)
+	// fmt.Println("end:", fw.end, " write file:", len(p), " pos:", fw.pos, " time:", now)
 	if len(p)+fw.pos > fw.end {
 		// logrus.Warnln("write file error, len(p):", len(p), " pos:", fw.pos, " end:", fw.end)
 		// p = p[:fw.end-fw.pos]
@@ -355,6 +355,6 @@ func (fw *PartFileWriter) Write(p []byte) (n int, err error) {
 	}
 	n, err = fw.file.WriteAt(p, int64(fw.pos))
 	fw.pos += n
-	fmt.Println("end:", fw.end, "write file cost:", time.Since(now))
+	// fmt.Println("end:", fw.end, "write file cost:", time.Since(now))
 	return
 }
