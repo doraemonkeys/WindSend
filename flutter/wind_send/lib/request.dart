@@ -271,14 +271,21 @@ class FileUploader {
     await head.writeToConn(conn);
     // print('write head done');
 
+    int bufferSize = min(maxBufferSize, end - start);
+    Uint8List buffer = Uint8List(bufferSize);
     int sentSize = 0;
     while (sentSize < end - start) {
       await fileAccess.setPosition(start + sentSize);
       int readSize = min(maxBufferSize, end - start - sentSize);
-      var data = await fileAccess.read(readSize);
-      sentSize += data.length;
-      conn.add(data);
+      var n = await fileAccess.readInto(buffer, 0, readSize);
+      if (n != readSize) {
+        throw Exception('unexpected situation');
+      }
+      // var data = await fileAccess.read(readSize);
+      sentSize += n;
+      conn.add(Uint8List.view(buffer.buffer, 0, n));
     }
+    await fileAccess.close();
 
     if (sentSize != end - start) {
       throw Exception('sentSize: $sentSize, end - start: ${end - start}');
@@ -295,7 +302,6 @@ class FileUploader {
     }
 
     _connectionManager.putConnection(conn, stream);
-    await fileAccess.close();
   }
 
   // Future<String> calculateMD5(File file) async {
@@ -342,7 +348,7 @@ class FileUploader {
         end = fileSize;
       }
       // print("part $partNum: $start - $end");
-      var fileAccess = await file.open();
+      var fileAccess = await file.open(); //每次都重新打开文件，不用担心await导致seek位置不对
       futures.add(uploader(fileAccess, start, end, filePath, savePath, opID,
           filesCountInThisOp));
       partNum++;
