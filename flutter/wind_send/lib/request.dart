@@ -274,8 +274,9 @@ class FileUploader {
     int bufferSize = min(maxBufferSize, end - start);
     Uint8List buffer = Uint8List(bufferSize);
     int sentSize = 0;
+    await fileAccess.setPosition(start);
     while (sentSize < end - start) {
-      await fileAccess.setPosition(start + sentSize);
+      // await fileAccess.setPosition(start + sentSize);
       int readSize = min(maxBufferSize, end - start - sentSize);
       var n = await fileAccess.readInto(buffer, 0, readSize);
       if (n != readSize) {
