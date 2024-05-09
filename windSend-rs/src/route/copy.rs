@@ -105,7 +105,7 @@ async fn send_files<T: IntoIterator<Item = String>>(
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        rpi.save_path = dir_root.clone();
+        rpi.save_path.clone_from(&dir_root);
         resp_paths.push(rpi);
 
         static DEFAULT_SEPARATOR: &str = "/";
