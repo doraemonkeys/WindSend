@@ -52,9 +52,9 @@ arboard = { version = "3.3", features = [
     "wayland-data-control",
     "wl-clipboard-rs",
 ] }
-# notify-rust依赖zbus_names v2.6.0导致ubuntu编译失败
-# notify-rust = "4.10"
-notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
+# notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
+notify-rust = "4.11"
+# notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
 tokio-native-tls = "0.3.1"
 rustls-pemfile = "2.0.0"
 tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
