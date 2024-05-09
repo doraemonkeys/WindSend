@@ -52,9 +52,9 @@ arboard = { version = "3.3", features = [
     "wayland-data-control",
     "wl-clipboard-rs",
 ] }
-# notify-rust依赖zbus_names v2.6.0导致ubuntu编译失败
-# notify-rust = "4.10"
-notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
+# notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
+notify-rust = "4.11"
+# notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
 tokio-native-tls = "0.3.1"
 rustls-pemfile = "2.0.0"
 tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
@@ -77,7 +77,7 @@ clipboard-rs = "0.1.4"
 openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
-tao = "0.27"
+tao = "0.28"
 tray-icon = "0.13"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
@@ -88,4 +88,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.27"
+tao = "0.28"
