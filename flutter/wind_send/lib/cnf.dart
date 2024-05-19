@@ -17,6 +17,8 @@ import 'device.dart';
 class AppSharedCnfService {
   static const String _fileSavePathKey = 'FileSavePath';
   static const String _imageSavePathKey = 'ImageSavePath';
+  static const String _defaultShareDeviceKey = 'DefaultShareDevice';
+  static const String _defaultSyncDeviceKey = 'DefaultSyncDevice';
 
   //保持一个SharedPreferences的引用
   static late final SharedPreferences _sp;
@@ -207,14 +209,17 @@ class AppSharedCnfService {
       _sp.setString('DefaultSelectDevice', value!);
 
   /// 默认同步设备
-  static String? get defaultSyncDevice => _sp.getString('DefaultSyncDevice');
-  static set defaultSyncDevice(String? value) =>
-      _sp.setString('DefaultSyncDevice', value!);
+  static String? get defaultSyncDevice => _sp.getString(_defaultSyncDeviceKey);
+  static set defaultSyncDevice(String? value) => value == null
+      ? _sp.remove(_defaultSyncDeviceKey)
+      : _sp.setString(_defaultSyncDeviceKey, value);
 
   /// 默认分享设备
-  static String? get defaultShareDevice => _sp.getString('DefaultShareDevice');
-  static set defaultShareDevice(String? value) =>
-      _sp.setString('DefaultShareDevice', value!);
+  static String? get defaultShareDevice =>
+      _sp.getString(_defaultShareDeviceKey);
+  static set defaultShareDevice(String? value) => value == null
+      ? _sp.remove(_defaultShareDeviceKey)
+      : _sp.setString(_defaultShareDeviceKey, value);
 
   /// 文件保存路径
   static String get fileSavePath => _sp.getString(_fileSavePathKey)!;
