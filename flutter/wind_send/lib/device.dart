@@ -55,6 +55,7 @@ class Device {
   static const int defaultPort = 6779;
   static const int respOkCode = 200;
   static const int unauthorizedCode = 401;
+  static const String webIP = 'web';
   // unauthorized Exception
 
   Device({

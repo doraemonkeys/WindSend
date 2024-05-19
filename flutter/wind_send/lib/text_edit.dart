@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 
-import 'cnf.dart';
 import 'language.dart';
 import 'utils.dart';
 import 'device.dart';
@@ -57,7 +56,7 @@ class TextEditPageState extends State<TextEditPage> {
         });
       }
     });
-    _sendType = widget.device.iP != AppConfigModel.webIP
+    _sendType = widget.device.iP != Device.webIP
         ? SendTextMethod.p2p
         : SendTextMethod.web;
     _sendType = widget.device.actionPasteText ? _sendType : SendTextMethod.web;

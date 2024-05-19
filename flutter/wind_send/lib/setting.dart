@@ -181,9 +181,7 @@ class _SettingPageState extends State<SettingPage> {
                 title:
                     Text(context.formatString(AppLocale.defaultSyncDevice, [])),
                 children: [
-                  ...devices
-                      .where((element) => element.iP != AppConfigModel.webIP)
-                      .map(
+                  ...devices.where((element) => element.iP != Device.webIP).map(
                         (e) => RadioListTile(
                           title: Text(e.targetDeviceName),
                           value: e.targetDeviceName,
@@ -244,9 +242,7 @@ class _SettingPageState extends State<SettingPage> {
                 title: Text(
                     context.formatString(AppLocale.defaultShareDevice, [])),
                 children: [
-                  ...devices
-                      .where((element) => element.iP != AppConfigModel.webIP)
-                      .map(
+                  ...devices.where((element) => element.iP != Device.webIP).map(
                         (e) => RadioListTile(
                           title: Text(e.targetDeviceName),
                           value: e.targetDeviceName,

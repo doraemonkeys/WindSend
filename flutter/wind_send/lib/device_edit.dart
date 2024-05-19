@@ -45,11 +45,11 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               secretKeyTile(context),
               SettingsSection.defaultDivider(context),
               ListTile(
-                enabled: widget.device.iP != AppConfigModel.webIP,
+                enabled: widget.device.iP != Device.webIP,
                 title: Text(context.formatString(AppLocale.autoSelectIp, [])),
                 trailing: Switch(
                   value: widget.device.autoSelect,
-                  onChanged: widget.device.iP != AppConfigModel.webIP
+                  onChanged: widget.device.iP != Device.webIP
                       ? (value) {
                           setState(() {
                             widget.device.autoSelect = value;
@@ -63,7 +63,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
           SettingsSection(
             children: [
               ListTile(
-                enabled: widget.device.iP != AppConfigModel.webIP,
+                enabled: widget.device.iP != Device.webIP,
                 title: Text(
                     '${context.formatString(AppLocale.downloadThread, [])}: ${widget.device.downloadThread}'),
                 subtitle: Slider(
@@ -72,7 +72,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                   max: 30,
                   divisions: 29,
                   label: widget.device.downloadThread.toString(),
-                  onChanged: widget.device.iP != AppConfigModel.webIP
+                  onChanged: widget.device.iP != Device.webIP
                       ? (value) {
                           setState(() {
                             widget.device.downloadThread = value.toInt();
@@ -83,7 +83,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               ),
               SettingsSection.defaultDivider(context),
               ListTile(
-                enabled: widget.device.iP != AppConfigModel.webIP,
+                enabled: widget.device.iP != Device.webIP,
                 title: Text(
                     '${context.formatString(AppLocale.uploadThread, [])}: ${widget.device.uploadThread}'),
                 subtitle: Slider(
@@ -92,7 +92,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                   max: 30,
                   divisions: 29,
                   label: widget.device.uploadThread.toString(),
-                  onChanged: widget.device.iP != AppConfigModel.webIP
+                  onChanged: widget.device.iP != Device.webIP
                       ? (value) {
                           setState(() {
                             widget.device.uploadThread = value.toInt();
@@ -115,7 +115,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         SwitchListTile(
           title: Text(context.formatString(AppLocale.copy, [])),
           value: widget.device.actionCopy,
-          onChanged: widget.device.iP != AppConfigModel.webIP
+          onChanged: widget.device.iP != Device.webIP
               ? (value) {
                   setState(() {
                     widget.device.actionCopy = value;
@@ -127,7 +127,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         SwitchListTile(
           title: Text(context.formatString(AppLocale.pasteText, [])),
           value: widget.device.actionPasteText,
-          onChanged: widget.device.iP != AppConfigModel.webIP
+          onChanged: widget.device.iP != Device.webIP
               ? (value) {
                   setState(() {
                     widget.device.actionPasteText = value;
@@ -139,7 +139,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         SwitchListTile(
           title: Text(context.formatString(AppLocale.pasteFile, [])),
           value: widget.device.actionPasteFile,
-          onChanged: widget.device.iP != AppConfigModel.webIP
+          onChanged: widget.device.iP != Device.webIP
               ? (value) {
                   setState(() {
                     widget.device.actionPasteFile = value;
@@ -253,7 +253,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
     return ListTile(
       title: const Text('Port'),
       subtitle: Text(widget.device.port.toString()),
-      enabled: widget.device.iP != AppConfigModel.webIP,
+      enabled: widget.device.iP != Device.webIP,
       onTap: () {
         final portController =
             TextEditingController(text: widget.device.port.toString());
@@ -308,9 +308,8 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
             return _formKey.currentState?.validate() ?? false;
           },
           onConfirmed: () {
-            if (ipController.text.trim().toLowerCase() ==
-                AppConfigModel.webIP) {
-              ipController.text = AppConfigModel.webIP;
+            if (ipController.text.trim().toLowerCase() == Device.webIP) {
+              ipController.text = Device.webIP;
             }
             setState(() {
               widget.device.iP = ipController.text.trim();

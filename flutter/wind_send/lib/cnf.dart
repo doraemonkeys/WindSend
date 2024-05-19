@@ -215,8 +215,18 @@ class AppSharedCnfService {
       : _sp.setString(_defaultSyncDeviceKey, value);
 
   /// 默认分享设备
-  static String? get defaultShareDevice =>
-      _sp.getString(_defaultShareDeviceKey);
+  static String? get defaultShareDevice {
+    var value = _sp.getString(_defaultShareDeviceKey);
+    if (value != null) {
+      return value;
+    }
+    if (devices != null && devices!.isNotEmpty) {
+      _sp.setString(_defaultShareDeviceKey, devices!.first.targetDeviceName);
+      return devices!.first.targetDeviceName;
+    }
+    return null;
+  }
+
   static set defaultShareDevice(String? value) => value == null
       ? _sp.remove(_defaultShareDeviceKey)
       : _sp.setString(_defaultShareDeviceKey, value);
@@ -334,7 +344,7 @@ class AppSharedCnfService {
 
 // class AppConfigModel with ChangeNotifier
 class AppConfigModel {
-  static const String webIP = 'web';
+  // static const String webIP = 'web';
   String _deviceName = AppSharedCnfService.deviceName!;
   String? _defaultSyncDevice = AppSharedCnfService.defaultSyncDevice;
   String? _defaultShareDevice = AppSharedCnfService.defaultShareDevice;
