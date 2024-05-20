@@ -12,7 +12,7 @@ var crypter *CbcAESCrypt
 
 const ProgramName = "WindSend-S-Go"
 const ProgramUrl = "https://github.com/doraemonkeys/WindSend"
-const ProgramVersion = "1.2.2"
+const ProgramVersion = "1.2.3"
 
 func init() {
 	InitGlobalLogger()
