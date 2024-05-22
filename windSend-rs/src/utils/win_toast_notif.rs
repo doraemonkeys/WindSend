@@ -31,7 +31,7 @@ impl WinToastNotif {
             image: None,
             image_placement: ImagePlacement::Top,
             actions: None,
-            audio: None,
+            audio: Some(Audio::WinDefault),
             audio_loop: Loop::False,
         }
     }
