@@ -112,7 +112,7 @@ impl WinToastNotif {
             match &self.duration {
                 Duration::Short => "",
                 Duration::Long => r#" duration="long""#,
-                Duration::TimeOut => r#"scenario="incomingCall""#
+                Duration::TimeOut => r#" scenario="incomingCall""#
             },
             match (&self.logo, &self.logo_circle) {
                 (Some(logo), CropCircle::True) => format!("\n<image placement=\"appLogoOverride\" hint-crop=\"circle\" src=\"{}\"/>", &logo),
