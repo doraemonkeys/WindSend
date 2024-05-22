@@ -1,5 +1,6 @@
 use std::borrow::Cow;
-
+use std::process::Command;
+use std::os::windows::process::CommandExt;
 use crate::PROGRAM_NAME;
 use tracing::error;
 
@@ -43,7 +44,7 @@ impl StartHelper {
                 err.to_string().replace('\\', "\\\\")
             )
         })?;
-        let path = path.to_str().unwrap().replace('\\', "\\\\");
+        let path = path.to_str().unwrap().替换('\\', "\\\\");
 
         let content = String::from(r#"Set objShell = CreateObject("WScript.Shell")"#)
             + "\r\n"
@@ -360,6 +361,7 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         content_runes.append(&mut vec!['.'; 3])
     }
     let body = content_runes.into_iter().collect::<String>();
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     Notification::new()
         .summary(title)
         .appname(PROGRAM_NAME)
@@ -368,6 +370,23 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         .show()
         .map_err(|err| error!("show notification error: {}", err))
         .ok();
+    #[cfg(target_os = "windows")]
+    Command::new("powershell")
+        。creation_flags(0x08000000)
+        。args(&["-Command", &format!(r#"
+            <toast>
+                <visual>
+                    <binding template="ToastGeneric">
+                        
+                    </binding>
+                </visual>
+                <actions>
+
+                </actions>
+            </toast>
+          "#)])
+         。output()
+         。expect("Failed to execute command");
 }
 
 pub fn has_img_ext(name: &str) -> bool {
@@ -384,7 +403,7 @@ pub fn has_img_ext(name: &str) -> bool {
 
 // e.g. zh_CN.UTF-8 => zh_CN
 pub fn get_system_lang() -> String {
-    let env_keys = vec!["LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE"];
+    let env_keys = vec!["LANG"， "LC_ALL"， "LC_MESSAGES", "LANGUAGE"];
     let mut lang = String::new();
     for key in env_keys {
         lang = std::env::var(key).unwrap_or_default();
