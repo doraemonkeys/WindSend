@@ -80,13 +80,14 @@ openssl = { version = "*", features = ["vendored"] }
 tao = "0.28"
 tray-icon = "0.14"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
+# rfd 0.14.0 在ubuntu上编译失败
+rfd = "0.14.1"
+
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
 win-toast-notify = "0.1.1"
 
-# rfd 0.14.0 在ubuntu上编译失败
-rfd = "0.14.1"
 
 [build-dependencies]
 windres = "*"
