@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/universal:2
 
 # [Optional] Uncomment this section to install additional OS packages.
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && rm -rf /var/lib/apt/lists/* \
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install clang lld \
     && apt-get autoremove -y && apt-get clean -y \
     && sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
