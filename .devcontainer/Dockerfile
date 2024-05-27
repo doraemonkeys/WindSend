@@ -16,8 +16,9 @@ WORKDIR /workspaces/dart
 ENV PUB_CACHE=/workspaces/dart/.pub_cache
 ENV PATH="/workspaces/dart/flutter/bin:$PATH"
 
-RUN git clone https://github.com/flutter/flutter && \
-    /workspaces/dart/flutter/bin/flutter config --enable-web
+RUN git clone https://github.com/flutter/flutter -b stable --depth 1
+RUN flutter upgrade
+RUN flutter config --enable-web
 
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
