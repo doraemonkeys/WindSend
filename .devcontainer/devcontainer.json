@@ -15,9 +15,7 @@
 		// 	"version": "latest"
 		// }
 	},
-	"remoteEnv": {
-		"PATH": "/home/codespace/flutter/bin:${PATH}"
-	},
+	// "remoteEnv": {},
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -35,7 +33,7 @@
 	// A command to run each time a tool has successfully attached to the container.
 	"postAttachCommand": "go version",
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "flutter upgrade && flutter config --enable-web"
+	"postCreateCommand": "flutter upgrade && flutter config --enable-web",
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	"remoteUser": "root"
 }
