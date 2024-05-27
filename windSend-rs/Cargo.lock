@@ -4266,6 +4266,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
 
 [[package]]
+name = "win-toast-notify"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "258fa624c1da3b3de5a72389b037b39366226724b4cb54bebe9d45366b01c11d"
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4340,6 +4346,7 @@ dependencies = [
  "tracing-subscriber",
  "tray-icon",
  "walkdir",
+ "win-toast-notify",
  "windres",
 ]
 

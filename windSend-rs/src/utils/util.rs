@@ -1,6 +1,4 @@
 use std::borrow::Cow;
-use crate::PROGRAM_NAME;
-use crate::utils::win_toast_notif::*;
 use tracing::error;
 
 pub struct StartHelper {
@@ -345,7 +343,6 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn inform<T: AsRef<str>>(content: T, title: &str) {
-    use notify_rust::Notification;
     let show_len = 80;
     let mut content_runes = content
         .as_ref()
@@ -360,23 +357,34 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         content_runes.append(&mut vec!['.'; 3])
     }
     let body = content_runes.into_iter().collect::<String>();
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    Notification::new()
-        .summary(title)
-        .appname(PROGRAM_NAME)
-        .body(&body)
-        .icon(crate::config::APP_ICON_PATH.get().unwrap())
-        .show()
-        .map_err(|err| error!("show notification error: {}", err))
-        .ok();
+    #[cfg(not(target_os = "windows"))]
+    {
+        use notify_rust::Notification;
+        Notification::new()
+            .summary(title)
+            .appname(crate::PROGRAM_NAME)
+            .body(&body)
+            .icon(crate::config::APP_ICON_PATH.get().unwrap())
+            .show()
+            .map_err(|err| error!("show notification error: {}", err))
+            .ok();
+    }
     #[cfg(target_os = "windows")]
-    WinToastNotif::new()
-        .set_notif_open("")
-        .set_app_id(PROGRAM_NAME)
-        .set_logo(crate::config::APP_ICON_PATH.get().unwrap(), CropCircle::False)
-        .set_title(title)
-        .set_messages(vec![&body])
-        .show()
+    {
+        use win_toast_notify::{CropCircle, WinToastNotify};
+        WinToastNotify::new()
+            // .set_notif_open("") //TODO: open url
+            // .set_app_id(crate::PROGRAM_NAME)
+            .set_logo(
+                crate::config::APP_ICON_PATH.get().unwrap(),
+                CropCircle::False,
+            )
+            .set_title(title)
+            .set_messages(vec![&body])
+            .show()
+            .map_err(|err| error!("show notification error: {}", err))
+            .ok();
+    }
 }
 
 pub fn has_img_ext(name: &str) -> bool {
