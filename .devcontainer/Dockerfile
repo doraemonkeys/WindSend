@@ -18,8 +18,9 @@ ENV PATH="/workspaces/dart/flutter/bin:$PATH"
 
 RUN git clone https://github.com/flutter/flutter -b stable --depth 1
 RUN git config --global --add safe.directory /workspaces/dart/flutter
-RUN flutter upgrade
-RUN flutter config --enable-web
+# 不推荐在 root 用户下运行 flutter upgrade
+# RUN flutter upgrade
+# RUN flutter config --enable-web
 
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
