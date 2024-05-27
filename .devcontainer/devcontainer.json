@@ -15,6 +15,9 @@
 		// 	"version": "latest"
 		// }
 	},
+	"remoteEnv": {
+		"PATH": "/home/codespace/flutter/bin:${PATH}"
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [

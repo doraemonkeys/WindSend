@@ -9,7 +9,7 @@ RUN rm -rf /var/lib/apt/lists/* \
 
 
 # https://stackoverflow.com/questions/72420361/how-to-run-flutter-on-the-github-codespaces-like-as-run-it-on-my-desktop
-RUN apt-get update && apt-get -y install git curl unzip
+RUN apt-get -y install git curl unzip
 
 # RUN useradd -m ricky
 # USER ricky
@@ -19,6 +19,7 @@ RUN apt-get update && apt-get -y install git curl unzip
 RUN  mkdir -p /home/codespace
 WORKDIR /home/codespace
 
+# 对root用户生效？
 ENV PUB_CACHE=/home/codespace/.pub_cache
 ENV PATH="/home/codespace/flutter/bin:$PATH"
 
