@@ -16,11 +16,15 @@ WORKDIR /workspaces/dart
 ENV PUB_CACHE=/workspaces/dart/.pub_cache
 ENV PATH="/workspaces/dart/flutter/bin:$PATH"
 
+RUN whoami
+
 RUN git clone https://github.com/flutter/flutter -b stable --depth 1
 RUN git config --global --add safe.directory /workspaces/dart/flutter
-# 不推荐在 root 用户下运行 flutter upgrade
-# RUN flutter upgrade
-# RUN flutter config --enable-web
+# flutter不推荐在 root 用户下运行 flutter upgrade，可能会带来安全风险，并且可能会影响文件权限
+RUN flutter upgrade
+RUN flutter config --enable-web
+
+RUN touch /workspaces/testdir
 
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
