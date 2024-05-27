@@ -20,7 +20,7 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
             error!("set clipboard text failed, err: {}", e);
         }
     }
-    crate::utils::inform(&body, &head.device_name);
+    crate::utils::inform(&body, &head.device_name, None);
     send_msg(conn, &"粘贴成功".to_string()).await.ok();
 }
 
@@ -212,13 +212,12 @@ pub async fn create_dirs_only_handler(
         }
     };
 
-    let download_dir = std::path::PathBuf::from(
-        crate::config::GLOBAL_CONFIG
-            .lock()
-            .unwrap()
-            .save_path
-            .clone(),
-    );
+    let save_path = crate::config::GLOBAL_CONFIG
+        .lock()
+        .unwrap()
+        .save_path
+        .clone(); // clone to avoid lock
+    let download_dir = std::path::PathBuf::from(&save_path);
     for dir in &dirs {
         let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
         if let Err(err) = r {
@@ -230,7 +229,7 @@ pub async fn create_dirs_only_handler(
         return false;
     };
     if !dirs.is_empty() && head.files_count_in_this_op == 0 {
-        crate::utils::inform("目录创建成功", &head.device_name);
+        crate::utils::inform("目录创建成功", &head.device_name, Some(&save_path));
     }
     true
 }

@@ -363,7 +363,12 @@ pub async fn monitor_single_file_reception(
         if op_info.failure_count > 0 {
             msg = format!("{}\n{} files failed to save", msg, op_info.failure_count);
         }
-        crate::utils::inform(&msg, &op_info.requested_device_name);
+        let save_path = crate::config::GLOBAL_CONFIG
+            .lock()
+            .unwrap()
+            .save_path
+            .clone(); // clone to avoid lock
+        crate::utils::inform(&msg, &op_info.requested_device_name, Some(&save_path));
     }
 }
 

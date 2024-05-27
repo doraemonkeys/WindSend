@@ -505,6 +505,7 @@ async fn handle_menu_event_paste_to_web() {
                 .unwrap()
                 .translate(LanguageKey::ClipboardNotText),
             PROGRAM_NAME,
+            None,
         );
         return;
     }
@@ -519,6 +520,7 @@ async fn handle_menu_event_paste_to_web() {
                 .unwrap()
                 .translate(LanguageKey::PasteToWebFailed),
             PROGRAM_NAME,
+            None,
         );
         return;
     }
@@ -528,6 +530,7 @@ async fn handle_menu_event_paste_to_web() {
             .unwrap()
             .translate(LanguageKey::PasteToWebSuccess),
         PROGRAM_NAME,
+        Some(&web::MY_URL),
     );
 }
 
@@ -541,6 +544,7 @@ async fn handle_menu_event_copy_from_web() {
                 .unwrap()
                 .translate(LanguageKey::CopyFromWebFailed),
             PROGRAM_NAME,
+            None,
         );
         return;
     }
@@ -557,7 +561,7 @@ async fn handle_menu_event_copy_from_web() {
         error!("set clipboard text error: {}", e);
         return;
     }
-    utils::inform(&content, PROGRAM_NAME);
+    utils::inform(&content, PROGRAM_NAME, None);
 }
 
 fn handle_menu_event_clear_files(add_item: &MenuItem, clear_item: &MenuItem) {

@@ -342,7 +342,7 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn inform<T: AsRef<str>>(content: T, title: &str) {
+pub fn inform<T: AsRef<str>>(content: T, title: &str, click_open: Option<&str>) {
     let show_len = 80;
     let mut content_runes = content
         .as_ref()
@@ -371,9 +371,8 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
     }
     #[cfg(target_os = "windows")]
     {
-        use win_toast_notify::{CropCircle, WinToastNotify};
-        WinToastNotify::new()
-            // .set_notif_open("") //TODO: open url
+        use win_toast_notify::{CropCircle, Duration, WinToastNotify};
+        let mut notify = WinToastNotify::new()
             // .set_app_id(crate::PROGRAM_NAME)
             .set_logo(
                 crate::config::APP_ICON_PATH.get().unwrap(),
@@ -381,9 +380,13 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
             )
             .set_title(title)
             .set_messages(vec![&body])
-            .show()
-            .map_err(|err| error!("show notification error: {}", err))
-            .ok();
+            .set_duration(Duration::Short);
+        if let Some(click_open) = click_open {
+            notify = notify.set_notif_open(click_open);
+        }
+        if let Err(err) = notify.show() {
+            error!("show notification error: {}", err);
+        }
     }
 }
 
