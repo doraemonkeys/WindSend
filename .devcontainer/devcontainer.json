@@ -30,9 +30,9 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [],
 	// A command to run each time a tool has successfully attached to the container.
-	"postAttachCommand": "go version"
+	"postAttachCommand": "go version",
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "flutter upgrade && flutter config --enable-web",
+	"postCreateCommand": "flutter upgrade && flutter config --enable-web"
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 }

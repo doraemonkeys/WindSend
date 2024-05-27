@@ -16,24 +16,21 @@ RUN apt-get update && apt-get -y install git curl unzip
 # RUN echo "root:root" | chpasswd
 # RUN echo "ricky ALL=(ALL) ALL" >> /etc/sudoers
 
-RUN  mkdir -p /workspaces/dart
-WORKDIR /workspaces/dart
+RUN  mkdir -p /home/codespace
+WORKDIR /home/codespace
 
-ENV PUB_CACHE=/workspaces/dart/.pub_cache
-ENV PATH="/workspaces/dart/flutter/bin:$PATH"
+ENV PUB_CACHE=/home/codespace/.pub_cache
+ENV PATH="/home/codespace/flutter/bin:$PATH"
 
-RUN whoami
+# RUN whoami
 
-USER vscode
 RUN git clone https://github.com/flutter/flutter -b stable --depth 1
-RUN git config --global --add safe.directory /workspaces/dart/flutter
+RUN git config --global --add safe.directory /home/codespace/flutter
 # flutter不推荐在 root 用户下运行 flutter upgrade，可能会带来安全风险，并且可能会影响文件权限
-RUN flutter upgrade
-RUN flutter config --enable-web
+# RUN flutter upgrade
+# RUN flutter config --enable-web
 
-RUN touch /workspaces/testdir
-
-USER root
+RUN touch /home/codespace/testdir
 
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
