@@ -23,11 +23,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
         let r = send_files(conn, files).await;
         if r.is_ok() {
             #[cfg(not(feature = "disable-systray-support"))]
-            crate::TX_RESET_FILES_ITEM
-                .get()
-                .unwrap()
-                .try_send(())
-                .unwrap();
+            crate::TX_RESET_FILES.get().unwrap().try_send(()).unwrap();
         }
         *crate::SELECTED_FILES.get().unwrap().lock().unwrap() = std::collections::HashSet::new();
         return;

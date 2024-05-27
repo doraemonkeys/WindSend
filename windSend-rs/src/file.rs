@@ -153,7 +153,7 @@ impl FileReceiveSessionManager {
         } else {
             already_exist = false;
             let file_path =
-                std::path::Path::new(&crate::config::GLOBAL_CONFIG.lock().unwrap().save_path)
+                std::path::Path::new(&crate::config::GLOBAL_CONFIG.read().unwrap().save_path)
                     .join(&head.path);
             actual_save_path = generate_unique_filepath(file_path)?;
         }
@@ -358,17 +358,13 @@ pub async fn monitor_single_file_reception(
             "{} {} {}",
             op_info.success_count,
             files_saved_to,
-            crate::config::GLOBAL_CONFIG.lock().unwrap().save_path
+            crate::config::GLOBAL_CONFIG.read().unwrap().save_path
         );
         if op_info.failure_count > 0 {
             msg = format!("{}\n{} files failed to save", msg, op_info.failure_count);
         }
-        let save_path = crate::config::GLOBAL_CONFIG
-            .lock()
-            .unwrap()
-            .save_path
-            .clone(); // clone to avoid lock
-        crate::utils::inform(&msg, &op_info.requested_device_name, Some(&save_path));
+        let save_path = &crate::config::GLOBAL_CONFIG.read().unwrap().save_path;
+        crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
     }
 }
 

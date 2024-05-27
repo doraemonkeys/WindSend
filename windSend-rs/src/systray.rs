@@ -114,7 +114,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         LANGUAGE_MANAGER.read().unwrap().get_language() == Language::EN,
         None,
     );
-    let auto_start = config::GLOBAL_CONFIG.lock().unwrap().auto_start;
+    let auto_start = config::GLOBAL_CONFIG.read().unwrap().auto_start;
     let auto_start_i = CheckMenuItem::new(
         LANGUAGE_MANAGER
             .read()
@@ -362,7 +362,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 }
                 id if id == sub_hide_forever_i.id() => {
                     {
-                        let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                        let mut config = config::GLOBAL_CONFIG.write().unwrap();
                         config.show_systray_icon = false;
                         if let Err(err) = config.save() {
                             error!("save config error: {}", err);
@@ -372,7 +372,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 }
                 id if id == lang_zh_i.id() => {
                     {
-                        let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                        let mut config = config::GLOBAL_CONFIG.write().unwrap();
                         config.language = Language::ZH;
                         if let Err(err) = config.save_and_set() {
                             error!("save config error: {}", err);
@@ -385,7 +385,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 }
                 id if id == lang_en_i.id() => {
                     {
-                        let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                        let mut config = config::GLOBAL_CONFIG.write().unwrap();
                         config.language = Language::EN;
                         if let Err(err) = config.save_and_set() {
                             error!("save config error: {}", err);
@@ -415,7 +415,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     r.spawn(handle_menu_event_copy_from_web());
                 }
                 id if id == auto_start_i.id() => {
-                    let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+                    let mut config = config::GLOBAL_CONFIG.write().unwrap();
                     config.auto_start = !config.auto_start;
                     if let Err(err) = config.save_and_set() {
                         error!("save config error: {}", err);
@@ -487,7 +487,7 @@ async fn handle_menu_event_save_path() {
             return;
         }
     };
-    let mut config = config::GLOBAL_CONFIG.lock().unwrap();
+    let mut config = config::GLOBAL_CONFIG.write().unwrap();
     config.save_path = path.path().to_str().unwrap().to_string();
     debug!("change save path to: {}", config.save_path);
     if let Err(err) = config.save_and_set() {

@@ -2,7 +2,7 @@ use crate::utils;
 use image::EncodableLayout;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use std::{path::Path, str::FromStr};
 use tracing::{debug, error, warn};
 
@@ -19,7 +19,7 @@ lazy_static! {
         utils::StartHelper::new(crate::PROGRAM_NAME.to_string());
 }
 lazy_static! {
-    pub static ref GLOBAL_CONFIG: Mutex<Config> = Mutex::new(init_global_config());
+    pub static ref GLOBAL_CONFIG: RwLock<Config> = RwLock::new(init_global_config());
 }
 lazy_static! {
     pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
@@ -33,7 +33,7 @@ lazy_static! {
 
 pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
     let cryptor = utils::encrypt::AESCbcFollowedCrypt::new(
-        hex::decode(GLOBAL_CONFIG.lock()?.secret_key_hex.clone())?.as_bytes(),
+        hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
     )?;
     Ok(cryptor)
 }

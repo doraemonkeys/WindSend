@@ -284,7 +284,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     }
     if ip != myip {
         {
-            let external_ips = &GLOBAL_CONFIG.lock().unwrap().external_ips;
+            let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
             if !external_ips.is_none() && external_ips.as_ref().unwrap().contains(&ip.to_string()) {
                 return Ok(head);
             }
@@ -305,7 +305,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     let action_resp = MatchActionRespBody {
         device_name: hostname,
         secret_key_hex: crate::config::GLOBAL_CONFIG
-            .lock()
+            .read()
             .unwrap()
             .secret_key_hex
             .clone(),

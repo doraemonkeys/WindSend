@@ -14,7 +14,7 @@ lazy_static::lazy_static!(
 
 fn init_my_url() -> String {
     let secret_key_hex = crate::config::GLOBAL_CONFIG
-        .lock()
+        .read()
         .unwrap()
         .secret_key_hex
         .clone();

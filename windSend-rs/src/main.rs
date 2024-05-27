@@ -17,7 +17,7 @@ mod systray;
 #[cfg(not(feature = "disable-systray-support"))]
 mod web;
 #[cfg(not(feature = "disable-systray-support"))]
-pub static TX_RESET_FILES_ITEM: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
+pub static TX_RESET_FILES: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 #[cfg(not(feature = "disable-systray-support"))]
 pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 // pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
@@ -49,7 +49,7 @@ fn main() {
 
     #[cfg(not(feature = "disable-systray-support"))]
     {
-        let show_systray_icon = config::GLOBAL_CONFIG.lock().unwrap().show_systray_icon;
+        let show_systray_icon = config::GLOBAL_CONFIG.read().unwrap().show_systray_icon;
         if !show_systray_icon {
             return RUNTIME.get().unwrap().block_on(async_main());
         }
@@ -60,7 +60,7 @@ fn main() {
 
         let (tx1, rx1) = crossbeam_channel::bounded(1);
         let (tx2, rx2) = crossbeam_channel::bounded(1);
-        TX_RESET_FILES_ITEM.set(tx1).unwrap();
+        TX_RESET_FILES.set(tx1).unwrap();
         TX_CLOSE_QUICK_PAIR.set(tx2).unwrap();
         let rm = systray::MenuReceiver {
             rx_reset_files_item: rx1,
@@ -83,7 +83,7 @@ fn main() {
 async fn async_main() {
     trace!("async_main");
     let server_port = config::GLOBAL_CONFIG
-        .lock()
+        .read()
         .unwrap()
         .server_port
         .parse::<u16>()

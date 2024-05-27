@@ -213,7 +213,7 @@ pub async fn create_dirs_only_handler(
     };
 
     let save_path = crate::config::GLOBAL_CONFIG
-        .lock()
+        .read()
         .unwrap()
         .save_path
         .clone(); // clone to avoid lock
