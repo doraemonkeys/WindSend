@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/go-postgres
 {
-	"name": "Go & Rust",
+	"name": "Go & Rust & flutter",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
@@ -13,6 +13,14 @@
 		},
 		"ghcr.io/devcontainers/features/go:1": {
 			"version": "latest"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"Dart-Code.dart-code",
+				"Dart-Code.flutter"
+			]
 		}
 	},
 	// Features to add to the dev container. More info: https://containers.dev/features.
