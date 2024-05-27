@@ -17,6 +17,7 @@ ENV PUB_CACHE=/workspaces/dart/.pub_cache
 ENV PATH="/workspaces/dart/flutter/bin:$PATH"
 
 RUN git clone https://github.com/flutter/flutter -b stable --depth 1
+RUN git config --global --add safe.directory /workspaces/dart/flutter
 RUN flutter upgrade
 RUN flutter config --enable-web
 
