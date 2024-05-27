@@ -6,14 +6,14 @@
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"features": {
-		// "ghcr.io/devcontainers/features/rust:1": {
-		// 	"version": "latest",
-		// 	// minimal、default、complete
-		// 	"profile": "default"
-		// },
-		// "ghcr.io/devcontainers/features/go:1": {
-		// 	"version": "latest"
-		// }
+		"ghcr.io/devcontainers/features/rust:1": {
+			"version": "latest",
+			// minimal、default、complete
+			"profile": "default"
+		},
+		"ghcr.io/devcontainers/features/go:1": {
+			"version": "latest"
+		}
 	},
 	// "remoteEnv": {},
 	"customizations": {
@@ -33,7 +33,7 @@
 	// A command to run each time a tool has successfully attached to the container.
 	"postAttachCommand": "go version",
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "flutter upgrade && flutter config --enable-web",
+	"postCreateCommand": "/home/codespace/flutter/bin/flutter upgrade && /home/codespace/flutter/bin/flutter config --enable-web",
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	"remoteUser": "root"
 }

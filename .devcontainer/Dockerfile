@@ -19,7 +19,7 @@ RUN apt-get -y install git curl unzip
 RUN  mkdir -p /home/codespace
 WORKDIR /home/codespace
 
-# 对root用户生效？
+# 为啥在codespace不生效？
 ENV PUB_CACHE=/home/codespace/.pub_cache
 ENV PATH="/home/codespace/flutter/bin:$PATH"
 
