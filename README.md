@@ -84,8 +84,8 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### 注意事项
 
-1. 一直转圈圈说明你电脑端配置有问题，比如wifi设置为公用网络。
-2. 两个设备之间的时间差不能超过5分钟，否则会导致配对失败。
+- 两个设备之间的时间差不能超过5分钟，否则会导致配对失败。
+- Windows上的通知发送依赖于PowerShell，如果你没有看到通知，请检查PowerShell是否在环境变量中。
 
 
 
@@ -135,9 +135,7 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 1. Rust版体积相对稍小
-2. Rust版支持将更多种类图片写入Windows剪切板
-3. Rust版通知不能显示图标
-4. Rust版在传输速度上比Go版略低
+2. Rust版在传输速度上比Go版略低
 
 
 

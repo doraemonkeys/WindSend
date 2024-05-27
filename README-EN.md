@@ -80,6 +80,7 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 ### Note
 
 - The time difference between the two devices cannot exceed 5 minutes, otherwise the pairing will fail.
+- Notification delivery on Windows relies on PowerShell, if you don't see notifications, check that PowerShell is in the environment variable.
 
 ## Tips
 
@@ -99,8 +100,7 @@ The two versions are almost the same in function and appearance, but there are s
 
 1. The Rust version is relatively smaller in size
 2. The Rust version supports writing more types of images to the Windows clipboard
-3. The Rust version of the notification cannot display the icon
-4. The Rust version is slightly lower in transmission speed than the Go version
+3. The Rust version is slightly lower in transmission speed than the Go version
 
 
 ## Cross-platform situation
