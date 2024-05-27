@@ -1,6 +1,6 @@
 use std::borrow::Cow;
-
 use crate::PROGRAM_NAME;
+use crate::utils::win_toast_notif::*;
 use tracing::error;
 
 pub struct StartHelper {
@@ -360,6 +360,7 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         content_runes.append(&mut vec!['.'; 3])
     }
     let body = content_runes.into_iter().collect::<String>();
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     Notification::new()
         .summary(title)
         .appname(PROGRAM_NAME)
@@ -368,6 +369,14 @@ pub fn inform<T: AsRef<str>>(content: T, title: &str) {
         .show()
         .map_err(|err| error!("show notification error: {}", err))
         .ok();
+    #[cfg(target_os = "windows")]
+    WinToastNotif::new()
+        .set_notif_open("")
+        .set_app_id(PROGRAM_NAME)
+        .set_logo(crate::config::APP_ICON_PATH.get().unwrap(), CropCircle::False)
+        .set_title(title)
+        .set_messages(vec![&body])
+        .show()
 }
 
 pub fn has_img_ext(name: &str) -> bool {
