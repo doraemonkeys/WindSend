@@ -342,7 +342,12 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn inform<T: AsRef<str>>(content: T, title: &str, click_open: Option<&str>) {
+pub fn inform<T: AsRef<str>>(
+    content: T,
+    title: &str,
+    #[cfg(target_os = "windows")] click_open: Option<&str>,
+    #[cfg(not(target_os = "windows"))] _: Option<&str>,
+) {
     let show_len = 80;
     let mut content_runes = content
         .as_ref()
