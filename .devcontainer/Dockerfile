@@ -30,8 +30,6 @@ RUN git config --global --add safe.directory /home/codespace/flutter
 # RUN flutter upgrade
 # RUN flutter config --enable-web
 
-RUN touch /home/codespace/testdir
-
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
 # RUN go get -x <your-dependency-or-tool>
