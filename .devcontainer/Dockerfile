@@ -8,11 +8,11 @@ RUN rm -rf /var/lib/apt/lists/* \
     && sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
 
 
-RUN useradd -m ricky
-USER ricky
-
 # https://stackoverflow.com/questions/72420361/how-to-run-flutter-on-the-github-codespaces-like-as-run-it-on-my-desktop
 RUN apt-get update && apt-get -y install git curl unzip
+
+RUN useradd -m ricky
+USER ricky
 
 RUN  mkdir -p /workspaces/dart
 WORKDIR /workspaces/dart
