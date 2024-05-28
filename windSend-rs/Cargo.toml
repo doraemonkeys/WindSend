@@ -52,8 +52,6 @@ arboard = { version = "3.3", features = [
     "wayland-data-control",
     "wl-clipboard-rs",
 ] }
-# notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
-notify-rust = "4.11"
 # notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
 tokio-native-tls = "0.3.1"
 rustls-pemfile = "2.0.0"
@@ -62,7 +60,7 @@ tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branc
 hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
-clipboard-rs = "0.1.4"
+clipboard-rs = "0.1.7"
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
@@ -73,6 +71,8 @@ clipboard-rs = "0.1.4"
 # ] }
 # rustls = { path = "./rustls/rustls" }
 # tokio-rustls = { path = "./tokio-rustls" }
+
+
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
 openssl = { version = "*", features = ["vendored"] }
 
@@ -83,11 +83,13 @@ reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.14.1"
 
-
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
 win-toast-notify = "0.1.1"
 
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+# notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
+notify-rust = "4.11"
 
 [build-dependencies]
 windres = "*"
