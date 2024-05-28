@@ -78,9 +78,9 @@ class _MyAppState extends State<MyApp> {
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
-      var shareStream = ReceiveSharingIntent.getMediaStream();
+      var shareStream = ReceiveSharingIntent.instance.getMediaStream();
 
-      var shareFuture = ReceiveSharingIntent.getInitialMedia();
+      var shareFuture = ReceiveSharingIntent.instance.getInitialMedia();
 
       ShareDataModel.initInstance(
         shareStream,
