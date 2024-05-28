@@ -5,7 +5,8 @@ RUN rm -rf /var/lib/apt/lists/* \
     && apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install clang lld \
     && apt-get autoremove -y && apt-get clean -y \
-    && sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
+    && apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev \
+    && apt-get install -y ninja-build
 
 
 # https://stackoverflow.com/questions/72420361/how-to-run-flutter-on-the-github-codespaces-like-as-run-it-on-my-desktop
