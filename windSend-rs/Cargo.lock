@@ -4267,9 +4267,12 @@ checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
 
 [[package]]
 name = "win-toast-notify"
-version = "0.1.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "258fa624c1da3b3de5a72389b037b39366226724b4cb54bebe9d45366b01c11d"
+checksum = "13c3b41da3672215fb4b9b45b39087b8337fec793793d810acdccb55c99c4dd6"
+dependencies = [
+ "xml",
+]
 
 [[package]]
 name = "winapi"
@@ -4760,6 +4763,21 @@ dependencies = [
  "libc",
  "winapi",
 ]
+
+[[package]]
+name = "xml"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ede1c99c55b4b3ad0349018ef0eccbe954ce9c342334410707ee87177fcf2ab4"
+dependencies = [
+ "xml-rs",
+]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "791978798f0597cfc70478424c2b4fdc2b7a8024aaff78497ef00f24ef674193"
 
 [[package]]
 name = "yasna"
