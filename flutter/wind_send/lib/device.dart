@@ -483,8 +483,8 @@ class Device {
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
-      List<TargetPaths> respPaths =
-          respPathsMap.map((e) => TargetPaths.fromJson(e)).toList();
+      List<TransferInfo> respPaths =
+          respPathsMap.map((e) => TransferInfo.fromJson(e)).toList();
       int fileCount = await _downloadFiles(respPaths);
       return ("", fileCount);
     }
@@ -540,33 +540,32 @@ class Device {
     return (content, pasteText);
   }
 
-  Future<int> _downloadFiles(List<TargetPaths> winFilePaths) async {
-    // print('downloadFiles: ${jsonEncode(winFilePaths)}');
+  Future<int> _downloadFiles(List<TransferInfo> targetItems) async {
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
-    void startDownload((Device, List<TargetPaths>) args) async {
-      var (device, winFilePaths) = args;
+    void startDownload((Device, List<TransferInfo>) args) async {
+      var (device, targetItems) = args;
       var futures = <Future>[];
       var downloader = FileDownloader(
         device,
         localDeviceName,
         threadNum: device.downloadThread,
       );
-      for (var winFilePath in winFilePaths) {
-        var fileName = filepath.basename(winFilePath.path);
+      for (var item in targetItems) {
+        var fileName = filepath.basename(item.remotePath);
         String saveDir;
         if (hasImageExtension(fileName)) {
           saveDir = imageSavePath;
         } else {
           saveDir = fileSavePath;
         }
-        if (winFilePath.savePath.isNotEmpty) {
+        if (item.savePath.isNotEmpty) {
           saveDir = fileSavePath; // 传输文件夹时，图片不分离
-          saveDir = filepath.join(saveDir, winFilePath.savePath);
+          saveDir = filepath.join(saveDir, item.savePath);
         }
         // print('fileName: $fileName, saveDir: $saveDir');
-        if (winFilePath.type == TargetPaths.pathInfoTypeDir) {
+        if (item.type == TransferInfo.pathInfoTypeDir) {
           String systemSeparator = filepath.separator;
           saveDir = saveDir.replaceAll('/', systemSeparator);
           saveDir = saveDir.replaceAll('\\', systemSeparator);
@@ -574,7 +573,7 @@ class Device {
           continue;
         }
         // await Directory(saveDir).create(recursive: true);
-        await downloader.parallelDownload(winFilePath, saveDir);
+        await downloader.parallelDownload(item, saveDir);
       }
       await Future.wait(futures);
       await downloader.close();
@@ -585,14 +584,14 @@ class Device {
     // 不try, Exception 直接抛出
     await compute(
       startDownload,
-      (this, winFilePaths),
+      (this, targetItems),
     );
 
     // 计算保存的目录
     // Set<String> pathSet = {};
     int fileCount = 0;
-    for (var winFilePath in winFilePaths) {
-      if (winFilePath.type == TargetPaths.pathInfoTypeDir) {
+    for (var item in targetItems) {
+      if (item.type == TransferInfo.pathInfoTypeDir) {
         continue;
       }
       fileCount++;

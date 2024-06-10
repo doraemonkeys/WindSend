@@ -78,8 +78,9 @@ pub struct RouteRespHead<'a> {
 }
 
 #[derive(Debug, Serialize, Default)]
-pub struct RoutePathInfo {
-    pub path: String,
+pub struct RouteTransferInfo {
+    #[serde(rename = "path")]
+    pub remote_path: String,
     pub size: u64,
     #[serde(rename = "type")]
     pub type_: PathInfoType,
