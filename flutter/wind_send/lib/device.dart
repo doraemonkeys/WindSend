@@ -472,13 +472,10 @@ class Device {
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
       final imageName = respHead.msg;
-      // var file = File('$downloadDir/$fileName');
-      String filePath;
-      filePath = '${AppConfigModel().imageSavePath}/$imageName';
-      var file = File(filePath);
-      await file.writeAsBytes(respBody);
-      // /xxx/dir/xxx.jpg -> /xxx/dir
-      // return "1 个文件已保存到:\n${file.parent.path}";
+      String filePath =
+          filepath.join(AppConfigModel().imageSavePath, imageName);
+      await Directory(AppConfigModel().imageSavePath).create(recursive: true);
+      await File(filePath).writeAsBytes(respBody);
       return ("", 1);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
