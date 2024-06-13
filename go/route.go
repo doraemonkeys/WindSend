@@ -71,12 +71,12 @@ type RespHead struct {
 	// Paths   []pathInfo `json:"paths"`
 }
 
-type pathInfo struct {
+type transferInfo struct {
 	// dir or file
-	Type     pathInfoType `json:"type"`
-	Path     string       `json:"path"`
-	SavePath string       `json:"savePath"`
-	Size     int64        `json:"size"`
+	Type       pathInfoType `json:"type"`
+	RemotePath string       `json:"path"`
+	SavePath   string       `json:"savePath"`
+	Size       int64        `json:"size"`
 }
 
 type pathInfoType = string
@@ -413,7 +413,7 @@ func copyHandler(conn net.Conn) {
 
 func sendFiles(conn net.Conn) error {
 	// resp.Paths = SelectedFiles
-	var respPaths = make([]pathInfo, 0, len(SelectedFiles))
+	var respPaths = make([]transferInfo, 0, len(SelectedFiles))
 	for _, path1 := range SelectedFiles {
 		path1 = strings.ReplaceAll(path1, "\\", "/")
 		fInfo, err := os.Stat(path1)
@@ -422,8 +422,8 @@ func sendFiles(conn net.Conn) error {
 			respCommonError(conn, err.Error())
 			return err
 		}
-		var pi pathInfo
-		pi.Path = path1
+		var pi transferInfo
+		pi.RemotePath = path1
 		if !fInfo.IsDir() {
 			pi.Type = pathInfoTypeFile
 			pi.Size = fInfo.Size()
@@ -441,8 +441,8 @@ func sendFiles(conn net.Conn) error {
 				return err
 			}
 			path2 = strings.ReplaceAll(path2, "\\", "/")
-			var pi pathInfo
-			pi.Path = path2
+			var pi transferInfo
+			pi.RemotePath = path2
 			pi.Type = pathInfoTypeDir
 			pi.SavePath = filepath.Join(filepath.Base(path1), strings.TrimPrefix(path2, path1))
 			if !info.IsDir() {

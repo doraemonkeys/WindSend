@@ -184,27 +184,34 @@ class RespHead {
   }
 }
 
-class TargetPaths {
+class TransferInfo {
   static const String pathInfoTypeFile = 'file';
   static const String pathInfoTypeDir = 'dir';
 
-  String path;
+  /// 文件在服务端设备上的路径
+  String remotePath;
+
+  /// 文件在本地设备上的相对保存路径
   String savePath;
+
+  /// 传输类型
   String type;
+
+  /// 文件大小(字节)，目录为0
   int size;
 
-  TargetPaths(this.path, this.savePath, this.size,
-      {this.type = TargetPaths.pathInfoTypeFile});
+  TransferInfo(this.remotePath, this.savePath, this.size,
+      {this.type = TransferInfo.pathInfoTypeFile});
 
-  TargetPaths.fromJson(Map<String, dynamic> json)
-      : path = json['path'],
+  TransferInfo.fromJson(Map<String, dynamic> json)
+      : remotePath = json['path'],
         savePath = json['savePath'],
         type = json['type'],
         size = json['size'];
 
   Map<String, dynamic> toJson() {
     Map<String, dynamic> data = {};
-    data['path'] = path;
+    data['path'] = remotePath;
     data['savePath'] = savePath;
     data['type'] = type;
     data['size'] = size;
@@ -387,7 +394,7 @@ class FileDownloader {
   }
 
   Future<void> _writeRangeFile(int start, int end, int partNum,
-      RandomAccessFile fileAccess, TargetPaths paths) async {
+      RandomAccessFile fileAccess, TransferInfo paths) async {
     var chunkSize = min(maxChunkSize, end - start);
     // print('chunkSize: $chunkSize');
     var (conn, stream) = await _connectionManager.getConnection();
@@ -396,7 +403,7 @@ class FileDownloader {
       localDeviceName,
       DeviceAction.downloadAction.name,
       device.generateTimeipHeadHex(),
-      path: paths.path,
+      path: paths.remotePath,
       start: start,
       end: end,
     );
@@ -459,12 +466,12 @@ class FileDownloader {
   }
 
   Future<void> parallelDownload(
-    TargetPaths paths,
+    TransferInfo targetFile,
     String fileSavePath,
   ) async {
     String systemSeparator = filepathpkg.separator;
-    var targetFilePath = paths.path;
-    var targetFileSize = paths.size;
+    var targetFilePath = targetFile.remotePath;
+    var targetFileSize = targetFile.size;
     targetFilePath = targetFilePath.replaceAll('/', systemSeparator);
     targetFilePath = targetFilePath.replaceAll('\\', systemSeparator);
 
@@ -507,7 +514,7 @@ class FileDownloader {
         end = targetFileSize;
       }
       // print("part $partNum: $start - $end");
-      futures.add(_writeRangeFile(start, end, partNum, fileAccess, paths));
+      futures.add(_writeRangeFile(start, end, partNum, fileAccess, targetFile));
       partNum++;
     }
     await Future.wait(futures);

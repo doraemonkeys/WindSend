@@ -1,6 +1,6 @@
 use crate::language::{LanguageKey, LANGUAGE_MANAGER};
 use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
-use crate::route::{RouteDataType, RoutePathInfo, RouteRecvHead, RouteRespHead};
+use crate::route::{RouteDataType, RouteRecvHead, RouteRespHead, RouteTransferInfo};
 use std::path::PathBuf;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -75,7 +75,7 @@ async fn send_files<T: IntoIterator<Item = String>>(
     conn: &mut TlsStream<TcpStream>,
     paths: T,
 ) -> Result<(), ()> {
-    let mut resp_paths = Vec::<RoutePathInfo>::new();
+    let mut resp_paths = Vec::<RouteTransferInfo>::new();
     for path1 in paths {
         let path_attr = tokio::fs::metadata(&path1).await;
         let path_attr = match path_attr {
@@ -85,8 +85,8 @@ async fn send_files<T: IntoIterator<Item = String>>(
                 continue;
             }
         };
-        let mut rpi: RoutePathInfo = RoutePathInfo {
-            path: path1.clone(),
+        let mut rpi: RouteTransferInfo = RouteTransferInfo {
+            remote_path: path1.clone(),
             ..Default::default()
         };
         if path_attr.is_file() {
@@ -120,8 +120,8 @@ async fn send_files<T: IntoIterator<Item = String>>(
                 .display()
                 .to_string()
                 .replace(REVERSE_SEPARATOR, DEFAULT_SEPARATOR);
-            let mut rpi: RoutePathInfo = RoutePathInfo {
-                path: path2.clone(),
+            let mut rpi = RouteTransferInfo {
+                remote_path: path2.clone(),
                 type_: if entry.file_type().is_dir() {
                     crate::route::PathInfoType::Dir
                 } else {

@@ -461,9 +461,17 @@ class _MainBodyState extends State<MainBody> {
               element.type == SharedMediaType.image ||
               element.type == SharedMediaType.video) {
             fileList.add(element.path);
-          } else {
-            text = element.path;
+            continue;
           }
+          if (element.mimeType == 'text/html') {
+            if (File(element.path).existsSync()) {
+              fileList.add(element.path);
+            } else {
+              text = element.path;
+            }
+            continue;
+          }
+          text = element.path;
         }
         if (defaultDevice.iP == Device.webIP && text == null) {
           throw 'Unsupported operation, web device only support text';
