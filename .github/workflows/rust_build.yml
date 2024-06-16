@@ -18,6 +18,12 @@ jobs:
           toolchain: stable
           target: aarch64-pc-windows-msvc
 
+      - name: Install NASM for tokio-rustls(aws-lc-rs) on Windows
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install ninja-build tool for tokio-rustls(aws-lc-rs) on Windows
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
       - name: Build windows-amd64
         working-directory: ./windSend-rs
         run: cargo build --verbose --release

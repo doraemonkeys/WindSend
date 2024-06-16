@@ -218,8 +218,8 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         &sub_menu_lang,
         #[cfg(not(target_os = "linux"))]
         &auto_start_i,
-        &PredefinedMenuItem::separator(),
         &allow_to_be_search_i,
+        &PredefinedMenuItem::separator(),
         &open_url_i,
         &about_i,
         &quit_i,
