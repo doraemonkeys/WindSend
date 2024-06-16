@@ -174,3 +174,30 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 | 能否编译 | ✅       | ❌     | ❌     | ❕       | ❕    |
 | 正常运行 | ✅       | ❌     | ❌     | ❕       | ❕    |
 
+## 构建指南
+
+### Flutter
+
+Flutter • channel stable
+
+### Rust
+
+#### toolchain
+
+- **windows x86_64**
+
+  stable-x86_64-pc-windows-msvc
+
+- **windows aarch64**
+
+  aarch64-pc-windows-msvc
+
+#### dependencies
+
+[Requirements - AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
+
+[.github/workflows/rust_build.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/rust_build.yml)
+
+### Go
+
+version: 1.21+
