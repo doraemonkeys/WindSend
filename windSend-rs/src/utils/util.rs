@@ -417,6 +417,20 @@ pub fn get_system_lang() -> String {
             break;
         }
     }
+    #[cfg(target_os = "windows")]
+    if lang.is_empty() {
+        if let Some(output) = std::process::Command::new("cmd")
+            .args(["/c", "chcp"])
+            .output()
+            .ok()
+        {
+            match String::from_utf8_lossy(&output.stdout) {
+                s if s.contains("936") => lang = "zh_CN".to_string(),
+                s if s.contains("437") => lang = "en_US".to_string(),
+                _ => {}
+            }
+        }
+    }
     lang
 }
 

@@ -469,6 +469,16 @@ func GetSystemLang() string {
 			break
 		}
 	}
+	if lang == "" && runtime.GOOS == "windows" {
+		output, _ := exec.Command("cmd", "/c", "chcp").Output()
+		s := string(output)
+		switch {
+		case strings.Contains(s, "936"):
+			lang = "zh_CN"
+		case strings.Contains(s, "437"):
+			lang = "en_US"
+		}
+	}
 	return lang
 }
 
