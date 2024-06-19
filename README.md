@@ -172,13 +172,17 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 |          | Windows | macOS | Linux | Android | iOS  |
 | -------- | ------- | ----- | ----- | ------- | ---- |
 | 能否编译 | ✅       | ❌     | ❌     | ❕       | ❕    |
-| 正常运行 | ✅       | ❌     | ❌     | ❕       | ❕    |
+| 正常运行 | ✅       |       |       | ❕       | ❕    |
 
 ## 构建指南
 
 ### Flutter
 
-Flutter • channel stable
+version: channel stable
+
+#### Requirements
+
+[Install Rust](https://www.rust-lang.org/tools/install)
 
 ### Rust
 
@@ -192,11 +196,13 @@ Flutter • channel stable
 
   aarch64-pc-windows-msvc
 
-#### dependencies
+#### Requirements
 
-[Requirements - AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
+[AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
 
 [.github/workflows/rust_build.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/rust_build.yml)
+
+
 
 ### Go
 
