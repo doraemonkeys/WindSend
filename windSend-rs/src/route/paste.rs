@@ -103,7 +103,8 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         .get_file(&head)
         .await;
     if let Err(err) = file {
-        error!("create file error: {}", err);
+        error!("create file: {} error: {}", head.path, err);
+        let _ = tokio::io::copy(&mut conn.take(head.data_len as u64), &mut tokio::io::sink()).await;
         return resp_common_error_msg(conn, &format!("create file error: {}", err))
             .await
             .is_ok();
