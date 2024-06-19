@@ -27,6 +27,13 @@
         android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher">
+        <!-- github.com/superlistapp/super_native_extensions/tree/main/super_clipboard -->
+        <provider
+            android:name="com.superlist.super_native_extensions.DataProvider"
+            android:authorities="com.doraemon.wind_send"
+            android:exported="true"
+            android:grantUriPermissions="true">
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"

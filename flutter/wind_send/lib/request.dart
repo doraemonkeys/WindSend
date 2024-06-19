@@ -299,7 +299,7 @@ class FileUploader {
       throw Exception('sentSize: $sentSize, end - start: ${end - start}');
     }
 
-    // await conn.flush();
+    // await conn.flush(); // flush operation is in uploader close function
 
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(stream);
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
@@ -318,6 +318,7 @@ class FileUploader {
   //   return digest;
   // }
 
+  /// It's caller's responsibility to close the uploader.
   Future<void> upload(
     String filePath,
     String savePath,
@@ -465,7 +466,7 @@ class FileDownloader {
     _connectionManager.putConnection(conn, stream);
   }
 
-  Future<void> parallelDownload(
+  Future<String> parallelDownload(
     TransferInfo targetFile,
     String fileSavePath,
   ) async {
@@ -520,6 +521,7 @@ class FileDownloader {
     await Future.wait(futures);
     await fileAccess.flush();
     await fileAccess.close();
+    return newFilepath;
   }
 }
 

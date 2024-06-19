@@ -477,7 +477,7 @@ class _MainBodyState extends State<MainBody> {
           throw 'Unsupported operation, web device only support text';
         }
         if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-          await defaultDevice.doPasteFileAction(filePath: fileList);
+          await defaultDevice.doPasteFilesAction(filePath: fileList);
         }
         if (text != null) {
           if (defaultDevice.iP == Device.webIP) {
@@ -898,7 +898,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               var (c, count) = await device.doCopyAction();
-              if (count != 0) {
+              if (c.isEmpty) {
                 return context.formatString(AppLocale.filesSaved, [count]);
               }
               return '${context.formatString(AppLocale.copySuccess, [])}\n$c';
@@ -926,7 +926,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 context, device, onChanged, () {
               String successMsg =
                   context.formatString(AppLocale.pasteSuccess, []);
-              Future<void> f = device.doPasteTextAction();
+              Future<void> f = device.doPasteClipboardAction();
               return f.then((_) => successMsg);
             });
           },
@@ -953,7 +953,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 context.formatString(AppLocale.operationSuccess, []);
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              await device.doPasteFileAction();
+              await device.doPasteFilesAction();
               return successMsg;
             });
           },

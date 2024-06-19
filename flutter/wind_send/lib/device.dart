@@ -2,18 +2,18 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as filepath;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
+import 'package:super_clipboard/super_clipboard.dart';
+// import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
 import 'request.dart';
@@ -476,6 +476,17 @@ class Device {
           filepath.join(AppConfigModel().imageSavePath, imageName);
       await Directory(AppConfigModel().imageSavePath).create(recursive: true);
       await File(filePath).writeAsBytes(respBody);
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        return ("", 1);
+      }
+      final item = DataWriterItem();
+      if (Platform.isAndroid) {
+        item.add(Formats.jpeg(Uint8List.fromList(respBody)));
+      } else {
+        item.add(Formats.png(Uint8List.fromList(respBody)));
+      }
+      await clipboard.write([item]);
       return ("", 1);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
@@ -497,10 +508,13 @@ class Device {
     if (text != null && text.isNotEmpty) {
       pasteText = text;
     } else {
-      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (clipboardData != null && clipboardData.text != null) {
-        pasteText = clipboardData.text!;
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        throw Exception('Clipboard API is not supported on this platform');
       }
+      final reader = await clipboard.read();
+      pasteText = await reader.readValue(Formats.plainText) ?? '';
+      // pasteText = await Pasteboard.text ?? '';
     }
 
     var conn = await SecureSocket.connect(
@@ -529,7 +543,14 @@ class Device {
     final content = utf8.decode(respBody);
     // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
     if (content.isNotEmpty && content != pasteText) {
-      await Clipboard.setData(ClipboardData(text: content));
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        throw Exception('Clipboard API is not supported on this platform');
+      }
+      final item = DataWriterItem();
+      item.add(Formats.plainText(content));
+      await clipboard.write([item]);
+      // Pasteboard.writeText(content);
     }
     if (content.length > 40) {
       return ('${content.substring(0, 40)}...', pasteText);
@@ -570,7 +591,16 @@ class Device {
           continue;
         }
         // await Directory(saveDir).create(recursive: true);
-        await downloader.parallelDownload(item, saveDir);
+        String realSavePath = await downloader.parallelDownload(item, saveDir);
+        if (targetItems.length == 1) {
+          final clipboard = SystemClipboard.instance;
+          if (clipboard == null) {
+            continue;
+          }
+          final item = DataWriterItem();
+          item.add(Formats.fileUri(Uri.file(realSavePath)));
+          await clipboard.write([item]);
+        }
       }
       await Future.wait(futures);
       await downloader.close();
@@ -597,7 +627,7 @@ class Device {
   }
 
   /// filePath为空时，弹出文件选择器
-  Future<void> doPasteFileAction({
+  Future<void> doPasteFilesAction({
     List<String>? filePath,
     Map<String, String> fileSavePathMap = const {},
     int? opID,
@@ -606,18 +636,7 @@ class Device {
     if (filePath == null || filePath.isEmpty) {
       // check permission
       if (Platform.isAndroid) {
-        final androidInfo = await DeviceInfoPlugin().androidInfo;
-        if (androidInfo.version.sdkInt >= 30 &&
-            !await Permission.manageExternalStorage.request().isGranted) {
-          throw Exception('need manageExternalStorage permission');
-        }
-        if (androidInfo.version.sdkInt > 32) {
-          if (!await Permission.photos.request().isGranted ||
-              !await Permission.videos.request().isGranted ||
-              !await Permission.audio.request().isGranted) {
-            throw Exception('need photos, videos, audio permission');
-          }
-        }
+        await checkOrRequestAndroidPermission();
       }
       final result = await FilePicker.platform.pickFiles(allowMultiple: true);
       if (result == null || !result.files.isNotEmpty) {
@@ -655,21 +674,12 @@ class Device {
     FilePicker.platform.clearTemporaryFiles();
   }
 
+  // 上传文件夹与上传文件统一成一个函数
+  // TODO：最后上传文件夹的同时，body换成dirPaths与选择的文件或文件夹的List<String>
   Future<void> doPasteDirAction({String? dirPath}) async {
     // check permission
     if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt >= 30 &&
-          !await Permission.manageExternalStorage.request().isGranted) {
-        throw Exception('need manageExternalStorage permission');
-      }
-      if (androidInfo.version.sdkInt > 32) {
-        if (!await Permission.photos.request().isGranted ||
-            !await Permission.videos.request().isGranted ||
-            !await Permission.audio.request().isGranted) {
-          throw Exception('need photos, videos, audio permission');
-        }
-      }
+      await checkOrRequestAndroidPermission();
     }
     String selectedDirPath;
     if (dirPath == null || dirPath.isEmpty) {
@@ -711,7 +721,7 @@ class Device {
     // print('dirPaths: $dirPaths');
     int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
     if (filePaths.isNotEmpty) {
-      await doPasteFileAction(
+      await doPasteFilesAction(
           filePath: filePaths, fileSavePathMap: fileSavePathMap, opID: opID);
     }
     var conn = await SecureSocket.connect(
@@ -744,27 +754,71 @@ class Device {
     }
   }
 
-  Future<void> doPasteTextAction({
-    String? text,
+  // ============================ super_clipboard code  ============================
+  Future<void> doPasteClipboardAction({
     Duration timeout = const Duration(seconds: 2),
   }) async {
-    String pasteText;
-    if (text != null && text.isNotEmpty) {
-      pasteText = text;
-    } else {
-      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (clipboardData == null ||
-          clipboardData.text == null ||
-          clipboardData.text!.isEmpty) {
-        throw Exception('no text in clipboard');
-      }
-      pasteText = clipboardData.text!;
+    final clipboard = SystemClipboard.instance;
+    if (clipboard == null) {
+      throw Exception('Clipboard API is not supported on this platform');
+    }
+    final reader = await clipboard.read();
+
+    String? pasteText = await reader.readValue(Formats.plainText);
+    if (pasteText != null) {
+      return doPasteTextAction(text: pasteText, timeout: timeout);
     }
 
-    // if (serverConfig.ip == ServerConfig.webIp) {
-    //   await _doPasteTextActionWeb(serverConfig, pasteText);
-    //   return;
-    // }
+    /// file list
+    List<String> fileLists = [];
+    for (var element in reader.items) {
+      final value = await element.readValue(Formats.fileUri);
+      if (value != null) {
+        fileLists.add(value.toFilePath());
+      }
+    }
+    if (fileLists.isNotEmpty) {
+      // clear clipboard
+      await clipboard.write([]);
+      // TODO: fix dirPath paste
+      return doPasteFilesAction(filePath: fileLists);
+    }
+
+    List<SimpleFileFormat> imageFormats = [
+      Formats.jpeg,
+      Formats.png,
+      Formats.bmp,
+      Formats.gif,
+      Formats.tiff,
+      Formats.webp,
+    ];
+    for (var format in imageFormats) {
+      if (!reader.canProvide(format)) {
+        continue;
+      }
+      StreamController done = StreamController();
+      reader.getFile(format, (file) async {
+        final stream = file.getStream();
+        final bytes = await stream.expand((element) => element).toList();
+        final timeName =
+            'clipboard_image_${DateFormat('yyyy-MM-dd HH-mm-ss').format(DateTime.now().toLocal())}.png';
+        await doPasteSingleSmallFileAction(
+            fileName: file.fileName ?? timeName,
+            data: Uint8List.fromList(bytes));
+        done.add(null);
+      });
+      await done.stream.first;
+      done.close();
+      return;
+    }
+    throw Exception('Empty clipboard');
+  }
+  // ============================ super_clipboard code  ============================
+
+  Future<void> doPasteTextAction({
+    required String text,
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     var conn = await SecureSocket.connect(
       iP,
       port,
@@ -773,7 +827,7 @@ class Device {
       },
       timeout: timeout,
     );
-    Uint8List pasteTextUint8 = utf8.encode(pasteText);
+    Uint8List pasteTextUint8 = utf8.encode(text);
     var headInfo = HeadInfo(AppConfigModel().deviceName,
         DeviceAction.pasteText.name, generateTimeipHeadHex(),
         dataLen: pasteTextUint8.length);
@@ -789,6 +843,47 @@ class Device {
     }
   }
 
+  Future<void> doPasteSingleSmallFileAction({
+    required Uint8List data,
+    required String fileName,
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    var conn = await SecureSocket.connect(
+      iP,
+      port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
+      },
+      timeout: timeout,
+    );
+
+    HeadInfo head = HeadInfo(
+      AppConfigModel().deviceName,
+      DeviceAction.pasteFile.name,
+      generateTimeipHeadHex(),
+      fileID: Random().nextInt(int.parse('FFFFFFFF', radix: 16)),
+      fileSize: data.length,
+      path: fileName,
+      start: 0,
+      end: data.length,
+      dataLen: data.length,
+      opID: Random().nextInt(int.parse('FFFFFFFF', radix: 16)),
+      filesCountInThisOp: 1,
+    );
+
+    await head.writeToConn(conn);
+
+    conn.add(data);
+
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      throw UnauthorizedException(respHead.msg ?? '');
+    }
+    if (respHead.code != Device.respOkCode) {
+      throw Exception(respHead.msg);
+    }
+  }
+
   Future<void> doPasteTextActionWeb({
     String? text,
   }) async {
@@ -796,13 +891,17 @@ class Device {
     if (text != null && text.isNotEmpty) {
       pasteText = text;
     } else {
-      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (clipboardData == null ||
-          clipboardData.text == null ||
-          clipboardData.text!.isEmpty) {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) {
+        throw Exception('Clipboard API is not supported on this platform');
+      }
+      final reader = await clipboard.read();
+      final value = await reader.readValue(Formats.plainText);
+      // final value = await Pasteboard.text;
+      if (value == null) {
         throw Exception('no text in clipboard');
       }
-      pasteText = clipboardData.text!;
+      pasteText = value;
     }
     var fetcher = WebSync(secretKey);
     await fetcher.postContentToWeb(pasteText);

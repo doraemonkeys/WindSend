@@ -8,7 +8,8 @@ import 'package:logger/logger.dart';
 import 'dart:io';
 import 'package:path/path.dart' as filepathpkg;
 import 'package:path_provider/path_provider.dart';
-
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'language.dart';
 
 Future<T?> alertDialogFunc<T>(
@@ -168,4 +169,19 @@ class SharedLogger {
   }
 
   Logger get logger => _logger;
+}
+
+Future<void> checkOrRequestAndroidPermission() async {
+  final androidInfo = await DeviceInfoPlugin().androidInfo;
+  if (androidInfo.version.sdkInt >= 30 &&
+      !await Permission.manageExternalStorage.request().isGranted) {
+    throw Exception('need manageExternalStorage permission');
+  }
+  if (androidInfo.version.sdkInt > 32) {
+    if (!await Permission.photos.request().isGranted ||
+        !await Permission.videos.request().isGranted ||
+        !await Permission.audio.request().isGranted) {
+      throw Exception('need photos, videos, audio permission');
+    }
+  }
 }
