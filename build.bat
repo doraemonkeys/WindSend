@@ -82,14 +82,13 @@ pause
 cd ../flutter/wind_send
 echo %cd%
 
-call flutter clean
-
-if %errorlevel% equ 0 (
-  echo Clean Success!
-) else (
-  echo Clean Failed!
-  pause
-)
+@REM call flutter clean
+@REM if %errorlevel% equ 0 (
+@REM   echo Clean Success!
+@REM ) else (
+@REM   echo Clean Failed!
+@REM   pause
+@REM )
 
 set appName=WindSend
 
@@ -105,7 +104,6 @@ if %errorlevel% equ 0 (
   move build\app\outputs\flutter-apk\app-x86_64-release.apk ..\..\bin\%appName%-flutter-x86_64-release.apk
 ) else (
   echo Build APK Failed!
-  pause
 )
 
 
