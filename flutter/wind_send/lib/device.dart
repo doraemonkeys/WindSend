@@ -562,6 +562,7 @@ class Device {
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
+    String? lastRealSavePath;
     void startDownload((Device, List<TransferInfo>) args) async {
       var (device, targetItems) = args;
       var futures = <Future>[];
@@ -591,16 +592,7 @@ class Device {
           continue;
         }
         // await Directory(saveDir).create(recursive: true);
-        String realSavePath = await downloader.parallelDownload(item, saveDir);
-        if (targetItems.length == 1) {
-          final clipboard = SystemClipboard.instance;
-          if (clipboard == null) {
-            continue;
-          }
-          final item = DataWriterItem();
-          item.add(Formats.fileUri(Uri.file(realSavePath)));
-          await clipboard.write([item]);
-        }
+        lastRealSavePath = await downloader.parallelDownload(item, saveDir);
       }
       await Future.wait(futures);
       await downloader.close();
@@ -613,6 +605,16 @@ class Device {
       startDownload,
       (this, targetItems),
     );
+
+    if (targetItems.length == 1) {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard != null && lastRealSavePath != null) {
+        final item = DataWriterItem();
+        item.add(Formats.fileUri(
+            Uri.file(lastRealSavePath!, windows: Platform.isWindows)));
+        await clipboard.write([item]);
+      }
+    }
 
     // 计算保存的目录
     // Set<String> pathSet = {};
@@ -674,8 +676,8 @@ class Device {
     FilePicker.platform.clearTemporaryFiles();
   }
 
-  // 上传文件夹与上传文件统一成一个函数
-  // TODO：最后上传文件夹的同时，body换成dirPaths与选择的文件或文件夹的List<String>
+  // TODO：上传文件夹与上传文件统一成一个函数
+  // 最后上传文件夹的同时，body换成dirPaths与选择的文件或文件夹的List<String>
   Future<void> doPasteDirAction({String? dirPath}) async {
     // check permission
     if (Platform.isAndroid) {
