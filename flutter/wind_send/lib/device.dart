@@ -513,7 +513,8 @@ class Device {
         throw Exception('Clipboard API is not supported on this platform');
       }
       final reader = await clipboard.read();
-      pasteText = await reader.readValue(Formats.plainText) ?? '';
+      pasteText =
+          await superClipboardReadText(reader, SharedLogger().logger.e) ?? '';
       // pasteText = await Pasteboard.text ?? '';
     }
 
@@ -766,7 +767,8 @@ class Device {
     }
     final reader = await clipboard.read();
 
-    String? pasteText = await reader.readValue(Formats.plainText);
+    String? pasteText =
+        await superClipboardReadText(reader, SharedLogger().logger.e);
     if (pasteText != null) {
       return doPasteTextAction(text: pasteText, timeout: timeout);
     }
@@ -898,7 +900,8 @@ class Device {
         throw Exception('Clipboard API is not supported on this platform');
       }
       final reader = await clipboard.read();
-      final value = await reader.readValue(Formats.plainText);
+      final value =
+          await superClipboardReadText(reader, SharedLogger().logger.e);
       // final value = await Pasteboard.text;
       if (value == null) {
         throw Exception('no text in clipboard');

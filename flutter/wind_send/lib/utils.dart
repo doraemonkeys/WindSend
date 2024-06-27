@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:logger/logger.dart';
@@ -10,7 +11,36 @@ import 'package:path/path.dart' as filepathpkg;
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 import 'language.dart';
+
+Future<String?> superClipboardReadText(
+    ClipboardReader reader, Function(String message) logErr) async {
+  String? ret;
+  try {
+    if (reader.canProvide(Formats.plainText)) {
+      ret = await reader.readValue(Formats.plainText);
+      if (ret != null) {
+        return ret;
+      }
+    }
+    if (reader.canProvide(Formats.htmlText)) {
+      ret = await reader.readValue(Formats.htmlText);
+      if (ret != null) {
+        return ret;
+      }
+    }
+  } catch (e) {
+    // PlatformException(super_native_extensions_error, "JNI: JNI call failed", otherError, null)
+    logErr('superClipboardReadText error: $e');
+    // Clipboard.getData可能会把剪切板图片数据乱码读取出来
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData != null && clipboardData.text != null) {
+      return clipboardData.text;
+    }
+  }
+  return ret;
+}
 
 Future<T?> alertDialogFunc<T>(
   BuildContext context,
