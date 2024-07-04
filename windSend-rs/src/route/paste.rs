@@ -20,7 +20,11 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
             error!("set clipboard text failed, err: {}", e);
         }
     }
-    crate::utils::inform(&body, &head.device_name, None);
+    if body.trim().starts_with("http") || body.trim().starts_with("https") {
+        crate::utils::inform(&body, &head.device_name, Some(&body));
+    } else {
+        crate::utils::inform(&body, &head.device_name, None);
+    }
     send_msg(conn, &"粘贴成功".to_string()).await.ok();
 }
 
