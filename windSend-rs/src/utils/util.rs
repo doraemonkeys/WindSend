@@ -419,10 +419,9 @@ pub fn get_system_lang() -> String {
     }
     #[cfg(target_os = "windows")]
     if lang.is_empty() {
-        if let Some(output) = std::process::Command::new("cmd")
+        if let Ok(output) = std::process::Command::new("cmd")
             .args(["/c", "chcp"])
             .output()
-            .ok()
         {
             match String::from_utf8_lossy(&output.stdout) {
                 s if s.contains("936") => lang = "zh_CN".to_string(),
