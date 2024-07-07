@@ -196,12 +196,32 @@ version: channel stable
 
   aarch64-pc-windows-msvc
 
+- **Linux x86_64**
+
+  x86_64-unknown-linux-gnu
+
+- **MacOS x86_64**
+
+  x86_64-apple-darwin
+
+- **MacOS aarch64**
+
+  aarch64-apple-darwin
+
 #### Requirements
 
 [AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
 
 [.github/workflows/rust_build.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/rust_build.yml)
 
+
+**Linux**
+
+```shell
+sudo apt install -y libgtk-3-dev libxdo-dev libappindicator3-dev 
+sudo apt install -y pkg-config libssl-dev build-essential linux-libc-dev
+sudo apt install -y musl-dev musl-tools
+```
 
 
 ### Go
