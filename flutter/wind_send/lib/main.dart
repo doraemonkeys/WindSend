@@ -387,7 +387,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           targetDeviceName: deviceName.isEmpty
               ? Random().nextInt(10000).toString()
               : deviceName,
-          iP: ipController.text.isEmpty ? 'Unknown' : ipController.text,
+          iP: ipController.text.isEmpty ? '192.168.1.1' : ipController.text,
           secretKey: secretKeyHexController.text,
           autoSelect: autoSelect,
         );
