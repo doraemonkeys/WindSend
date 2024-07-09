@@ -61,6 +61,7 @@ fi
 flutterX86_64LinuxDirName="WindSend-flutter-x86_64-linux"
 
 # Build WindSend Flutter for Linux x86_64
+cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_FLUTTER_PATH" || exit
 flutter build linux --release
 
