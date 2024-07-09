@@ -4564,6 +4564,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "tray-icon",
+ "urlencoding",
  "walkdir",
  "win-toast-notify",
  "windres",

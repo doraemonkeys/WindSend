@@ -65,6 +65,7 @@ pub enum LanguageKey {
     NFilesSavedTo,
     VerifySuccess,
     CopySuccessfully,
+    EffectiveAfterRestart,
 }
 
 lazy_static! {
@@ -131,6 +132,10 @@ lazy_static! {
             LanguageKey::CopySuccessfully,
             String::from("Copy Successfully")
         ),
+        (
+            LanguageKey::EffectiveAfterRestart,
+            String::from("Effective after restart")
+        ),
     ]
     .into_iter()
     .collect();
@@ -179,6 +184,10 @@ lazy_static! {
         (LanguageKey::NFilesSavedTo, String::from("个文件已保存到")),
         (LanguageKey::VerifySuccess, String::from("验证成功")),
         (LanguageKey::CopySuccessfully, String::from("复制成功")),
+        (
+            LanguageKey::EffectiveAfterRestart,
+            String::from("重启后生效")
+        ),
     ]
     .into_iter()
     .collect();

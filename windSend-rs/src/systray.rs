@@ -114,13 +114,16 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         LANGUAGE_MANAGER.read().unwrap().get_language() == Language::EN,
         None,
     );
+    #[cfg(not(target_os = "linux"))]
     let auto_start = config::GLOBAL_CONFIG.read().unwrap().auto_start;
+    #[cfg(target_os = "linux")]
+    let auto_start = cfg!(target_os = "linux");
     let auto_start_i = CheckMenuItem::new(
         LANGUAGE_MANAGER
             .read()
             .unwrap()
             .translate(LanguageKey::AutoStart),
-        true,
+        !cfg!(target_os = "linux"),
         auto_start,
         None,
     );
@@ -169,18 +172,19 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         true,
         None,
     );
-    let sub_menu_hide = SubmenuBuilder::new()
+    let sub_menu_hide_builder = SubmenuBuilder::new()
         .text(
             LANGUAGE_MANAGER
                 .read()
                 .unwrap()
                 .translate(LanguageKey::HideIcon),
         )
-        .item(&sub_hide_once_i)
         .item(&sub_hide_forever_i)
-        .enabled(true)
-        .build()
-        .unwrap();
+        .enabled(true);
+    #[cfg(not(target_os = "linux"))]
+    sub_menu_hide_builder.item(&sub_hide_once_i);
+    let sub_menu_hide = sub_menu_hide_builder.build().unwrap();
+
     let sub_menu_lang = SubmenuBuilder::new()
         .text("Language")
         .item(&lang_zh_i)
@@ -201,12 +205,15 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
             ..Default::default()
         }),
     );
-    let quit_i = PredefinedMenuItem::quit(Some(
+    let quit_i = MenuItem::new(
         LANGUAGE_MANAGER
             .read()
             .unwrap()
-            .translate(LanguageKey::Quit),
-    ));
+            .translate(LanguageKey::Quit)
+            .to_owned(),
+        true,
+        None,
+    );
     let items: &[&dyn IsMenuItem] = &[
         &add_files_i,
         &clear_files_i,
@@ -216,7 +223,6 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         &save_path_i,
         &sub_menu_hide,
         &sub_menu_lang,
-        #[cfg(not(target_os = "linux"))]
         &auto_start_i,
         &allow_to_be_search_i,
         &PredefinedMenuItem::separator(),
@@ -337,14 +343,21 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     ];
 
     let mut should_poll = false;
+    let mut exit_code = ReturnCode::Quit;
     static POOL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
     let return_code = event_loop.run_return(|_event, _, control_flow| {
-        // println!("event_loop");
         match should_poll {
             true => {
                 *control_flow = ControlFlow::WaitUntil(std::time::Instant::now() + POOL_INTERVAL)
             }
+            #[cfg(not(target_os = "linux"))]
             false => *control_flow = ControlFlow::Wait,
+            #[cfg(target_os = "linux")]
+            false => {
+                *control_flow = ControlFlow::WaitUntil(
+                    std::time::Instant::now() + std::time::Duration::from_millis(1000),
+                )
+            }
         }
         if mr.rx_reset_files_item.try_recv().is_ok() {
             handle_menu_event_clear_files(&add_files_i, &clear_files_i);
@@ -358,7 +371,8 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
                 id if id == sub_hide_once_i.id() => {
-                    *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
+                    *control_flow = ControlFlow::Exit;
+                    exit_code = ReturnCode::HideIcon;
                 }
                 id if id == sub_hide_forever_i.id() => {
                     {
@@ -368,7 +382,20 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                             error!("save config error: {}", err);
                         }
                     }
-                    *control_flow = ControlFlow::ExitWithCode(ReturnCode::HideIcon as i32);
+                    if cfg!(target_os = "linux") {
+                        utils::inform(
+                            "",
+                            LANGUAGE_MANAGER
+                                .read()
+                                .unwrap()
+                                .translate(LanguageKey::EffectiveAfterRestart),
+                            None,
+                        );
+                        exit_code = ReturnCode::Quit;
+                    } else {
+                        exit_code = ReturnCode::HideIcon;
+                    }
+                    *control_flow = ControlFlow::Exit;
                 }
                 id if id == lang_zh_i.id() => {
                     {
@@ -437,6 +464,10 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                         error!("open url error: {}", err);
                     }
                 }
+                id if id == quit_i.id() => {
+                    exit_code = ReturnCode::Quit;
+                    *control_flow = ControlFlow::Exit;
+                }
                 other_id => {
                     // println!("recv unknown menu event, id: {:?}", other_id);
                     error!("recv unknown menu event, id: {:?}", other_id);
@@ -445,12 +476,11 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         }
     });
     tray_icon.take(); //keep icon alive until the end of the program
-    const HIDE_ICON_CODE: i32 = ReturnCode::HideIcon as i32;
-    match return_code {
-        0 => ReturnCode::Quit,
-        HIDE_ICON_CODE => ReturnCode::HideIcon,
-        code => std::process::exit(code),
+
+    if return_code != 0 {
+        std::process::exit(return_code as i32);
     }
+    return exit_code;
 }
 
 async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
