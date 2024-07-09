@@ -30,7 +30,7 @@ zip -r $WindSendRustBin_X86_64LinuxDirName.zip $WindSendRustBin_X86_64LinuxDirNa
 ######################################################################################
 
 # Build WindSend for linux-musl x86_64
-WindSend_Rust_Bin_X86_64_LinuxMusl_DirName="WindSend-Rust-x86_64-linux-musl"
+WindSend_Rust_Bin_X86_64_LinuxMusl_DirName="WindSend-S-Rust-x86_64-linux-musl"
 Rust_Target="x86_64-unknown-linux-musl"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
