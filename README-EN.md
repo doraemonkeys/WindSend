@@ -38,7 +38,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. 解压 **WindSend-S-XX-x86_64-linux.zip** 到任意目录。
+1. Unzip **WindSend-S-XX-x86_64-linux.zip** to any directory.
 
    ```shell
     sudo chmod +x *.sh && ./install.sh
