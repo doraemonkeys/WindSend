@@ -36,6 +36,16 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### PC
 
+#### Linux
+
+1. 解压 **WindSend-S-XX-x86_64-linux.zip** 到任意目录。
+
+   ```shell
+    sudo chmod +x *.sh && ./install.sh
+   ```
+
+#### Windows
+
 1. Unzip **WindSend-S-XX-x86_64-windows.zip** to any directory (Take Windows).
 
 2. Double-click the exe file to run:
