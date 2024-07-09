@@ -10,3 +10,4 @@ export WINDSEND_FLUTTER_PATH="./flutter/wind_send"
 export WINDSEND_GO_PROJECT_PATH="./go"
 export WINDSEND_RUST_PROJECT_PATH="./windSend-rs"
 export SERVER_PROGRAM_ICON_NAME="icon-192.png"
+export AUTO_BUILD=false
