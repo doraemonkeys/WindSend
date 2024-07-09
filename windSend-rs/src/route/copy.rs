@@ -39,6 +39,20 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
                         .into_iter()
                         .map(|f| f.trim_start_matches("file://").to_string())
                         .collect::<Vec<_>>();
+                    #[cfg(target_os = "linux")]
+                    let files = files
+                        .into_iter()
+                        .map(|f| {
+                            urlencoding::decode(&f)
+                                .map_err(|e| {
+                                    error!("urlencoding::decode failed, err: {}", e);
+                                    e
+                                })
+                                .unwrap_or_default()
+                                .into_owned()
+                        })
+                        .filter(|f| !f.is_empty())
+                        .collect::<Vec<_>>();
                     if !files.is_empty() && send_files(conn, files).await.is_ok() {
                         if let Err(e) = cctx.clear() {
                             error!("clear clipboard failed, err: {}", e);
