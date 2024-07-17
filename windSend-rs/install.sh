@@ -26,6 +26,9 @@ After=network.target
 ExecStart=$INSTALL_DIR/$(basename $EXECUTABLE_PATH)
 WorkingDirectory=$INSTALL_DIR
 Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=600s
+StartLimitBurst=100
 StandardError=syslog
 SyslogIdentifier=$SERVICE_NAME
 Environment=DISPLAY=$DISPLAY
