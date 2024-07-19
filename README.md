@@ -145,7 +145,8 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 1. Rust版体积相对稍小
-2. Rust版在传输速度上比Go版略低
+2. Rust版在Windows平台功能更多
+3. Rust版在传输速度上可能比Go版略低
 
 
 

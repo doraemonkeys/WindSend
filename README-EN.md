@@ -109,8 +109,8 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 The two versions are almost the same in function and appearance, but there are still slight differences in some aspects.
 
 1. The Rust version is relatively smaller in size
-2. The Rust version supports writing more types of images to the Windows clipboard
-3. The Rust version is slightly lower in transmission speed than the Go version
+2. The Rust version has more features on Windows
+3. The transmission speed of the Rust version is slightly lower than that of the Go version.
 
 
 ## Cross-platform situation
