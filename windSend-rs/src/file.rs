@@ -323,7 +323,8 @@ pub async fn monitor_single_file_reception(
                     let file_size = tokio::fs::metadata(&file_path)
                         .await.map(|m| m.len());
                     if let Err(e) = file_size {
-                        error!("unexpected error, cannot get file size: {}", e);
+                        // maybe file deleted by user
+                        error!("cannot get {} metadata: {}", file_path, e);
                         return false;
                     }
                     let file_size = file_size.unwrap();
