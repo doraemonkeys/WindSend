@@ -182,7 +182,11 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         .item(&sub_hide_forever_i)
         .enabled(true);
     #[cfg(not(target_os = "linux"))]
-    sub_menu_hide_builder.item(&sub_hide_once_i);
+    let sub_menu_hide = sub_menu_hide_builder
+        .item(&sub_hide_once_i)
+        .build()
+        .unwrap();
+    #[cfg(target_os = "linux")]
     let sub_menu_hide = sub_menu_hide_builder.build().unwrap();
 
     let sub_menu_lang = SubmenuBuilder::new()
@@ -209,8 +213,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         LANGUAGE_MANAGER
             .read()
             .unwrap()
-            .translate(LanguageKey::Quit)
-            .to_owned(),
+            .translate(LanguageKey::Quit),
         true,
         None,
     );
@@ -478,9 +481,9 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     tray_icon.take(); //keep icon alive until the end of the program
 
     if return_code != 0 {
-        std::process::exit(return_code as i32);
+        std::process::exit(return_code);
     }
-    return exit_code;
+    exit_code
 }
 
 async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
