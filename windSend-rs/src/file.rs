@@ -11,7 +11,7 @@ pub struct FilePartReader {
 }
 
 impl FilePartReader {
-    /// file句柄不能在其他地方同时读取,否则seek游标会出错。
+    /// The file handle cannot be read at the same time anywhere else, or the seek cursor will be wrong.
     pub async fn new(mut file: tokio::fs::File, start: usize, end: usize) -> std::io::Result<Self> {
         file.seek(SeekFrom::Start(start as u64)).await?;
         let part = file.take((end - start) as u64);
@@ -36,7 +36,7 @@ pub struct FilePartWriter {
 }
 
 impl FilePartWriter {
-    /// file句柄不能在其他地方同时写入,否则seek游标会出错。
+    /// The file handle cannot be read at the same time anywhere else, or the seek cursor will be wrong.
     pub async fn new(mut file: tokio::fs::File, start: usize, end: usize) -> std::io::Result<Self> {
         file.seek(SeekFrom::Start(start as u64)).await?;
         Ok(Self {
@@ -90,8 +90,8 @@ impl tokio::io::AsyncWrite for FilePartWriter {
 pub struct FileReceiveSessionManager {
     /// key: fileID value: RecvFileInfo
     ///
-    /// fileID在每次传输一个文件时都是随机的，
-    /// 即使再次传输同一个文件，也会重新生成一个fileID
+    /// fileID is random every time a file is transferred,
+    /// and a fileID is regenerated even if the same file is transferred again
     file_sessions: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     /// key: opID value: OpInfo
     operation_sessions: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
@@ -116,9 +116,9 @@ pub struct RecvFileInfo {
 struct LockedItem {
     part: Vec<FilePart>,
     down_chan: Option<tokio::sync::oneshot::Sender<bool>>,
-    /// 文件实际保存路径，包含文件名
+    /// The path where the file is actually saved, including the filename
     save_path: String,
-    /// 任务完成标志(没有发生错误)
+    /// Task completion flag (no error occurred)
     is_done: bool,
     first_err: Option<String>,
 }
@@ -186,7 +186,7 @@ impl FileReceiveSessionManager {
         let items = LockedItem {
             part: Vec::new(),
             down_chan: Some(tx),
-            save_path: actual_save_path,
+            save_path: actual_save_path.clone(),
             is_done: false,
             first_err: None,
         };
@@ -216,12 +216,13 @@ impl FileReceiveSessionManager {
                 self.operation_sessions.clone(),
                 file_id,
                 head.op_id,
+                actual_save_path,
                 rx,
             ));
         Ok(file)
     }
 
-    /// 返回值：(是否完成，是否发生错误(不包括自己))
+    /// return value: (is_done, is_error_occurred(not include self))
     pub async fn report_file_part_completion(
         &self,
         file_id: u32,
@@ -298,12 +299,14 @@ pub async fn monitor_single_file_reception(
     ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
     file_id: u32,
     op_id: u32,
+    file_path: String,
     down_ch: tokio::sync::oneshot::Receiver<bool>,
 ) {
     use std::time::Duration;
     use tokio::time::sleep;
     let success;
     let mut is_timeout = false;
+
     tokio::select! {
         r = down_ch => {
             if let Err(e) = r {
@@ -313,12 +316,29 @@ pub async fn monitor_single_file_reception(
                 success = r.unwrap();
             }
         }
-        _ = sleep(Duration::from_secs(60*60)) => {
-            error!("fileID: {} download timeout!", file_id);
-            success = false;
-            is_timeout = true;
+        r = async {
+                let mut temp_file_size = 0;
+                loop {
+                    sleep(Duration::from_secs(60*10)).await;
+                    let file_size = tokio::fs::metadata(&file_path)
+                        .await.map(|m| m.len());
+                    if let Err(e) = file_size {
+                        error!("unexpected error, cannot get file size: {}", e);
+                        return false;
+                    }
+                    let file_size = file_size.unwrap();
+                    if file_size == temp_file_size {
+                        error!("fileID: {} download timeout!", file_id);
+                        is_timeout = true;
+                        return false;
+                    }
+                    temp_file_size = file_size;
+                }
+        } => {
+            success = r;
         }
     }
+
     let mut ops = ops.lock().await;
     if success {
         ops.get_mut(&op_id).unwrap().success_count += 1;
@@ -327,13 +347,14 @@ pub async fn monitor_single_file_reception(
     }
     let op_info = ops.get(&op_id).unwrap().clone();
     if op_info.success_count + op_info.failure_count == op_info.expected_count {
-        // 此次操作已经完成
+        // This operation has been completed
         ops.remove(&op_id);
     }
-    // 不管是否下载成功，都要删除，因为下一次传输同一个文件时，fileID是不一样的。
+    // It should be deleted regardless of whether the download was successful or not,
+    // because the fileID will not be the same next time the same file is transferred.
     let file_recv_info = files_recv_info.lock().await.remove(&file_id).unwrap();
 
-    // 仅接收一张图，粘贴到剪切板
+    // Paste it to the clipboard if only receive one image
     let save_path = &file_recv_info.metadata.lock().await.save_path;
     if success
         && op_info.expected_count == 1
@@ -352,7 +373,8 @@ pub async fn monitor_single_file_reception(
         .read()
         .unwrap()
         .translate(LanguageKey::NFilesSavedTo);
-    // 此次操作已经完成
+
+    // This operation has been completed
     if !is_timeout && op_info.success_count + op_info.failure_count == op_info.expected_count {
         let mut msg = format!(
             "{} {} {}",
@@ -368,7 +390,7 @@ pub async fn monitor_single_file_reception(
     }
 }
 
-/// 产生不冲突的文件路径
+/// Generate a unique file path, if the file already exists, add a number to the file name
 fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
     if !path.as_ref().exists() {
         let ret = path
