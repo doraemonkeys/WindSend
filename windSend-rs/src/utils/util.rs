@@ -387,7 +387,7 @@ pub fn inform<T: AsRef<str>>(
             .set_messages(vec![&body])
             .set_duration(Duration::Short);
         if let Some(click_open) = click_open {
-            notify = notify.set_notif_open(click_open);
+            notify = notify.set_open(click_open);
         }
         if let Err(err) = notify.show() {
             error!("show notification error: {}", err);
