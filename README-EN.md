@@ -1,6 +1,7 @@
-# WindSend
-English | [中文](README.md) 
+<h3 align="center"> English | <a href='https://github.com/doraemonkeys/WindSend'>简体中文</a></h3>
 
+
+# WindSend
 
 ## What is WindSend
 
@@ -38,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. Unzip **WindSend-S-XX-x86_64-linux.zip** to any directory.
+1. Unzip **WindSend-S-XX-x86_64-linux.zip** to any directory (minimum version 1.3.0).
 
    ```shell
     sudo chmod +x *.sh && ./install.sh

@@ -1,6 +1,6 @@
-# 风传 WindSend
-中文 | [English](README-EN.md) 
+<h3 align="center"> 中文 | <a href='README-EN.md'>English</a></h3>
 
+# 风传 WindSend
 
 ## 风传是什么
 
@@ -39,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. 解压 **WindSend-S-XX-x86_64-linux.zip** 到任意目录。
+1. 解压 **WindSend-S-XX-x86_64-linux.zip** 到任意目录(最低版本为 1.3.0)。
 
    ```shell
     sudo chmod +x *.sh && ./install.sh
