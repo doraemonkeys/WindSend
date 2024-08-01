@@ -215,3 +215,33 @@ Future<void> checkOrRequestAndroidPermission() async {
     }
   }
 }
+
+String generateUniqueFilepath(String filePath) {
+  var file = File(filePath);
+  if (!file.existsSync()) {
+    return filePath;
+  }
+  // print('file exists');
+  var name = file.path.replaceAll('\\', '/').split('/').last;
+  var fileExt = name.split('.').last;
+  name = name.substring(0, name.length - fileExt.length - 1);
+  for (var i = 1; i < 100; i++) {
+    String newPath;
+    if (fileExt.isNotEmpty) {
+      newPath = '${file.parent.path}/$name($i).$fileExt';
+    } else {
+      newPath = '${file.parent.path}/$name($i)';
+    }
+    if (!File(newPath).existsSync()) {
+      return newPath;
+    }
+  }
+  throw Exception('generateUniqueFilepath failed');
+}
+
+Future<bool> directoryIsEmpty(String path) async {
+  await for (var _ in Directory(path).list()) {
+    return false;
+  }
+  return true;
+}

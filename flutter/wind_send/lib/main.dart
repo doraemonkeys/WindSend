@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
-import 'package:wind_send/request.dart';
+import 'package:wind_send/fileTransfer.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
@@ -477,7 +477,7 @@ class _MainBodyState extends State<MainBody> {
           throw 'Unsupported operation, web device only support text';
         }
         if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-          await defaultDevice.doPasteFilesAction(filePath: fileList);
+          await defaultDevice.doSendAction(fileList);
         }
         if (text != null) {
           if (defaultDevice.iP == Device.webIP) {
@@ -953,7 +953,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 context.formatString(AppLocale.operationSuccess, []);
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              await device.doPasteFilesAction();
+              await device.pickFilesDoSendAction();
               return successMsg;
             });
           },
@@ -962,7 +962,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 context.formatString(AppLocale.operationSuccess, []);
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              await device.doPasteDirAction();
+              await device.pickDirDoSendAction();
               return successMsg;
             });
           },

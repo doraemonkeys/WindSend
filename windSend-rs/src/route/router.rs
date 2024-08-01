@@ -1,12 +1,12 @@
+use crate::config::GLOBAL_CONFIG;
+use crate::route::resp::resp_error_msg;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::info;
 use tracing::{debug, error, trace, warn};
-
-use crate::config::GLOBAL_CONFIG;
-use crate::route::resp::resp_error_msg;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum RouteAction {
@@ -46,22 +46,50 @@ pub struct RouteRecvHead {
     #[serde(rename = "fileSize")]
     pub file_size: i64,
     #[serde(rename = "path")]
-    /// 上传或下载文件时的文件路径
+    /// The file path for upload or download.
+    /// For uploads, this is the relative path to upload to.
+    /// For downloads, this is the path on the server to download from.
     pub path: String,
     #[serde(rename = "uploadType")]
-    /// 上传文件或文件夹时有效
+    /// Valid when uploading a file or folder
     #[serde(default)]
-    pub upload_type: PathInfoType,
+    pub upload_type: UploadType,
     pub start: i64,
     pub end: i64,
     #[serde(rename = "dataLen")]
     pub data_len: i64,
-    /// 此次上传操作的ID
+    /// The ID of this upload operation
     #[serde(rename = "opID")]
     pub op_id: u32,
-    /// 此次操作想要上传的文件数量
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadOperationInfo {
+    /// The total size of the file to upload for this operation
+    #[serde(rename = "filesSizeInThisOp")]
+    pub files_size_in_this_op: i64,
+
+    /// The number of files to upload for this operation
     #[serde(rename = "filesCountInThisOp")]
     pub files_count_in_this_op: i32,
+
+    /// files and dirs to upload for this operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "uploadPaths")]
+    pub upload_paths: Option<HashMap<String, PathInfo>>,
+
+    /// A collection of empty directories uploaded by this operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "emptyDirs")]
+    pub empty_dirs: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PathInfo {
+    pub path: String,
+    #[serde(default)]
+    pub r#type: PathType,
+    pub size: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,13 +111,13 @@ pub struct RouteTransferInfo {
     pub remote_path: String,
     pub size: u64,
     #[serde(rename = "type")]
-    pub type_: PathInfoType,
+    pub type_: PathType,
     #[serde(rename = "savePath")]
     pub save_path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum PathInfoType {
+pub enum PathType {
     #[serde(rename = "dir")]
     Dir,
     #[serde(rename = "file")]
@@ -98,9 +126,27 @@ pub enum PathInfoType {
     Unknown(String),
 }
 
-impl std::default::Default for PathInfoType {
+#[derive(Debug, Serialize, Deserialize)]
+pub enum UploadType {
+    #[serde(rename = "dir")]
+    Dir,
+    #[serde(rename = "file")]
+    File,
+    #[serde(rename = "uploadInfo")]
+    UploadInfo,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+impl std::default::Default for UploadType {
     fn default() -> Self {
-        PathInfoType::Unknown("unknown".to_string())
+        UploadType::Unknown("unknown".to_string())
+    }
+}
+
+impl std::default::Default for PathType {
+    fn default() -> Self {
+        PathType::Unknown("unknown".to_string())
     }
 }
 

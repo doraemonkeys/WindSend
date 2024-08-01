@@ -1,5 +1,7 @@
+use crate::language::LanguageKey;
 use crate::route::resp::{resp_common_error_msg, send_msg, send_msg_with_body};
 use crate::route::{RouteDataType, RouteRecvHead};
+use std::borrow::Cow;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -14,8 +16,8 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
     {
-        let r =
-            crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.set_text(body.clone()));
+        let r = crate::config::CLIPBOARD
+            .with_clipboard(|clipboard| clipboard.set_text(Cow::clone(&body)));
         if let Err(e) = r {
             error!("set clipboard text failed, err: {}", e);
         }
@@ -73,10 +75,10 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
     .ok();
 }
 
-/// 返回是否应该继续循环(比如没有遇到Socket Error)
+/// return whether should continue loop(like no socket error)
 pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
-    if let crate::route::PathInfoType::Dir = head.upload_type {
-        return create_dirs_only_handler(conn, head).await;
+    if let crate::route::UploadType::UploadInfo = head.upload_type {
+        return paste_file_operation_handler(conn, head).await;
     }
 
     // head.End == 0 && head.Start == 0 表示文件为空
@@ -94,17 +96,10 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         error!("{}", err_msg);
         return resp_common_error_msg(conn, err_msg).await.is_ok();
     }
-    if head.files_count_in_this_op == 0 {
-        let err_msg = &format!(
-            "invalid file part, FilesCountInThisOp:{}",
-            head.files_count_in_this_op
-        );
-        error!("{}", err_msg);
-        return resp_common_error_msg(conn, err_msg).await.is_ok();
-    }
+
     // let file = (*crate::file::GLOBAL_FILE_RECEIVER).clone().borrow_mut();
     let file = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
-        .get_file(&head)
+        .setup_file_reception(&head)
         .await;
     if let Err(err) = file {
         error!("create file: {} error: {}", head.path, err);
@@ -123,6 +118,20 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
             .is_ok();
     }
     let mut file_writer = file_writer.unwrap();
+
+    let progress_handle = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+        .get_op_progress_handle(head.op_id)
+        .await
+        .unwrap();
+
+    file_writer = file_writer.set_on_pull_write_ok(move |data: &[u8]| {
+        if !data.is_empty() {
+            use std::sync::atomic::Ordering::Relaxed;
+            progress_handle
+                .current_pos
+                .fetch_add(data.len() as u64, Relaxed);
+        }
+    });
 
     let (conn_reader, mut conn_writer) = tokio::io::split(conn);
     // 8 is a magic number
@@ -200,7 +209,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     resp_success
 }
 
-pub async fn create_dirs_only_handler(
+async fn paste_file_operation_handler(
     conn: &mut TlsStream<TcpStream>,
     head: RouteRecvHead,
 ) -> bool {
@@ -209,12 +218,20 @@ pub async fn create_dirs_only_handler(
         error!("read body failed, err: {}", e);
         return false;
     }
-    let dirs: Vec<String> = match serde_json::from_slice(&data_buf) {
-        Ok(dirs) => dirs,
+    let op_info: crate::route::UploadOperationInfo = match serde_json::from_slice(&data_buf) {
+        Ok(info) => info,
         Err(e) => {
-            error!("parse dirs failed, err: {}", e);
+            error!("parse upload operation info failed, err: {}", e);
             return false;
         }
+    };
+
+    if let Err(e) = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+        .create_op_info(&head, &op_info)
+        .await
+    {
+        error!("create op info failed, err: {}", e);
+        return resp_common_error_msg(conn, &e).await.is_ok();
     };
 
     let save_path = crate::config::GLOBAL_CONFIG
@@ -223,18 +240,24 @@ pub async fn create_dirs_only_handler(
         .save_path
         .clone(); // clone to avoid lock
     let download_dir = std::path::PathBuf::from(&save_path);
-    for dir in &dirs {
-        let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
-        if let Err(err) = r {
-            error!("create dir error: {}", err);
-            return resp_common_error_msg(conn, &err.to_string()).await.is_ok();
+    if let Some(empty_dir) = &op_info.empty_dirs {
+        for dir in empty_dir {
+            let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
+            if let Err(err) = r {
+                error!("create dir error: {}", err);
+                return resp_common_error_msg(conn, &err.to_string()).await.is_ok();
+            }
         }
     }
     if (send_msg(conn, &"create dirs success".to_string()).await).is_err() {
         return false;
     };
-    if !dirs.is_empty() && head.files_count_in_this_op == 0 {
-        crate::utils::inform("目录创建成功", &head.device_name, Some(&save_path));
+    if op_info.empty_dirs.is_some() && op_info.files_count_in_this_op == 0 {
+        crate::utils::inform(
+            LanguageKey::DirCreatedSuccessfully.translate(),
+            &head.device_name,
+            Some(&save_path),
+        );
     }
     true
 }

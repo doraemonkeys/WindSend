@@ -66,6 +66,13 @@ pub enum LanguageKey {
     VerifySuccess,
     CopySuccessfully,
     EffectiveAfterRestart,
+    DirCreatedSuccessfully,
+}
+
+impl LanguageKey {
+    pub fn translate(&self) -> &'static String {
+        LANGUAGE_MANAGER.read().unwrap().translate(*self)
+    }
 }
 
 lazy_static! {
@@ -136,6 +143,10 @@ lazy_static! {
             LanguageKey::EffectiveAfterRestart,
             String::from("Effective after restart")
         ),
+        (
+            LanguageKey::DirCreatedSuccessfully,
+            String::from("Directory created successfully")
+        )
     ]
     .into_iter()
     .collect();
@@ -188,6 +199,10 @@ lazy_static! {
             LanguageKey::EffectiveAfterRestart,
             String::from("重启后生效")
         ),
+        (
+            LanguageKey::DirCreatedSuccessfully,
+            String::from("文件夹创建成功")
+        )
     ]
     .into_iter()
     .collect();

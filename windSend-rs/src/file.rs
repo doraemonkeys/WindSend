@@ -1,4 +1,5 @@
-use crate::language::{LanguageKey, LANGUAGE_MANAGER};
+use crate::language::LanguageKey;
+use crate::RUNTIME;
 use std::collections::HashMap;
 use std::io::SeekFrom;
 use std::sync::Arc;
@@ -29,8 +30,11 @@ impl tokio::io::AsyncRead for FilePartReader {
     }
 }
 
+type PullWriteCallback = Box<dyn Fn(&[u8]) + Send>;
+
 pub struct FilePartWriter {
     file_part: tokio::fs::File,
+    on_pull_write_ok: Option<PullWriteCallback>,
     pos: usize,
     end: usize,
 }
@@ -41,9 +45,15 @@ impl FilePartWriter {
         file.seek(SeekFrom::Start(start as u64)).await?;
         Ok(Self {
             file_part: file,
+            on_pull_write_ok: None,
             pos: start,
             end,
         })
+    }
+
+    pub fn set_on_pull_write_ok<F: 'static + Fn(&[u8]) + Send>(mut self, f: F) -> Self {
+        self.on_pull_write_ok = Some(Box::new(f));
+        self
     }
 }
 
@@ -51,23 +61,26 @@ impl tokio::io::AsyncWrite for FilePartWriter {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &[u8],
+        src_buf: &[u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
-        let buf_len = buf.len();
-        let new_buf;
+        let buf_len = src_buf.len();
+        let new_src;
         if buf_len + self.pos > self.end {
             warn!(
                 "write file error,buf len: {}, pos: {}, end: {}",
                 buf_len, self.pos, self.end
             );
             self.pos = self.end;
-            new_buf = &buf[..self.end - self.pos];
+            new_src = &src_buf[..self.end - self.pos];
         } else {
-            new_buf = buf;
+            new_src = src_buf;
         }
-        let poll = std::pin::Pin::new(&mut self.file_part).poll_write(cx, new_buf);
+        let poll = std::pin::Pin::new(&mut self.file_part).poll_write(cx, new_src);
         if let std::task::Poll::Ready(Ok(n)) = poll {
             self.pos += n;
+            if let Some(f) = &self.on_pull_write_ok {
+                f(new_src);
+            }
         }
         poll
     }
@@ -87,22 +100,38 @@ impl tokio::io::AsyncWrite for FilePartWriter {
     }
 }
 
+#[derive(Debug)]
 pub struct FileReceiveSessionManager {
-    /// key: fileID value: RecvFileInfo
+    /// key: fileID, value: RecvFileInfo
     ///
-    /// fileID is random every time a file is transferred,
-    /// and a fileID is regenerated even if the same file is transferred again
+    /// fileID is unique for each file transfer session.
+    /// All parts of the same file within a single transfer session share the same fileID.
+    /// A new fileID is generated for each new transfer session, even if transferring the same file again.
     file_sessions: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     /// key: opID value: OpInfo
     operation_sessions: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
 }
 
+/// The progress of the operation is updated in real time.
+#[derive(Debug)]
+pub struct OpProgress {
+    pub success_count: std::sync::atomic::AtomicI32,
+    pub failure_count: std::sync::atomic::AtomicI32,
+    /// The position of the last progress notification
+    pub inform_pos: std::sync::atomic::AtomicU64,
+    pub current_pos: std::sync::atomic::AtomicU64,
+}
+
 #[derive(Debug, Clone)]
 pub struct OpInfo {
-    requested_device_name: String,
+    _start_time: std::time::Instant,
+    _op_id: u32,
+    total_expectation: u64,
     expected_count: i32,
-    success_count: i32,
-    failure_count: i32,
+    #[allow(dead_code)]
+    requested_device_name: Arc<String>,
+
+    progress: Arc<OpProgress>,
 }
 
 #[derive(Debug)]
@@ -137,8 +166,8 @@ impl FileReceiveSessionManager {
         }
     }
 
-    pub async fn get_file(
-        &self,
+    pub async fn setup_file_reception(
+        self: &Arc<Self>,
         head: &crate::route::RouteRecvHead,
     ) -> std::io::Result<tokio::fs::File> {
         let file_id = head.file_id;
@@ -155,7 +184,7 @@ impl FileReceiveSessionManager {
             let file_path =
                 std::path::Path::new(&crate::config::GLOBAL_CONFIG.read().unwrap().save_path)
                     .join(&head.path);
-            actual_save_path = generate_unique_filepath(file_path)?;
+            actual_save_path = crate::utils::generate_unique_filepath(file_path)?;
         }
         debug!("uploading file: {}", actual_save_path);
         let dir = std::path::Path::new(&actual_save_path)
@@ -195,31 +224,138 @@ impl FileReceiveSessionManager {
             metadata: TokioMutex::new(items),
         };
         file_recv_map.insert(file_id, Arc::new(info));
+
         // check is this opID exist
-        let mut ops_map = self.operation_sessions.lock().await;
-        if ops_map.get(&head.op_id).is_none() {
-            ops_map.insert(
-                head.op_id,
-                OpInfo {
-                    requested_device_name: head.device_name.clone(),
-                    expected_count: head.files_count_in_this_op,
-                    success_count: 0,
-                    failure_count: 0,
+        // let ops_map = self.operation_sessions.lock().await;
+        // if ops_map.get(&head.op_id).is_none() {
+        //     self.create_op_info_inner(head, ops_map);
+        // }
+
+        let manager = Arc::clone(self);
+        let op_id = head.op_id;
+        crate::RUNTIME.get().unwrap().spawn(async move {
+            manager
+                .monitor_single_file_reception(file_id, op_id, actual_save_path, rx)
+                .await
+        });
+        Ok(file)
+    }
+
+    pub async fn create_op_info(
+        &self,
+        head: &crate::route::RouteRecvHead,
+        upload_info: &crate::route::UploadOperationInfo,
+    ) -> Result<(), String> {
+        let ops_map = self.operation_sessions.lock().await;
+        return self.create_op_info_inner(head, upload_info, ops_map);
+    }
+
+    fn create_op_info_inner(
+        &self,
+        head: &crate::route::RouteRecvHead,
+        upload_info: &crate::route::UploadOperationInfo,
+        mut ops_map: tokio::sync::MutexGuard<HashMap<u32, OpInfo>>,
+    ) -> Result<(), String> {
+        // create new opertion
+        let op_info = OpInfo {
+            _op_id: head.op_id,
+            _start_time: std::time::Instant::now(),
+            total_expectation: upload_info.files_size_in_this_op as u64,
+            requested_device_name: Arc::new(String::clone(&head.device_name)),
+            expected_count: upload_info.files_count_in_this_op,
+            progress: Arc::new(OpProgress {
+                inform_pos: std::sync::atomic::AtomicU64::new(0),
+                current_pos: std::sync::atomic::AtomicU64::new(0),
+                success_count: std::sync::atomic::AtomicI32::new(0),
+                failure_count: std::sync::atomic::AtomicI32::new(0),
+            }),
+        };
+        #[cfg(not(target_os = "windows"))]
+        let old_op = ops_map.insert(head.op_id, op_info);
+        #[cfg(target_os = "windows")]
+        let old_op = ops_map.insert(head.op_id, OpInfo::clone(&op_info));
+        if let Some(old_op) = old_op {
+            error!(
+                "opID: {} already exist, old op info: {:?}",
+                head.op_id, old_op
+            );
+            ops_map.remove(&head.op_id);
+            return Err(format!("opID: {} already exist", head.op_id));
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let save_path = crate::config::GLOBAL_CONFIG
+                .read()
+                .unwrap()
+                .save_path
+                .clone();
+            let progress_tag = format!("{}", head.op_id);
+            let title = format!(
+                "Total: {:.3} MB",
+                (upload_info.files_size_in_this_op as f64) / (1024.0 * 1024.0)
+            );
+            crate::utils::inform_with_progress(
+                Some(&save_path),
+                win_toast_notify::Progress {
+                    tag: &progress_tag,
+                    title: &title,
+                    status: "Receiving".to_string(),
+                    value: 0f32,
+                    value_string: format!("{}/{} 0%", 0, op_info.expected_count),
                 },
             );
+            RUNTIME.get().unwrap().spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+                loop {
+                    interval.tick().await;
+                    let current = op_info
+                        .progress
+                        .current_pos
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let total = op_info.total_expectation;
+                    let inform_pos = op_info
+                        .progress
+                        .inform_pos
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    if inform_pos == current {
+                        continue;
+                    }
+                    if current == total {
+                        break;
+                    }
+                    let percent = current as f32 / total as f32;
+                    let received_files = op_info
+                        .progress
+                        .success_count
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let value_string = format!(
+                        "{}/{} {:.2}%",
+                        received_files,
+                        op_info.expected_count,
+                        percent * 100.0
+                    );
+                    if let Err(e) = win_toast_notify::WinToastNotify::progress_update(
+                        None,
+                        &progress_tag,
+                        percent,
+                        value_string,
+                    ) {
+                        error!("progress update error: {}", e);
+                    }
+                    op_info
+                        .progress
+                        .inform_pos
+                        .store(current, std::sync::atomic::Ordering::Relaxed);
+                }
+            });
         }
-        crate::RUNTIME
-            .get()
-            .unwrap()
-            .spawn(monitor_single_file_reception(
-                self.file_sessions.clone(),
-                self.operation_sessions.clone(),
-                file_id,
-                head.op_id,
-                actual_save_path,
-                rx,
-            ));
-        Ok(file)
+        Ok(())
+    }
+
+    pub async fn get_op_progress_handle(&self, op_id: u32) -> Option<Arc<OpProgress>> {
+        let ops = self.operation_sessions.lock().await;
+        ops.get(&op_id).map(|op| Arc::clone(&op.progress))
     }
 
     /// return value: (is_done, is_error_occurred(not include self))
@@ -292,150 +428,137 @@ impl FileReceiveSessionManager {
         }
         false
     }
-}
+    pub async fn monitor_single_file_reception(
+        // files_recv_info: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
+        // ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
+        &self,
+        file_id: u32,
+        op_id: u32,
+        file_path: String,
+        down_ch: tokio::sync::oneshot::Receiver<bool>,
+    ) {
+        use std::time::Duration;
+        use tokio::time::sleep;
+        let success;
+        let mut is_timeout = false;
 
-pub async fn monitor_single_file_reception(
-    files_recv_info: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
-    ops: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
-    file_id: u32,
-    op_id: u32,
-    file_path: String,
-    down_ch: tokio::sync::oneshot::Receiver<bool>,
-) {
-    use std::time::Duration;
-    use tokio::time::sleep;
-    let success;
-    let mut is_timeout = false;
-
-    tokio::select! {
-        r = down_ch => {
-            if let Err(e) = r {
-                error!("fileID: {} recv report error: {}", file_id, e);
-                success = false;
-            } else {
-                success = r.unwrap();
+        tokio::select! {
+            r = down_ch => {
+                if let Err(e) = r {
+                    error!("fileID: {} recv report error: {}", file_id, e);
+                    success = false;
+                } else {
+                    success = r.unwrap();
+                }
+            }
+            r = async {
+                    let mut temp_file_size = 0;
+                    loop {
+                        sleep(Duration::from_secs(60*10)).await;
+                        let file_size = tokio::fs::metadata(&file_path)
+                            .await.map(|m| m.len());
+                        if let Err(e) = file_size {
+                            is_timeout = true;
+                            // maybe file deleted by user
+                            warn!("cannot get {} metadata: {}", file_path, e);
+                            return false;
+                        }
+                        let file_size = file_size.unwrap();
+                        if file_size == temp_file_size {
+                            error!("fileID: {} download timeout!", file_id);
+                            is_timeout = true;
+                            return false;
+                        }
+                        temp_file_size = file_size;
+                    }
+            } => {
+                success = r;
             }
         }
-        r = async {
-                let mut temp_file_size = 0;
-                loop {
-                    sleep(Duration::from_secs(60*10)).await;
-                    let file_size = tokio::fs::metadata(&file_path)
-                        .await.map(|m| m.len());
-                    if let Err(e) = file_size {
-                        is_timeout = true;
-                        // maybe file deleted by user
-                        warn!("cannot get {} metadata: {}", file_path, e);
-                        return false;
-                    }
-                    let file_size = file_size.unwrap();
-                    if file_size == temp_file_size {
-                        error!("fileID: {} download timeout!", file_id);
-                        is_timeout = true;
-                        return false;
-                    }
-                    temp_file_size = file_size;
-                }
-        } => {
-            success = r;
-        }
-    }
 
-    let mut ops = ops.lock().await;
-    if success {
-        ops.get_mut(&op_id).unwrap().success_count += 1;
-    } else {
-        ops.get_mut(&op_id).unwrap().failure_count += 1;
-    }
-    let op_info = ops.get(&op_id).unwrap().clone();
-    if op_info.success_count + op_info.failure_count == op_info.expected_count {
-        // This operation has been completed
-        ops.remove(&op_id);
-    }
-    // It should be deleted regardless of whether the download was successful or not,
-    // because the fileID will not be the same next time the same file is transferred.
-    let file_recv_info = files_recv_info.lock().await.remove(&file_id).unwrap();
+        let op_info = self
+            .operation_sessions
+            .lock()
+            .await
+            .get(&op_id)
+            .unwrap()
+            .clone();
 
-    // Paste it to the clipboard if only receive one image
-    let save_path = &file_recv_info.metadata.lock().await.save_path;
-    if success
-        && op_info.expected_count == 1
-        && file_recv_info.expected_size < 1024 * 1024 * 4
-        && crate::utils::has_img_ext(save_path)
-    {
-        let image = tokio::fs::read(save_path).await;
-        if let Err(e) = image {
-            error!("write to clipboard failed:{}", e);
+        if success {
+            op_info
+                .progress
+                .success_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         } else {
-            let _ = crate::config::set_clipboard_from_img_bytes(&image.unwrap()).await;
+            op_info
+                .progress
+                .failure_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+
+        // It should be deleted regardless of whether the download was successful or not,
+        // because the fileID will not be the same next time the same file is transferred.
+        let file_recv_info = self.file_sessions.lock().await.remove(&file_id).unwrap();
+
+        // Paste it to the clipboard if only receive one image
+        let save_path = &file_recv_info.metadata.lock().await.save_path;
+        if success
+            && op_info.expected_count == 1
+            && file_recv_info.expected_size < 1024 * 1024 * 4
+            && crate::utils::has_img_ext(save_path)
+        {
+            let image = tokio::fs::read(save_path).await;
+            if let Err(e) = image {
+                error!("write to clipboard failed:{}", e);
+            } else {
+                RUNTIME.get().unwrap().spawn(async move {
+                    let _ = crate::config::set_clipboard_from_img_bytes(&image.unwrap()).await;
+                });
+            }
+        }
+
+        let success_count = op_info
+            .progress
+            .success_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let failure_count = op_info
+            .progress
+            .failure_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if success_count + failure_count == op_info.expected_count {
+            // This operation has been completed
+            self.operation_sessions.lock().await.remove(&op_id);
+        }
+        // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        if !is_timeout && success_count + failure_count == op_info.expected_count {
+            let save_path = &crate::config::GLOBAL_CONFIG.read().unwrap().save_path;
+            let mut msg = format!(
+                "{} {} {}",
+                success_count,
+                LanguageKey::NFilesSavedTo.translate(),
+                save_path
+            );
+            if failure_count > 0 {
+                msg = format!("{}\n{} files failed to save", msg, failure_count);
+            }
+            #[cfg(not(target_os = "windows"))]
+            crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
+            #[cfg(target_os = "windows")]
+            {
+                let progress_tag = format!("{}", op_id);
+                let value_string = format!("{}/{} files", success_count, op_info.expected_count);
+                println!("value_string: {}", value_string);
+                let _ = win_toast_notify::WinToastNotify::progress_complete(
+                    None,
+                    &progress_tag,
+                    "Complete".to_string(),
+                    value_string,
+                );
+            }
         }
     }
-
-    let files_saved_to = LANGUAGE_MANAGER
-        .read()
-        .unwrap()
-        .translate(LanguageKey::NFilesSavedTo);
-
-    // This operation has been completed
-    if !is_timeout && op_info.success_count + op_info.failure_count == op_info.expected_count {
-        let mut msg = format!(
-            "{} {} {}",
-            op_info.success_count,
-            files_saved_to,
-            crate::config::GLOBAL_CONFIG.read().unwrap().save_path
-        );
-        if op_info.failure_count > 0 {
-            msg = format!("{}\n{} files failed to save", msg, op_info.failure_count);
-        }
-        let save_path = &crate::config::GLOBAL_CONFIG.read().unwrap().save_path;
-        crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
-    }
-}
-
-/// Generate a unique file path, if the file already exists, add a number to the file name
-fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
-    if !path.as_ref().exists() {
-        let ret = path
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?;
-        return Ok(ret.to_string());
-    }
-    let path = path.as_ref();
-    let dir = path
-        .parent()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path parent error"))?;
-    let name = path
-        .file_name()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path file_name error"))?;
-    let name: String = name.to_string_lossy().to_string();
-    let file_ext = path
-        .extension()
-        .unwrap_or(std::ffi::OsStr::new(""))
-        .to_str()
-        .unwrap_or("")
-        .to_string();
-    for i in 1..100 {
-        let new_name = if !file_ext.is_empty() {
-            let name = name.trim_end_matches(&format!(".{}", file_ext));
-            format!("{}({}).{}", name, i, file_ext)
-        } else {
-            format!("{}({})", name, i)
-        };
-        let new_path = dir.join(new_name);
-        if !new_path.exists() {
-            return Ok(new_path
-                .to_str()
-                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?
-                .to_string());
-        }
-    }
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "generate unique filepath error, too many files",
-    ))
 }
 
 lazy_static::lazy_static!(
-    pub static ref GLOBAL_RECEIVER_SESSION_MANAGER:FileReceiveSessionManager = FileReceiveSessionManager::new();
+    pub static ref GLOBAL_RECEIVER_SESSION_MANAGER:Arc<FileReceiveSessionManager> = Arc::new(FileReceiveSessionManager::new());
 );

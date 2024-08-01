@@ -9,215 +9,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as filepathpkg;
 // import 'package:filesaverz/filesaverz.dart';
 
+import 'protocol/protocol.dart';
 import 'device.dart';
-
-class HeadInfo {
-  String deviceName;
-  String action;
-  String timeIp;
-  int fileID;
-  int fileSize;
-  String uploadType;
-  String path;
-
-  int start;
-  int end;
-  int dataLen;
-  int opID;
-  int filesCountInThisOp;
-
-  static const String uploadTypeFile = 'file';
-  static const String uploadTypeDir = 'dir';
-
-  HeadInfo(this.deviceName, this.action, this.timeIp,
-      {this.fileID = 0,
-      this.fileSize = 0,
-      this.uploadType = '',
-      this.path = '',
-      this.start = 0,
-      this.end = 0,
-      this.dataLen = 0,
-      this.opID = 0,
-      this.filesCountInThisOp = 0});
-
-  HeadInfo.fromJson(Map<String, dynamic> json)
-      : deviceName = json['deviceName'],
-        action = json['action'],
-        timeIp = json['timeIp'],
-        fileID = json['fileID'],
-        uploadType = json['uploadType'],
-        fileSize = json['fileSize'],
-        path = json['path'],
-        start = json['start'],
-        end = json['end'],
-        dataLen = json['dataLen'],
-        opID = json['opID'],
-        filesCountInThisOp = json['filesCountInThisOp'];
-
-  Map<String, dynamic> toJson() => {
-        'deviceName': deviceName,
-        'action': action,
-        'timeIp': timeIp,
-        'fileID': fileID,
-        'uploadType': uploadType,
-        'fileSize': fileSize,
-        'path': path,
-        'start': start,
-        'end': end,
-        'dataLen': dataLen,
-        'opID': opID,
-        'filesCountInThisOp': filesCountInThisOp
-      };
-
-  Future<void> writeToConn(SecureSocket conn) async {
-    var headInfojson = jsonEncode(toJson());
-    var headInfoUint8 = utf8.encode(headInfojson);
-    var headInfoUint8Len = headInfoUint8.length;
-    var headInfoUint8LenUint8 = Uint8List(4);
-    headInfoUint8LenUint8.buffer
-        .asByteData()
-        .setUint32(0, headInfoUint8Len, Endian.little);
-    conn.add(headInfoUint8LenUint8);
-    conn.add(headInfoUint8);
-    // await conn.flush();
-  }
-
-  Future<void> writeToConnWithBody(SecureSocket conn, List<int> body) async {
-    // dataLen = body.length;
-    if (body.length != dataLen) {
-      throw Exception('body.length != dataLen');
-    }
-    var headInfojson = jsonEncode(toJson());
-    var headInfoUint8 = utf8.encode(headInfojson);
-    var headInfoUint8Len = headInfoUint8.length;
-    var headInfoUint8LenUint8 = Uint8List(4);
-    headInfoUint8LenUint8.buffer
-        .asByteData()
-        .setUint32(0, headInfoUint8Len, Endian.little);
-    conn.add(headInfoUint8LenUint8);
-    conn.add(headInfoUint8);
-    conn.add(body);
-    // await conn.flush();
-  }
-}
-
-class RespHead {
-  int code;
-  String dataType;
-  String? timeIp;
-  String? msg;
-  // List<TargetPaths>? paths;
-  int dataLen = 0;
-
-  static const String dataTypeFiles = 'files';
-  static const String dataTypeText = 'text';
-  static const String dataTypeImage = 'clip-image';
-
-  RespHead(this.code, this.dataType, {this.timeIp, this.msg, this.dataLen = 0});
-
-  RespHead.fromJson(Map<String, dynamic> json)
-      : code = json['code'],
-        timeIp = json['timeIp'],
-        msg = json['msg'],
-        // paths = json['paths']?.cast<String>(),
-        dataLen = json['dataLen'],
-        dataType = json['dataType'];
-
-  Map<String, dynamic> toJson() => {
-        'code': code,
-        'timeIp': timeIp,
-        'msg': msg,
-        'dataLen': dataLen,
-        'dataType': dataType
-      };
-
-  /// return [head, body]
-  /// 不适用于body过大的情况
-  static Future<(RespHead, List<int>)> readHeadAndBodyFromConn(
-      Stream<Uint8List> conn) async {
-    int respHeadLen = 0;
-    int bodyLen = 0;
-    List<int> respContentList = [];
-    RespHead? respHeadInfo;
-    bool isHeadReading = true;
-    await for (var data in conn) {
-      respContentList.addAll(data);
-      // print('addall respContentList.length: ${respContentList.length}');
-      if (isHeadReading) {
-        if (respHeadLen == 0 && respContentList.length >= 4) {
-          respHeadLen =
-              ByteData.sublistView(Uint8List.fromList(respContentList))
-                  .getInt32(0, Endian.little);
-        }
-        if (respHeadLen != 0 && respContentList.length >= respHeadLen + 4) {
-          var respHeadBytes = respContentList.sublist(4, respHeadLen + 4);
-          var respHeadJson = utf8.decode(respHeadBytes);
-          respHeadInfo = RespHead.fromJson(jsonDecode(respHeadJson));
-          // print('respHeadInfo: ${respHeadInfo.toJson().toString()}');
-          // if (respHeadInfo.code != 200) {
-          //   return (respHeadInfo, <int>[]);
-          // }
-          bodyLen = respHeadInfo.dataLen;
-          if (bodyLen == 0) {
-            return (respHeadInfo, <int>[]);
-          }
-          // print('respContentList.length: ${respContentList.length}');
-          respContentList = respContentList.sublist(respHeadLen + 4);
-          // print('respContentList.length: ${respContentList.length}');
-          isHeadReading = false;
-        } else {
-          continue;
-        }
-      }
-      if (bodyLen != 0 && respContentList.length >= bodyLen) {
-        var respBody = respContentList.sublist(0, bodyLen);
-        return (respHeadInfo!, respBody);
-      }
-    }
-    // The server may have actively closed the connection
-    var errMsg = 'readHeadAndBodyFromConn error';
-    if (respHeadInfo != null) {
-      errMsg =
-          '$errMsg, respHeadInfo: ${respHeadInfo.toJson().toString()},bodyLen: $bodyLen, bufferLen: ${respContentList.length}';
-    }
-    throw Exception(errMsg);
-  }
-}
-
-class TransferInfo {
-  static const String pathInfoTypeFile = 'file';
-  static const String pathInfoTypeDir = 'dir';
-
-  /// 文件在服务端设备上的路径
-  String remotePath;
-
-  /// 文件在本地设备上的相对保存路径
-  String savePath;
-
-  /// 传输类型
-  String type;
-
-  /// 文件大小(字节)，目录为0
-  int size;
-
-  TransferInfo(this.remotePath, this.savePath, this.size,
-      {this.type = TransferInfo.pathInfoTypeFile});
-
-  TransferInfo.fromJson(Map<String, dynamic> json)
-      : remotePath = json['path'],
-        savePath = json['savePath'],
-        type = json['type'],
-        size = json['size'];
-
-  Map<String, dynamic> toJson() {
-    Map<String, dynamic> data = {};
-    data['path'] = remotePath;
-    data['savePath'] = savePath;
-    data['type'] = type;
-    data['size'] = size;
-    return data;
-  }
-}
+import 'utils.dart';
 
 class FileUploader {
   final Device device;
@@ -248,6 +42,37 @@ class FileUploader {
     await _connectionManager.closeAllConn();
   }
 
+  /// call this function before upload
+  Future<void> sendOperationInfo(int opID, UploadOperationInfo info) async {
+    // print('conns.length: ${_connectionManager.conns.length}');
+    var (conn, stream) = await _connectionManager.getConnection();
+
+    var infoJson = jsonEncode(info.toJson());
+    Uint8List infoBytes = utf8.encode(infoJson);
+    HeadInfo head = HeadInfo(
+      loaclDeviceName,
+      DeviceAction.pasteFile,
+      uploadType: DeviceUploadType.uploadInfo,
+      device.generateTimeipHeadHex(),
+      dataLen: infoBytes.length,
+      opID: opID,
+    );
+    // print('head: ${head.toJson().toString()}');
+    await head.writeToConn(conn);
+
+    conn.add(infoBytes);
+
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(stream);
+    if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      throw UnauthorizedException(respHead.msg ?? '');
+    }
+    if (respHead.code != Device.respOkCode) {
+      throw Exception(respHead.msg);
+    }
+
+    _connectionManager.putConnection(conn, stream);
+  }
+
   Future<void> uploader(
     RandomAccessFile fileAccess,
     int start,
@@ -255,14 +80,14 @@ class FileUploader {
     String filePath,
     String savePath,
     int opID,
-    int filesCountInThisOp,
   ) async {
     // print('conns.length: ${_connectionManager.conns.length}');
     var (conn, stream) = await _connectionManager.getConnection();
 
     HeadInfo head = HeadInfo(
       loaclDeviceName,
-      DeviceAction.pasteFile.name,
+      DeviceAction.pasteFile,
+      uploadType: DeviceUploadType.file,
       device.generateTimeipHeadHex(),
       fileID: fileID,
       fileSize: await fileAccess.length(),
@@ -271,7 +96,6 @@ class FileUploader {
       end: end,
       dataLen: end - start,
       opID: opID,
-      filesCountInThisOp: filesCountInThisOp,
     );
 
     // print('head: ${head.toJson().toString()}');
@@ -323,7 +147,6 @@ class FileUploader {
     String filePath,
     String savePath,
     int opID,
-    int filesCountInThisOp,
   ) async {
     var file = File(filePath);
     // 计算md5
@@ -346,8 +169,7 @@ class FileUploader {
     if (fileSize == 0) {
       // 空文件
       var fileAccess = await file.open();
-      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID,
-          filesCountInThisOp));
+      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID));
     }
     while (end < fileSize) {
       // [start, end)
@@ -358,12 +180,57 @@ class FileUploader {
       }
       // print("part $partNum: $start - $end");
       var fileAccess = await file.open(); //每次都重新打开文件，不用担心await导致seek位置不对
-      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID,
-          filesCountInThisOp));
+      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID));
       partNum++;
     }
     // print('partNum: $partNum');
     await Future.wait(futures);
+  }
+
+  /// It's caller's responsibility to close the uploader.
+  Future<void> uploadByBytes(
+    Uint8List data,
+    String fileName, {
+    Duration timeout = const Duration(seconds: 2),
+    String savePath = '',
+    int? opID,
+  }) async {
+    opID = opID ?? Random().nextInt(int.parse('FFFFFFFF', radix: 16));
+    UploadOperationInfo opInfo = UploadOperationInfo(
+      data.length,
+      1,
+    );
+    await sendOperationInfo(opID, opInfo);
+
+    var (conn, stream) =
+        await _connectionManager.getConnection(timeOut: timeout);
+
+    HeadInfo head = HeadInfo(
+      loaclDeviceName,
+      DeviceAction.pasteFile,
+      device.generateTimeipHeadHex(),
+      uploadType: DeviceUploadType.file,
+      fileID: Random().nextInt(int.parse('FFFFFFFF', radix: 16)),
+      fileSize: data.length,
+      path: fileName,
+      start: 0,
+      end: data.length,
+      dataLen: data.length,
+      opID: opID,
+    );
+
+    await head.writeToConn(conn);
+
+    conn.add(data);
+
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      throw UnauthorizedException(respHead.msg ?? '');
+    }
+    if (respHead.code != Device.respOkCode) {
+      throw Exception(respHead.msg);
+    }
+    _connectionManager.putConnection(conn, stream);
   }
 }
 
@@ -395,14 +262,14 @@ class FileDownloader {
   }
 
   Future<void> _writeRangeFile(int start, int end, int partNum,
-      RandomAccessFile fileAccess, TransferInfo paths) async {
+      RandomAccessFile fileAccess, DownloadInfo paths) async {
     var chunkSize = min(maxChunkSize, end - start);
     // print('chunkSize: $chunkSize');
     var (conn, stream) = await _connectionManager.getConnection();
     // print('_writeRangeFile start: $start, end: $end');
     var head = HeadInfo(
       localDeviceName,
-      DeviceAction.downloadAction.name,
+      DeviceAction.downloadAction,
       device.generateTimeipHeadHex(),
       path: paths.remotePath,
       start: start,
@@ -467,7 +334,7 @@ class FileDownloader {
   }
 
   Future<String> parallelDownload(
-    TransferInfo targetFile,
+    DownloadInfo targetFile,
     String fileSavePath,
   ) async {
     String systemSeparator = filepathpkg.separator;
@@ -525,29 +392,6 @@ class FileDownloader {
   }
 }
 
-// 产生不冲突的文件名
-String generateUniqueFilepath(String filePath) {
-  var file = File(filePath);
-  if (!file.existsSync()) {
-    return filePath;
-  }
-  // print('file exists');
-  var name = file.path.replaceAll('\\', '/').split('/').last;
-  var fileExt = name.split('.').last;
-  name = name.substring(0, name.length - fileExt.length - 1);
-  for (var i = 1;; i++) {
-    String newPath;
-    if (fileExt.isNotEmpty) {
-      newPath = '${file.parent.path}/$name($i).$fileExt';
-    } else {
-      newPath = '${file.parent.path}/$name($i)';
-    }
-    if (!File(newPath).existsSync()) {
-      return newPath;
-    }
-  }
-}
-
 class ConnectionManager {
   final Device device;
   Duration? timeout;
@@ -556,7 +400,9 @@ class ConnectionManager {
 
   ConnectionManager(this.device, {this.timeout});
 
-  Future<(SecureSocket, Stream<Uint8List>)> getConnection() async {
+  Future<(SecureSocket, Stream<Uint8List>)> getConnection(
+      {Duration? timeOut}) async {
+    var tempTimeout = timeOut ?? timeout;
     if (conns.isEmpty) {
       var conn = await SecureSocket.connect(
         device.iP,
@@ -564,7 +410,7 @@ class ConnectionManager {
         onBadCertificate: (X509Certificate certificate) {
           return true;
         },
-        timeout: timeout,
+        timeout: tempTimeout,
       );
       var stream = conn.asBroadcastStream();
       return (conn, stream);
@@ -601,4 +447,8 @@ class UnauthorizedException extends RequestException {
   UnauthorizedException([super.message = 'Unauthorized']) {
     code = unauthorizedCode;
   }
+}
+
+class UserCancelPickException implements Exception {
+  UserCancelPickException();
 }

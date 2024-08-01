@@ -395,6 +395,37 @@ pub fn inform<T: AsRef<str>>(
     }
 }
 
+#[cfg(target_os = "windows")]
+pub fn inform_with_progress(click_open: Option<&str>, progress: win_toast_notify::Progress) {
+    use win_toast_notify::{CropCircle, Duration, WinToastNotify};
+    // println!("click_open: {:?}, progress: {:?}", click_open, progress);
+    let save_path = crate::config::GLOBAL_CONFIG
+        .read()
+        .unwrap()
+        .save_path
+        .clone();
+    let mut notify = WinToastNotify::new()
+        // .set_app_id(crate::PROGRAM_NAME)
+        .set_logo(
+            crate::config::APP_ICON_PATH.get().unwrap(),
+            CropCircle::False,
+        )
+        .set_title(crate::PROGRAM_NAME)
+        .set_messages(vec![&format!(
+            "{}: {}",
+            crate::language::LanguageKey::SavePath.translate(),
+            save_path
+        )])
+        .set_duration(Duration::Short)
+        .set_progress(progress);
+    if let Some(click_open) = click_open {
+        // notify = notify.set_open(click_open);
+    }
+    if let Err(err) = notify.show() {
+        error!("show notification error: {}", err);
+    }
+}
+
 pub fn has_img_ext(name: &str) -> bool {
     let ext = name.split('.').last().unwrap_or("");
     // match ext.to_lowercase().as_str() {
@@ -431,6 +462,50 @@ pub fn get_system_lang() -> String {
         }
     }
     lang
+}
+
+/// Generate a unique file path, if the file already exists, add a number to the file name
+pub fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
+    if !path.as_ref().exists() {
+        let ret = path
+            .as_ref()
+            .to_str()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?;
+        return Ok(ret.to_string());
+    }
+    let path = path.as_ref();
+    let dir = path
+        .parent()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path parent error"))?;
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path file_name error"))?;
+    let name: String = name.to_string_lossy().to_string();
+    let file_ext = path
+        .extension()
+        .unwrap_or(std::ffi::OsStr::new(""))
+        .to_str()
+        .unwrap_or("")
+        .to_string();
+    for i in 1..100 {
+        let new_name = if !file_ext.is_empty() {
+            let name = name.trim_end_matches(&format!(".{}", file_ext));
+            format!("{}({}).{}", name, i, file_ext)
+        } else {
+            format!("{}({})", name, i)
+        };
+        let new_path = dir.join(new_name);
+        if !new_path.exists() {
+            return Ok(new_path
+                .to_str()
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?
+                .to_string());
+        }
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        "generate unique filepath error, too many files",
+    ))
 }
 
 pub struct ClipboardManager {

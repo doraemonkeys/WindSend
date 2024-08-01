@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"syscall"
+	"unsafe"
 
 	"golang.design/x/clipboard"
 
@@ -92,12 +94,72 @@ func (c *ClipboardService) Files() (filenames []string, err error) {
 	return
 }
 
+// SetFiles sets the current file drop data of the clipboard.
+func (c *ClipboardService) SetFiles(paths []string) error {
+	return c.withOpenClipboard(func() error {
+		win.EmptyClipboard()
+		// https://docs.microsoft.com/en-us/windows/win32/shell/clipboard#cf_hdrop
+		var utf16 []uint16
+		for _, path := range paths {
+			_utf16, err := syscall.UTF16FromString(path)
+			if err != nil {
+				return err
+			}
+			utf16 = append(utf16, _utf16...)
+		}
+		utf16 = append(utf16, uint16(0))
+
+		const dropFilesSize = unsafe.Sizeof(DROPFILES{}) - 4
+
+		size := dropFilesSize + uintptr((len(utf16))*2+2)
+
+		hMem := win.GlobalAlloc(win.GHND, size)
+		if hMem == 0 {
+			return errors.New("GlobalAlloc failed")
+		}
+
+		p := win.GlobalLock(hMem)
+		if p == nil {
+			return errors.New("GlobalLock failed")
+		}
+
+		zeroMem := make([]byte, size)
+		win.MoveMemory(p, unsafe.Pointer(&zeroMem[0]), size)
+
+		pD := (*DROPFILES)(p)
+		pD.pFiles = dropFilesSize
+		pD.fWide = false
+		pD.fNC = true
+		win.MoveMemory(unsafe.Pointer(uintptr(p)+dropFilesSize), unsafe.Pointer(&utf16[0]), uintptr(len(utf16)*2))
+
+		win.GlobalUnlock(hMem)
+
+		if win.SetClipboardData(win.CF_HDROP, win.HANDLE(hMem)) == 0 {
+			// We need to free hMem.
+			defer win.GlobalFree(hMem)
+
+			return errors.New("SetClipboardData failed")
+		}
+		// The system now owns the memory referred to by hMem.
+
+		return nil
+	})
+}
+
 var clipboardS ClipboardService
 
 // ClipboardService provides access to the system clipboard.
 type ClipboardService struct {
 	hwnd win.HWND
 	// contentsChangedPublisher walk.EventPublisher
+}
+
+type DROPFILES struct {
+	pFiles uintptr
+	pt     uintptr
+	fNC    bool
+	fWide  bool
+	_      uint32 // padding
 }
 
 // Clear clears the contents of the clipboard.

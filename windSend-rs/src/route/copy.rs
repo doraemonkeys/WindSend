@@ -104,12 +104,12 @@ async fn send_files<T: IntoIterator<Item = String>>(
             ..Default::default()
         };
         if path_attr.is_file() {
-            rpi.type_ = crate::route::PathInfoType::File;
+            rpi.type_ = crate::route::PathType::File;
             rpi.size = path_attr.len();
             resp_paths.push(rpi);
             continue;
         }
-        rpi.type_ = crate::route::PathInfoType::Dir;
+        rpi.type_ = crate::route::PathType::Dir;
         let dir_root = std::path::Path::new(&path1)
             .file_name()
             .unwrap_or_default()
@@ -137,9 +137,9 @@ async fn send_files<T: IntoIterator<Item = String>>(
             let mut rpi = RouteTransferInfo {
                 remote_path: path2.clone(),
                 type_: if entry.file_type().is_dir() {
-                    crate::route::PathInfoType::Dir
+                    crate::route::PathType::Dir
                 } else {
-                    crate::route::PathInfoType::File
+                    crate::route::PathType::File
                 },
                 ..Default::default()
             };
@@ -154,7 +154,7 @@ async fn send_files<T: IntoIterator<Item = String>>(
                 .join(relative_path)
                 .to_string_lossy()
                 .to_string();
-            if let crate::route::PathInfoType::File = rpi.type_ {
+            if let crate::route::PathType::File = rpi.type_ {
                 rpi.size = entry.metadata().unwrap().len();
                 rpi.save_path = PathBuf::from(rpi.save_path)
                     .parent()
