@@ -674,11 +674,12 @@ class Device {
 
   /// Send files or dirs.
   Future<void> doSendAction(List<String> paths,
-      {Map<String, String> fileRelativeSavePath = const {}}) async {
+      {Map<String, String>? fileRelativeSavePath}) async {
     int totalSize = 0;
     List<String> emptyDirs = [];
     Map<String, PathInfo> pathInfoMap = {};
     List<String> filePaths = [];
+    fileRelativeSavePath ??= {};
 
     for (var itemPath in paths) {
       var itemType = await FileSystemEntity.type(itemPath);
@@ -758,7 +759,7 @@ class Device {
         }
         // print('uploading $filepath');
         await fileUploader.upload(
-            filepath, fileRelativeSavePath[filepath] ?? '', opID);
+            filepath, fileRelativeSavePath![filepath] ?? '', opID);
       }
       await fileUploader.close();
     }
@@ -769,7 +770,7 @@ class Device {
   Future<void> pickFilesDoSendAction({
     List<String>? filePathList,
     // key: filePath value: relativeSavePath
-    Map<String, String> fileSavePathMap = const {},
+    Map<String, String>? fileSavePathMap,
   }) async {
     // check permission
     if (Platform.isAndroid) {
