@@ -5,6 +5,7 @@ set ServerProgramName=WindSend-S
 set goServerProgramName=%ServerProgramName%-Go
 set rustServerProgramName=%ServerProgramName%-Rust
 set "ServerProgramIconName=icon-192.png"
+set CURRENT_DIR=%cd%
 
 
 @REM 输入version
@@ -14,47 +15,48 @@ echo %versionStr%
 
 
 
-@REM build go server[amd64]
-cd go
-echo %cd%
-@REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
-call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
+@REM @REM build go server[amd64]
+@REM cd go
+@REM echo %cd%
+@REM @REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
+@REM call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
 
-go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
+@REM go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
 
-cd ../bin
-md %goServerProgramName%-x86_64-windows
-move ../go/%goServerProgramName%.exe %goServerProgramName%-x86_64-windows/%goServerProgramName%.exe
-xcopy ..\README.md %goServerProgramName%-x86_64-windows /y
-xcopy ..\README-EN.md %goServerProgramName%-x86_64-windows /y
-xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-x86_64-windows /y
-zip -r %goServerProgramName%-x86_64-windows.zip %goServerProgramName%-x86_64-windows
-cd ../go  
+@REM cd ../bin
+@REM md %goServerProgramName%-x86_64-windows
+@REM move ../go/%goServerProgramName%.exe %goServerProgramName%-x86_64-windows/%goServerProgramName%.exe
+@REM xcopy ..\README.md %goServerProgramName%-x86_64-windows /y
+@REM xcopy ..\README-EN.md %goServerProgramName%-x86_64-windows /y
+@REM xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-x86_64-windows /y
+@REM zip -r %goServerProgramName%-x86_64-windows.zip %goServerProgramName%-x86_64-windows
+@REM cd ../go  
 
 
-@REM build go server[arm64]
-set GOARCH=arm64
-echo %cd%
-@REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
-call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
+@REM @REM build go server[arm64]
+@REM set GOARCH=arm64
+@REM echo %cd%
+@REM @REM 修改 main.go 中的版本号 (const ProgramVersion = "x.x.x")
+@REM call sed -i "s/const ProgramVersion = .*/const ProgramVersion = \"%version%\"/" main.go
 
-go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
+@REM go build -ldflags "-H=windowsgui" -o %goServerProgramName%.exe
 
-cd ../bin
-md %goServerProgramName%-arm64-windows
-move ../go/%goServerProgramName%.exe %goServerProgramName%-arm64-windows/%goServerProgramName%.exe
-xcopy ..\README.md %goServerProgramName%-arm64-windows /y
-xcopy ..\README-EN.md %goServerProgramName%-arm64-windows /y
-xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-arm64-windows /y
-zip -r %goServerProgramName%-arm64-windows.zip %goServerProgramName%-arm64-windows
-cd ../go
+@REM cd ../bin
+@REM md %goServerProgramName%-arm64-windows
+@REM move ../go/%goServerProgramName%.exe %goServerProgramName%-arm64-windows/%goServerProgramName%.exe
+@REM xcopy ..\README.md %goServerProgramName%-arm64-windows /y
+@REM xcopy ..\README-EN.md %goServerProgramName%-arm64-windows /y
+@REM xcopy "..\go\%ServerProgramIconName%" %goServerProgramName%-arm64-windows /y
+@REM zip -r %goServerProgramName%-arm64-windows.zip %goServerProgramName%-arm64-windows
+@REM cd ../go
 
 
 
 
 @REM build rust server
 set rustPjName=wind_send
-cd ../windSend-rs
+cd CURRENT_DIR
+cd ./windSend-rs
 echo %cd%
 
 @REM 修改 Cargo.toml 中的版本号 (version = "x.x.x")

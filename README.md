@@ -29,7 +29,7 @@
 
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
-> PC端: 一般可以选择下载 **WindSend-S**-XX-x86_64-XXXXX.zip (提供Rust与Go两种实现)
+> PC端: 一般可以选择下载 **WindSend-S**-XX-x86_64-XXXXX.zip
 > 
 > 移动端：一般可以选择下载 **WindSend-flutter**-arm64-v8a-release.apk
 
@@ -139,17 +139,6 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 
-## Rust实现与Go实现有哪些区别
-
-这两个版本在在功能与外观上几乎没有区别，但某些方面还是有细微差别。
-
-
-1. Rust版体积相对稍小
-2. Rust版在Windows平台功能更多
-3. Rust版在传输速度上可能比Go版略低
-
-
-
 ## 跨平台情况
 
 由于作者只有Android与Windows的设备，所以不能保证软件在其他平台的功能是否正常。
@@ -178,7 +167,7 @@ web传递信息的原理是使用了 https://ko0.com/ 网站。
 
 
 
-### Go
+### Go (停止维护)
 
 |          | Windows | macOS | Linux | Android | iOS  |
 | -------- | ------- | ----- | ----- | ------- | ---- |
