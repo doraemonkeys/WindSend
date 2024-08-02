@@ -655,7 +655,7 @@ class Device {
       itemPath2 = itemPath2.replaceAll('\\', filepath.separator);
       itemPath2 = itemPath2.replaceAll('/', filepath.separator);
       if (await directoryIsEmpty(itemPath2)) {
-        emptyDirs.add(itemPath2);
+        emptyDirs.add(filepath.basename(itemPath2));
         continue;
       }
       List<String> scannedEmptyDirs = [];
@@ -679,8 +679,14 @@ class Device {
           if (!entity.path.startsWith(itemPath2)) {
             throw Exception('unexpected file path: ${entity.path}');
           }
+          print(
+              'entity.path: ${entity.path}, empty: ${await directoryIsEmpty(entity.path)}');
           if (await directoryIsEmpty(entity.path)) {
-            scannedEmptyDirs.add(entity.path);
+            String relativePath = entity.path.substring(itemPath2.length + 1);
+            scannedEmptyDirs.add(filepath.join(
+              filepath.basename(itemPath2),
+              relativePath == '.' ? '' : relativePath,
+            ));
           }
         }
       }
@@ -695,6 +701,7 @@ class Device {
         totalSize,
         filePaths.length,
         uploadPaths: pathInfoMap,
+        emptyDirs: emptyDirs,
       );
       var fileUploader =
           FileUploader(this, localDeviceName, threadNum: uploadThread);

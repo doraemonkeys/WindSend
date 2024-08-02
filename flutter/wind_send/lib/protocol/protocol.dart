@@ -251,7 +251,7 @@ class UploadOperationInfo {
   List<String>? emptyDirs;
 
   UploadOperationInfo(this.filesSizeInThisOp, this.filesCountInThisOp,
-      {this.uploadPaths});
+      {this.uploadPaths, this.emptyDirs});
 
   UploadOperationInfo.fromJson(Map<String, dynamic> json)
       : filesSizeInThisOp = json['filesSizeInThisOp'],
