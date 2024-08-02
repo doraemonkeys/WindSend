@@ -58,7 +58,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
-  custom_refresh_indicator: ^3.0.0
+  custom_refresh_indicator: ^4.0.0
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
   super_clipboard: ^0.8.17
