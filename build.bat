@@ -55,7 +55,7 @@ echo %versionStr%
 
 @REM build rust server
 set rustPjName=wind_send
-cd CURRENT_DIR
+cd %CURRENT_DIR%
 cd ./windSend-rs
 echo %cd%
 
