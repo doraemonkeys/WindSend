@@ -9,6 +9,12 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# check if already installed
+if [ -d "$INSTALL_DIR" ]; then
+    echo -e "${RED}Reinstalling...${NC}"
+    ./uninstall.sh
+fi
+
 mkdir -p "$INSTALL_DIR"
 
 echo -e "Install directory: ${RED}$INSTALL_DIR${NC}"
