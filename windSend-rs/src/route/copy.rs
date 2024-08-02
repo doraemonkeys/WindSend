@@ -35,6 +35,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
             use clipboard_rs::Clipboard;
             match cctx.get_files() {
                 Ok(files) => {
+                    debug!("clipboard_rs get_files: {:?}", &files);
                     let files = files
                         .into_iter()
                         .map(|f| f.trim_start_matches("file://").to_string())
@@ -89,6 +90,7 @@ async fn send_files<T: IntoIterator<Item = String> + std::fmt::Debug>(
     conn: &mut TlsStream<TcpStream>,
     paths: T,
 ) -> Result<(), ()> {
+    debug!("send_files: {:?}", &paths);
     let mut resp_paths = Vec::<RouteTransferInfo>::new();
     for path1 in paths {
         let path_attr = tokio::fs::metadata(&path1).await;
