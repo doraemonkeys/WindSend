@@ -284,6 +284,9 @@ impl FileReceiveSessionManager {
 
         #[cfg(target_os = "windows")]
         {
+            if upload_info.files_count_in_this_op == 0 {
+                return Ok(());
+            }
             let save_path = crate::config::GLOBAL_CONFIG
                 .read()
                 .unwrap()
