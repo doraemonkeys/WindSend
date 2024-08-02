@@ -478,6 +478,7 @@ class Device {
       return ("", 1);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
+      // print('respBody: ${utf8.decode(respBody)}');
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
       List<DownloadInfo> respPaths =
           respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();

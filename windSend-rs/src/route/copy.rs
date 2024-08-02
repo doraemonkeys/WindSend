@@ -85,7 +85,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
 }
 
 #[allow(dead_code)]
-async fn send_files<T: IntoIterator<Item = String>>(
+async fn send_files<T: IntoIterator<Item = String> + std::fmt::Debug>(
     conn: &mut TlsStream<TcpStream>,
     paths: T,
 ) -> Result<(), ()> {
@@ -174,10 +174,6 @@ async fn send_files<T: IntoIterator<Item = String>>(
         return Err(());
     }
     debug!("{:?}", &resp_paths);
-    let copy_successfully = LANGUAGE_MANAGER
-        .read()
-        .unwrap()
-        .translate(LanguageKey::CopySuccessfully);
     let body = match serde_json::to_vec(&resp_paths) {
         Ok(body) => body,
         Err(err) => {
@@ -187,7 +183,13 @@ async fn send_files<T: IntoIterator<Item = String>>(
             return Err(());
         }
     };
-    send_msg_with_body(conn, copy_successfully, RouteDataType::Files, &body).await
+    send_msg_with_body(
+        conn,
+        LanguageKey::CopySuccessfully.translate(),
+        RouteDataType::Files,
+        &body,
+    )
+    .await
 }
 
 async fn send_clipboard_image(

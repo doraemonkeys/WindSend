@@ -97,10 +97,10 @@ class HeadInfo {
 
   HeadInfo.fromJson(Map<String, dynamic> json)
       : deviceName = json['deviceName'],
-        action = json['action'],
+        action = DeviceAction.fromString(json['action']),
         timeIp = json['timeIp'],
         fileID = json['fileID'],
-        uploadType = json['uploadType'],
+        uploadType = DeviceUploadType.fromString(json['uploadType']),
         fileSize = json['fileSize'],
         path = json['path'],
         start = json['start'],
@@ -279,6 +279,10 @@ enum PathType {
 
   static PathType fromJson(String json) {
     final String name = jsonDecode(json);
+    return PathType.fromString(name);
+  }
+
+  static PathType fromString(String name) {
     return PathType.values.firstWhere(
       (type) => type.name == name,
       orElse: () => PathType.unKnown,
@@ -330,7 +334,7 @@ class DownloadInfo {
   DownloadInfo.fromJson(Map<String, dynamic> json)
       : remotePath = json['path'],
         savePath = json['savePath'],
-        type = json['type'],
+        type = PathType.fromString(json['type']),
         size = json['size'];
 
   Map<String, dynamic> toJson() {
