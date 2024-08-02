@@ -306,22 +306,22 @@ impl FileReceiveSessionManager {
             );
             RUNTIME.get().unwrap().spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+                let total = op_info.total_expectation;
                 loop {
                     interval.tick().await;
                     let current = op_info
                         .progress
                         .current_pos
                         .load(std::sync::atomic::Ordering::Relaxed);
-                    let total = op_info.total_expectation;
                     let inform_pos = op_info
                         .progress
                         .inform_pos
                         .load(std::sync::atomic::Ordering::Relaxed);
-                    if inform_pos == current {
-                        continue;
-                    }
                     if current == total {
                         break;
+                    }
+                    if inform_pos == current {
+                        continue;
                     }
                     let percent = current as f32 / total as f32;
                     let received_files = op_info
