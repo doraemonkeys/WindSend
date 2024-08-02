@@ -113,6 +113,7 @@ pub struct FileReceiveSessionManager {
 
 /// The progress of the operation is updated in real time.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct OpProgress {
     pub success_count: std::sync::atomic::AtomicI32,
     pub failure_count: std::sync::atomic::AtomicI32,
@@ -122,12 +123,12 @@ pub struct OpProgress {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct OpInfo {
     _start_time: std::time::Instant,
     _op_id: u32,
     total_expectation: u64,
     expected_count: i32,
-    #[allow(dead_code)]
     requested_device_name: Arc<String>,
 
     progress: Arc<OpProgress>,

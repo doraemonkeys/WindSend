@@ -558,6 +558,7 @@ macro_rules! impl_to_float64 {
 
 impl_to_float64!(u8, u16, u32, u64, u128, i32, i64, f64, f32);
 
+#[allow(dead_code)]
 pub fn bytes_to_human_readable<T>(bytes: T) -> String
 where
     T: ToFloat64 + std::fmt::Display,
