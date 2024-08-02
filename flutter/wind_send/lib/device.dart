@@ -617,61 +617,6 @@ class Device {
     return fileCount;
   }
 
-  // filePath为空时，弹出文件选择器
-  // Future<void> doPasteFilesAction({
-  //   List<String>? filePathList,
-  //   Map<String, String> fileSavePathMap = const {},
-  //   int? opID,
-  // }) async {
-  //   final List<String> selectedFilePaths;
-  //   if (filePathList == null || filePathList.isEmpty) {
-  //     // check permission
-  //     if (Platform.isAndroid) {
-  //       await checkOrRequestAndroidPermission();
-  //     }
-  //     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-  //     if (result == null || result.files.isEmpty) {
-  //       throw UserCancelPickException();
-  //     }
-  //     selectedFilePaths = result.files.map((file) => file.path!).toList();
-  //   } else {
-  //     selectedFilePaths = filePathList;
-  //   }
-  //   var totalFileSize = 0;
-  //   for (var file in selectedFilePaths) {
-  //     totalFileSize += File(file).lengthSync();
-  //   }
-  //   // print('selectedFilesPath: $selectedFilesPath');
-  //   String localDeviceName = AppConfigModel().deviceName;
-  //   void uploadFiles(List<String> filePaths) async {
-  //     opID = opID ?? Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-  //     var fileUploader =
-  //         FileUploader(this, localDeviceName, threadNum: uploadThread);
-  //     for (var filepath in filePaths) {
-  //       if (uploadThread == 0) {
-  //         throw Exception('threadNum can not be 0');
-  //       }
-  //       // print('uploading $filepath');
-  //       await fileUploader.upload(
-  //           filepath, fileSavePathMap[filepath] ?? '', opID!, filePaths.length);
-  //     }
-  //     await fileUploader.close();
-  //   }
-
-  //   await compute(uploadFiles, selectedFilePaths);
-
-  //   // delete cache file
-  //   // for (var file in selectedFilesPath) {
-  //   //   if (file.startsWith('/data/user/0/com.doraemon.clipboard/cache')) {
-  //   //     File(file).delete();
-  //   //   }
-  //   // }
-  //   // FilePicker.platform.clearTemporaryFiles();
-  //   if (Platform.isAndroid || Platform.isIOS) {
-  //     FilePicker.platform.clearTemporaryFiles();
-  //   }
-  // }
-
   /// Send files or dirs.
   Future<void> doSendAction(List<String> paths,
       {Map<String, String>? fileRelativeSavePath}) async {
@@ -722,9 +667,11 @@ class Device {
           if (!entity.path.startsWith(itemPath2)) {
             throw Exception('unexpected file path: ${entity.path}');
           }
+          String relativePath =
+              filepath.dirname(entity.path.substring(itemPath2.length + 1));
           fileRelativeSavePath[entity.path] = filepath.join(
             filepath.basename(itemPath2),
-            entity.path.substring(itemPath2.length + 1),
+            relativePath == '.' ? '' : relativePath,
           );
         } else if (entity is Directory) {
           // safe check(should not happen,remove later)
@@ -814,86 +761,6 @@ class Device {
 
     await doSendAction([selectedDirPath]);
   }
-
-  // Future<void> doPasteDirAction({String? dirPath}) async {
-  //   // check permission
-  //   if (Platform.isAndroid) {
-  //     await checkOrRequestAndroidPermission();
-  //   }
-  //   String selectedDirPath;
-  //   if (dirPath == null || dirPath.isEmpty) {
-  //     final result = await FilePicker.platform.getDirectoryPath();
-  //     if (result == null || result.isEmpty) {
-  //       throw Exception('No dir selected');
-  //     }
-  //     selectedDirPath = result;
-  //   } else {
-  //     selectedDirPath = dirPath;
-  //   }
-  //   if (selectedDirPath.endsWith('/') || selectedDirPath.endsWith('\\')) {
-  //     selectedDirPath =
-  //         selectedDirPath.substring(0, selectedDirPath.length - 1);
-  //   }
-  //   // print('selectedDirPath: $selectedDirPath');
-  //   List<String> filePaths = [];
-  //   Map<String, String> fileSavePathMap = {};
-  //   List<String> dirPaths = [filepath.basename(selectedDirPath)];
-  //   await for (var file in Directory(selectedDirPath).list(recursive: true)) {
-  //     if (file is File) {
-  //       filePaths.add(file.path);
-  //       String relativePath =
-  //           filepath.dirname(file.path.substring(selectedDirPath.length + 1));
-  //       fileSavePathMap[file.path] = filepath.join(
-  //         filepath.basename(selectedDirPath),
-  //         relativePath == '.' ? '' : relativePath,
-  //       );
-  //     } else if (file is Directory) {
-  //       String relativePath = file.path.substring(selectedDirPath.length + 1);
-  //       dirPaths.add(filepath.join(
-  //         filepath.basename(selectedDirPath),
-  //         relativePath == '.' ? '' : relativePath,
-  //       ));
-  //     }
-  //   }
-  //   // print('filePaths: $filePaths');
-  //   // print('fileSavePathMap: $fileSavePathMap');
-  //   // print('dirPaths: $dirPaths');
-  //   int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-  //   if (filePaths.isNotEmpty) {
-  //     await doPasteFilesAction(
-  //         filePathList: filePaths,
-  //         fileSavePathMap: fileSavePathMap,
-  //         opID: opID);
-  //   }
-  //   var conn = await SecureSocket.connect(
-  //     iP,
-  //     port,
-  //     onBadCertificate: (X509Certificate certificate) {
-  //       return true;
-  //     },
-  //   );
-  //   var headInfo = HeadInfo(
-  //     AppConfigModel().deviceName,
-  //     DeviceAction.pasteFile,
-  //     generateTimeipHeadHex(),
-  //     opID: opID,
-  //     uploadType: DeviceUploadType.dir,
-  //     filesCountInThisOp: filePaths.length,
-  //   );
-  //   var dirPathsJson = jsonEncode(dirPaths);
-  //   var dirPathsUint8List = Uint8List.fromList(utf8.encode(dirPathsJson));
-  //   headInfo.dataLen = dirPathsUint8List.length;
-  //   await headInfo.writeToConnWithBody(conn, dirPathsUint8List);
-  //   await conn.flush();
-  //   var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
-  //   conn.destroy();
-  //   if (respHead.code == UnauthorizedException.unauthorizedCode) {
-  //     throw UnauthorizedException(respHead.msg ?? '');
-  //   }
-  //   if (respHead.code != respOkCode) {
-  //     throw Exception('server error: ${respHead.msg}');
-  //   }
-  // }
 
   // ============================ super_clipboard code  ============================
   Future<void> doPasteClipboardAction({
@@ -989,41 +856,8 @@ class Device {
     required String fileName,
     Duration timeout = const Duration(seconds: 2),
   }) async {
-    var opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-
-    var conn = await SecureSocket.connect(
-      iP,
-      port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
-      timeout: timeout,
-    );
-
-    HeadInfo head = HeadInfo(
-      AppConfigModel().deviceName,
-      DeviceAction.pasteFile,
-      generateTimeipHeadHex(),
-      fileID: Random().nextInt(int.parse('FFFFFFFF', radix: 16)),
-      fileSize: data.length,
-      path: fileName,
-      start: 0,
-      end: data.length,
-      dataLen: data.length,
-      opID: opID,
-    );
-
-    await head.writeToConn(conn);
-
-    conn.add(data);
-
-    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
-    if (respHead.code == UnauthorizedException.unauthorizedCode) {
-      throw UnauthorizedException(respHead.msg ?? '');
-    }
-    if (respHead.code != Device.respOkCode) {
-      throw Exception(respHead.msg);
-    }
+    var uploader = FileUploader(this, AppConfigModel().deviceName);
+    await uploader.uploadByBytes(data, fileName, timeout: timeout);
   }
 
   Future<void> doPasteTextActionWeb({
