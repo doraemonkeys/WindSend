@@ -34,6 +34,11 @@ static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
+// keep atleast one reference to clipboard to prevent it from being dropped
+#[cfg(target_os = "linux")]
+static _ARBOARD_CLIPBOARD_INSTANCE: OnceLock<Result<arboard::Clipboard, arboard::Error>> =
+    OnceLock::new();
+
 fn init() {
     config::init();
     let r = tokio::runtime::Builder::new_multi_thread()
@@ -42,6 +47,13 @@ fn init() {
         .unwrap();
     RUNTIME.set(r).unwrap();
     SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
+
+    #[cfg(target_os = "linux")]
+    {
+        let instance = arboard::Clipboard::new()
+            .inspect_err(|e| error!("Failed to initialize clipboard: {}", e));
+        _ARBOARD_CLIPBOARD_INSTANCE.set(instance).ok();
+    }
 }
 
 fn main() {
