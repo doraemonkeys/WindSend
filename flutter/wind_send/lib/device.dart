@@ -679,8 +679,6 @@ class Device {
           if (!entity.path.startsWith(itemPath2)) {
             throw Exception('unexpected file path: ${entity.path}');
           }
-          print(
-              'entity.path: ${entity.path}, empty: ${await directoryIsEmpty(entity.path)}');
           if (await directoryIsEmpty(entity.path)) {
             String relativePath = entity.path.substring(itemPath2.length + 1);
             scannedEmptyDirs.add(filepath.join(
