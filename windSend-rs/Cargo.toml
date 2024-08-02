@@ -45,7 +45,7 @@ cipher = "0.4"
 chrono = "0.4.31"
 subslice = "0.2.3"
 regex = "1.9.6"
-arboard = { version = "3.3", features = [
+arboard = { version = "3.4", features = [
     "core-graphics",
     "image",
     "image-data",
@@ -61,7 +61,7 @@ tokio-rustls = "0.26"
 hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
-clipboard-rs = "0.1.7"
+clipboard-rs = "0.1.11"
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
