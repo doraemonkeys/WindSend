@@ -233,7 +233,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .peer_addr()
         .map_err(|e| error!("get peer addr failed, err: {}", e))
         .unwrap_or(std::net::SocketAddr::from(([0, 0, 0, 0], 0)));
-    info!("try to read head, remote ip: {}", remote_ip);
+    debug!("try to read head, remote ip: {}", remote_ip);
 
     // 读取json长度
     let mut head_len = [0u8; 4];
@@ -279,7 +279,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
-    debug!("head: {:?}", head);
+    // debug!("head: {:?}", head);
 
     let time_and_ip_bytes =
         hex::decode(&head.time_ip).map_err(|e| error!("hex decode failed, err: {}", e))?;

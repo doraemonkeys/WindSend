@@ -171,7 +171,7 @@ impl FileReceiveSessionManager {
     ) -> std::io::Result<tokio::fs::File> {
         let file_id = head.file_id;
         let file_size = head.file_size;
-        // debug!("create file: {}", file_path);
+        debug!("head.path: {}", head.path);
         let actual_save_path;
         let already_exist;
         let mut file_recv_map = self.file_sessions.lock().await;
@@ -549,7 +549,6 @@ impl FileReceiveSessionManager {
             {
                 let progress_tag = format!("{}", op_id);
                 let value_string = format!("{}/{} files", success_count, op_info.expected_count);
-                println!("value_string: {}", value_string);
                 let _ = win_toast_notify::WinToastNotify::progress_complete(
                     None,
                     &progress_tag,

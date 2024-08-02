@@ -226,6 +226,8 @@ async fn paste_file_operation_handler(
         }
     };
 
+    debug!("paste file operation info: {:?}", op_info);
+
     if let Err(e) = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
         .create_op_info(&head, &op_info)
         .await
