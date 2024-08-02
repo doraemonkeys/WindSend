@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter_toastr/flutter_toastr.dart';
-import 'package:wind_send/fileTransfer.dart';
+import 'package:wind_send/file_transfer.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 

@@ -191,7 +191,6 @@ class FileUploader {
   Future<void> uploadByBytes(
     Uint8List data,
     String fileName, {
-    Duration timeout = const Duration(seconds: 2),
     String savePath = '',
     int? opID,
   }) async {
@@ -202,8 +201,7 @@ class FileUploader {
     );
     await sendOperationInfo(opID, opInfo);
 
-    var (conn, stream) =
-        await _connectionManager.getConnection(timeOut: timeout);
+    var (conn, stream) = await _connectionManager.getConnection();
 
     HeadInfo head = HeadInfo(
       loaclDeviceName,
@@ -223,7 +221,7 @@ class FileUploader {
 
     conn.add(data);
 
-    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(stream);
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
     }
@@ -400,9 +398,7 @@ class ConnectionManager {
 
   ConnectionManager(this.device, {this.timeout});
 
-  Future<(SecureSocket, Stream<Uint8List>)> getConnection(
-      {Duration? timeOut}) async {
-    var tempTimeout = timeOut ?? timeout;
+  Future<(SecureSocket, Stream<Uint8List>)> getConnection() async {
     if (conns.isEmpty) {
       var conn = await SecureSocket.connect(
         device.iP,
@@ -410,7 +406,7 @@ class ConnectionManager {
         onBadCertificate: (X509Certificate certificate) {
           return true;
         },
-        timeout: tempTimeout,
+        timeout: timeout,
       );
       var stream = conn.asBroadcastStream();
       return (conn, stream);

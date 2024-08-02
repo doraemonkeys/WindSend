@@ -16,7 +16,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
-import 'fileTransfer.dart';
+import 'file_transfer.dart';
 import 'utils.dart';
 import 'web.dart';
 import 'cnf.dart';
@@ -854,10 +854,10 @@ class Device {
   Future<void> doPasteSingleSmallFileAction({
     required Uint8List data,
     required String fileName,
-    Duration timeout = const Duration(seconds: 2),
   }) async {
     var uploader = FileUploader(this, AppConfigModel().deviceName);
-    await uploader.uploadByBytes(data, fileName, timeout: timeout);
+    await uploader.uploadByBytes(data, fileName);
+    await uploader.close();
   }
 
   Future<void> doPasteTextActionWeb({
