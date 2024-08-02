@@ -417,9 +417,15 @@ pub fn inform_with_progress(click_open: Option<&str>, progress: win_toast_notify
             save_path
         )])
         .set_duration(Duration::Short)
-        .set_progress(progress);
+        .set_progress(
+            &progress.tag,
+            &progress.title,
+            &progress.status,
+            progress.value,
+            &progress.value_string,
+        );
     if let Some(click_open) = click_open {
-        // notify = notify.set_open(click_open);
+        notify = notify.set_open(click_open);
     }
     if let Err(err) = notify.show() {
         error!("show notification error: {}", err);
@@ -531,5 +537,47 @@ impl ClipboardManager {
         let mut clipboard = arboard::Clipboard::new()
             .map_err(|e| format!("Failed to initialize clipboard: {}", e))?;
         f(&mut clipboard).map_err(|e| format!("Failed to access clipboard: {:?}", e))
+    }
+}
+
+pub trait ToFloat64 {
+    fn to_f64(&self) -> Option<f64>;
+}
+
+macro_rules! impl_to_float64 {
+    ($($t:ty),*) => {
+        $(
+            impl ToFloat64 for $t {
+                fn to_f64(&self) -> Option<f64> {
+                    Some(*self as f64)
+                }
+            }
+        )*
+    };
+}
+
+impl_to_float64!(u8, u16, u32, u64, u128, i32, i64, f64, f32);
+
+pub fn bytes_to_human_readable<T>(bytes: T) -> String
+where
+    T: ToFloat64 + std::fmt::Display,
+{
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    const TB: f64 = GB * 1024.0;
+
+    let bytes_f64 = bytes.to_f64().unwrap_or(0.0);
+
+    if bytes_f64 >= TB {
+        format!("{:.2} TB", bytes_f64 / TB)
+    } else if bytes_f64 >= GB {
+        format!("{:.2} GB", bytes_f64 / GB)
+    } else if bytes_f64 >= MB {
+        format!("{:.2} MB", bytes_f64 / MB)
+    } else if bytes_f64 >= KB {
+        format!("{:.2} KB", bytes_f64 / KB)
+    } else {
+        format!("{} B", bytes)
     }
 }

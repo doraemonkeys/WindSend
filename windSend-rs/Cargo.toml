@@ -90,7 +90,7 @@ rfd = "0.14.1"
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
-win-toast-notify = "0.1.4"
+win-toast-notify = "0.1.6"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 # notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败

@@ -1,4 +1,3 @@
-use crate::language::LanguageKey;
 use crate::RUNTIME;
 use std::collections::HashMap;
 use std::io::SeekFrom;
@@ -247,7 +246,7 @@ impl FileReceiveSessionManager {
         upload_info: &crate::route::UploadOperationInfo,
     ) -> Result<(), String> {
         let ops_map = self.operation_sessions.lock().await;
-        return self.create_op_info_inner(head, upload_info, ops_map);
+        self.create_op_info_inner(head, upload_info, ops_map)
     }
 
     fn create_op_info_inner(
@@ -292,14 +291,14 @@ impl FileReceiveSessionManager {
                 .clone();
             let progress_tag = format!("{}", head.op_id);
             let title = format!(
-                "Total: {:.3} MB",
-                (upload_info.files_size_in_this_op as f64) / (1024.0 * 1024.0)
+                "Total: {}",
+                crate::utils::bytes_to_human_readable(upload_info.files_size_in_this_op)
             );
             crate::utils::inform_with_progress(
                 Some(&save_path),
                 win_toast_notify::Progress {
-                    tag: &progress_tag,
-                    title: &title,
+                    tag: progress_tag.clone(),
+                    title,
                     status: "Receiving".to_string(),
                     value: 0f32,
                     value_string: format!("{}/{} 0%", 0, op_info.expected_count),
@@ -339,7 +338,7 @@ impl FileReceiveSessionManager {
                         None,
                         &progress_tag,
                         percent,
-                        value_string,
+                        &value_string,
                     ) {
                         error!("progress update error: {}", e);
                     }
@@ -531,18 +530,21 @@ impl FileReceiveSessionManager {
         }
         // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         if !is_timeout && success_count + failure_count == op_info.expected_count {
-            let save_path = &crate::config::GLOBAL_CONFIG.read().unwrap().save_path;
-            let mut msg = format!(
-                "{} {} {}",
-                success_count,
-                LanguageKey::NFilesSavedTo.translate(),
-                save_path
-            );
-            if failure_count > 0 {
-                msg = format!("{}\n{} files failed to save", msg, failure_count);
-            }
             #[cfg(not(target_os = "windows"))]
-            crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
+            {
+                use crate::language::LanguageKey;
+                let save_path = &crate::config::GLOBAL_CONFIG.read().unwrap().save_path;
+                let mut msg = format!(
+                    "{} {} {}",
+                    success_count,
+                    LanguageKey::NFilesSavedTo.translate(),
+                    save_path
+                );
+                if failure_count > 0 {
+                    msg = format!("{}\n{} files failed to save", msg, failure_count);
+                }
+                crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
+            }
             #[cfg(target_os = "windows")]
             {
                 let progress_tag = format!("{}", op_id);
@@ -551,8 +553,8 @@ impl FileReceiveSessionManager {
                 let _ = win_toast_notify::WinToastNotify::progress_complete(
                     None,
                     &progress_tag,
-                    "Complete".to_string(),
-                    value_string,
+                    "Completed",
+                    &value_string,
                 );
             }
         }
