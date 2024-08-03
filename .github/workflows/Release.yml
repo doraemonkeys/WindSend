@@ -2,6 +2,9 @@ name: WindSend Release
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 env:
   CARGO_TERM_COLOR: always
@@ -65,7 +68,7 @@ jobs:
           name: WindSend-Archives
           path: ./Downloaded-Archives
 
-      - name: Print github info
+      - name: Echo env
         run: |
           echo 'ref ${{ github.ref }}'
           echo 'ref name ${{ github.ref_name }}'
@@ -89,5 +92,4 @@ jobs:
         with:
           files: |
             ./Downloaded-Archives/*.zip
-          tag_name: ${{ github.ref_name }}
           draft: true
