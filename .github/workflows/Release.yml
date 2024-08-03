@@ -7,7 +7,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +23,9 @@ jobs:
           channel: stable
       - run: flutter --version
 
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+
       - name: Install dependencies on Ubuntu
         run: |
           sudo apt-get update
@@ -37,11 +40,23 @@ jobs:
         working-directory: ./
         run: ./build.sh
 
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindSend-Archives
+          path: ./bin/*.zip
+
   release:
-    needs: build-linux
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: List artifacts
+        run: |
+          ls -l ./bin
+          ls -l ./WindSend-Archives
+          ls -l
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -49,5 +64,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: ./bin/*.zip
+          files: |
+            ./bin/*.zip
+            ./bin/*.zip
+            ./WindSend-Archives
+          tag_name: ${{ github.ref }}
           draft: true
