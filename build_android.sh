@@ -3,6 +3,8 @@
 #shellcheck source=/dev/null
 source ./env.sh
 
+mkdir -p ./bin
+
 # Press Enter to continue building WindSend Flutter for Android
 if ! TheVariableIsTrue "$CI_RUNNING"; then
     read -rp "Press Enter to build WindSend Flutter for Android..."

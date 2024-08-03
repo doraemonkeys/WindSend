@@ -3,6 +3,7 @@
 #shellcheck source=/dev/null
 source ./env.sh
 WINDSEND_RUST_SERVER_BIN_NAME="WindSend-S-Rust"
+mkdir -p ./bin
 
 ######################################################################################
 
