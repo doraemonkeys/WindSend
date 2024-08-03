@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +47,9 @@ jobs:
         env:
           CI_RUNNING: true # for build script
         working-directory: ./
-        run: ./build.sh
+        run: |
+          ./build_linux.sh
+          ./build_android.sh
         # generate test zip file
         # run: |
         #   mkdir -p ./bin
@@ -59,14 +61,55 @@ jobs:
         id: build_archive
         uses: actions/upload-artifact@v4
         with:
-          name: WindSend-Archives
+          name: WindSend-Archives-linux
+          path: |
+            ./bin/*.zip
+            ./bin/*.apk
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-pc-windows-msvc
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "adopt"
+      - name: Install NASM
+        uses: ilammy/setup-nasm@v1
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: |
+          flutter --version
+          flutter doctor
+      - name: Run Build Script
+        env:
+          CI_RUNNING: true # for build script
+        working-directory: ./
+        run: |
+          ./build_windows.sh
+      - name: Archive artifacts
+        id: build_archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindSend-Archives-windows
           path: |
             ./bin/*.zip
             ./bin/*.apk
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,8 +117,9 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: WindSend-Archives
+          # name: WindSend-Archives-linux
           path: ./Downloaded-Archives
+          merge-multiple: true
 
       - name: Echo env
         run: |
