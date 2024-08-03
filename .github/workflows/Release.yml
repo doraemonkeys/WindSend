@@ -17,22 +17,22 @@ jobs:
         with:
           target: aarch64-unknown-linux-gnu
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - run: flutter --version
+      #   - name: Setup Flutter
+      #     uses: subosito/flutter-action@v2
+      #     with:
+      #       channel: stable
+      #   - run: flutter --version
 
-      - name: Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
+      #   - name: Setup Ninja
+      #     uses: seanmiddleditch/gha-setup-ninja@master
 
-      - name: Install dependencies on Ubuntu
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev 
-          sudo apt-get install -y pkg-config libssl-dev build-essential linux-libc-dev
-          sudo apt-get install -y musl-dev musl-tools
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+      #   - name: Install dependencies on Ubuntu
+      #     run: |
+      #       sudo apt-get update
+      #       sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
+      #       sudo apt-get install -y pkg-config libssl-dev build-essential linux-libc-dev
+      #       sudo apt-get install -y musl-dev musl-tools
+      #       sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Run Build Script
         env:
@@ -63,12 +63,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: WindSend-Archives
-          #   path: ./
-
-      - name: List artifacts
-        run: |
-          ls -l
-          ls -l ./WindSend-Archives
+          path: ./Downloaded-Archives
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -77,6 +72,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
-            ./WindSend-Archives/*.zip
+            ./Downloaded-Archives/*.zip
           tag_name: ${{ github.ref }}
           draft: true
