@@ -65,6 +65,22 @@ jobs:
           name: WindSend-Archives
           path: ./Downloaded-Archives
 
+      - name: Print github info
+        run: |
+          echo 'ref ${{ github.ref }}'
+          echo 'ref name ${{ github.ref_name }}'
+          echo 'sha ${{ github.sha }}'
+          echo 'actor ${{ github.actor }}'
+          echo 'repository ${{ github.repository }}'
+          echo 'repository_owner ${{ github.repository_owner }}'
+          echo 'event_name ${{ github.event_name }}'
+          echo 'event_path ${{ github.event_path }}'
+          echo 'workspace ${{ github.workspace }}'
+          echo 'action ${{ github.action }}'
+          echo 'job ${{ github.job }}'
+          echo 'run_id ${{ github.run_id }}'
+          echo 'run_number ${{ github.run_number }}'
+
       - name: Release
         uses: softprops/action-gh-release@v2
         # if: startsWith(github.ref, 'refs/tags/') # e.g. refs/tags/v1.0.0
@@ -73,5 +89,5 @@ jobs:
         with:
           files: |
             ./Downloaded-Archives/*.zip
-          tag_name: ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
           draft: true
