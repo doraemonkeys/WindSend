@@ -70,17 +70,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            zip
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,7 +93,13 @@ jobs:
       - run: |
           flutter --version
           flutter doctor
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            zip
       - name: Run Build Script
+        shell: msys2 {0}
         env:
           CI_RUNNING: true # for build script
         working-directory: ./
