@@ -19,4 +19,5 @@ fi
 
 # flutter clean
 
-./build_linux_x64.sh
+# ./build_linux_x64.sh
+./build_android.sh

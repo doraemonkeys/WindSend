@@ -54,7 +54,7 @@ zip -r $WindSend_Rust_Bin_X86_64_LinuxMusl_DirName.zip $WindSend_Rust_Bin_X86_64
 ######################################################################################
 
 # Press Enter to continue building WindSend Flutter for Linux x86_64
-if [ "$AUTO_BUILD" != "true" ]; then
+if ! TheVariableIsTrue "$CI_RUNNING"; then
     read -rp "Press Enter to continue..."
 fi
 
