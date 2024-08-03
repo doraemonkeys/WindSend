@@ -48,6 +48,7 @@ jobs:
           CI_RUNNING: true # for build script
         working-directory: ./
         run: |
+          chmod +x ./*.sh
           ./build_linux.sh
           ./build_android.sh
         # generate test zip file
@@ -69,9 +70,17 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            zip
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
