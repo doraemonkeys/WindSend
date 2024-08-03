@@ -42,9 +42,7 @@ jobs:
         # generate test zip file
         run: |
           mkdir -p ./bin
-          cat > ./bin/test.txt <<EOF
-            Hello, World!
-            EOF
+          echo "Hello, World!" > ./bin/test.txt
           zip -r ./bin/test.zip ./bin/test.txt
 
       - name: Archive artifacts
@@ -53,6 +51,7 @@ jobs:
         with:
           name: WindSend-Archives
           path: ./bin/*.zip
+          if-no-files-found: error
 
   release:
     needs: build
