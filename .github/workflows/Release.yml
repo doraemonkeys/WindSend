@@ -19,12 +19,19 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           target: aarch64-unknown-linux-gnu
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: "adopt"
+          java-version: "11"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: flutter --version
+      - run: |
+          flutter --version
+          flutter doctor
 
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
