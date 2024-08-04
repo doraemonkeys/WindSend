@@ -2,7 +2,7 @@
 
 #shellcheck source=/dev/null
 source ./env.sh
-WINDSEND_RUST_SERVER_BIN_NAME="WindSend-S-Rust.exe"
+WINDSEND_RUST_SERVER_BIN_NAME="WindSend-S-Rust"
 mkdir -p ./bin
 chmod +x ./*.sh
 
@@ -20,15 +20,15 @@ fi
 
 ######################################################################################
 
-# Build WindSend Rust for windows x86_64
-WindSendRustBin_X86_64DirName="WindSend-S-Rust-x86_64-windows"
-rustBinName="wind_send.exe"
+# Build WindSend Rust for x86_64
+WindSendRustBin_X86_64DirName="WindSend-S-Rust-x86_64-macos"
+rustBinName="wind_send"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
 if ! cargo build --release; then
-    echo "Build Windows x86_64 Failed!"
+    echo "Build Failed!"
     exit 1
 fi
 
@@ -45,10 +45,10 @@ zip -r $WindSendRustBin_X86_64DirName.zip $WindSendRustBin_X86_64DirName
 
 ######################################################################################
 
-# Build WindSend for windows aarch64
-WindSendRustBin_X86_64DirName="WindSend-S-Rust-arm64-windows"
-rustBinName="wind_send.exe"
-rustTarget="aarch64-pc-windows-msvc"
+# Build WindSend for aarch64
+WindSendRustBin_X86_64DirName="WindSend-S-Rust-arm64-macos"
+rustBinName="wind_send"
+rustTarget="aarch64-apple-darwin"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
@@ -70,29 +70,3 @@ cd ./bin || exit
 zip -r $WindSendRustBin_X86_64DirName.zip $WindSendRustBin_X86_64DirName
 
 ######################################################################################
-
-# Press Enter to continue building WindSend Flutter for windows x86_64
-if ! TheVariableIsTrue "$CI_RUNNING"; then
-    read -rp "Press Enter to continue..."
-fi
-
-flutterX86_64DirName="WindSend-flutter-x86_64-windows"
-
-# Build WindSend Flutter for windows x86_64
-cd "$WINDSEND_PROJECT_PATH" || exit
-cd "$WINDSEND_FLUTTER_PATH" || exit
-
-if ! flutter build windows --verbose --release; then
-    echo "Build Windows Failed!"
-    exit 1
-fi
-
-mkdir -p ../../bin/$flutterX86_64DirName
-cp -r build/windows/x64/runner/Release/* ../../bin/$flutterX86_64DirName
-
-cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$flutterX86_64DirName
-cp README-EN.md ./bin/$flutterX86_64DirName
-
-cd ./bin || exit
-zip -r $flutterX86_64DirName.zip $flutterX86_64DirName
