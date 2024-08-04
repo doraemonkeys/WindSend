@@ -87,7 +87,7 @@ if ! flutter build macos --release; then
 fi
 
 mkdir -p ../../bin/$flutterX86_64DirName
-cp -r build/macos/x64/release/bundle/* ../../bin/$flutterX86_64DirName
+cp -r build/macos/Build/Products/Release/* ../../bin/$flutterX86_64DirName
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cp README.md ./bin/$flutterX86_64DirName
