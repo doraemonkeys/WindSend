@@ -13,6 +13,7 @@ NC='\033[0m'
 if [ -d "$INSTALL_DIR" ]; then
     echo -e "${RED}Reinstalling...${NC}"
     ./uninstall.sh
+    sleep 6
 fi
 
 mkdir -p "$INSTALL_DIR"
