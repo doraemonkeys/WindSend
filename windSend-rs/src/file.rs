@@ -311,30 +311,34 @@ impl FileReceiveSessionManager {
             RUNTIME.get().unwrap().spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
                 let total = op_info.total_expectation;
+                use std::sync::atomic::Ordering::Relaxed;
+                let mut useless_times = 0;
+                const MAX_USELESS_TIMES: u32 = 30;
                 loop {
                     interval.tick().await;
-                    let current = op_info
-                        .progress
-                        .current_pos
-                        .load(std::sync::atomic::Ordering::Relaxed);
-                    let inform_pos = op_info
-                        .progress
-                        .inform_pos
-                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let current = op_info.progress.current_pos.load(Relaxed);
+                    let inform_pos = op_info.progress.inform_pos.load(Relaxed);
+                    let success_count = op_info.progress.success_count.load(Relaxed);
+                    let failure_count = op_info.progress.failure_count.load(Relaxed);
                     if current == total {
                         break;
                     }
+                    if success_count + failure_count == op_info.expected_count {
+                        break;
+                    }
+                    if useless_times > MAX_USELESS_TIMES {
+                        error!("useless times exceed limit");
+                        break;
+                    }
                     if inform_pos == current {
+                        useless_times += 1;
                         continue;
                     }
                     let percent = current as f32 / total as f32;
-                    let received_files = op_info
-                        .progress
-                        .success_count
-                        .load(std::sync::atomic::Ordering::Relaxed);
+
                     let value_string = format!(
                         "{}/{} {:.2}%",
-                        received_files,
+                        success_count,
                         op_info.expected_count,
                         percent * 100.0
                     );
@@ -346,10 +350,7 @@ impl FileReceiveSessionManager {
                     ) {
                         error!("progress update error: {}", e);
                     }
-                    op_info
-                        .progress
-                        .inform_pos
-                        .store(current, std::sync::atomic::Ordering::Relaxed);
+                    op_info.progress.inform_pos.store(current, Relaxed);
                 }
             });
         }
