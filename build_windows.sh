@@ -82,7 +82,7 @@ flutterX86_64DirName="WindSend-flutter-x86_64-windows"
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_FLUTTER_PATH" || exit
 
-if ! flutter build windows --verbose --release; then
+if ! flutter build windows --release; then
     echo "Build Windows Failed!"
     exit 1
 fi

@@ -70,3 +70,28 @@ cd ./bin || exit
 zip -r $WindSendRustBin_X86_64DirName.zip $WindSendRustBin_X86_64DirName
 
 ######################################################################################
+# Press Enter to continue building WindSend Flutter for x86_64
+if ! TheVariableIsTrue "$CI_RUNNING"; then
+    read -rp "Press Enter to continue..."
+fi
+
+flutterX86_64DirName="WindSend-flutter-x86_64-macos"
+
+# Build WindSend Flutter for x86_64
+cd "$WINDSEND_PROJECT_PATH" || exit
+cd "$WINDSEND_FLUTTER_PATH" || exit
+
+if ! flutter build macos --release; then
+    echo "Build Failed!"
+    exit 0
+fi
+
+mkdir -p ../../bin/$flutterX86_64DirName
+cp -r build/macos/x64/release/bundle/* ../../bin/$flutterX86_64DirName
+
+cd "$WINDSEND_PROJECT_PATH" || exit
+cp README.md ./bin/$flutterX86_64DirName
+cp README-EN.md ./bin/$flutterX86_64DirName
+
+cd ./bin || exit
+zip -r $flutterX86_64DirName.zip $flutterX86_64DirName
