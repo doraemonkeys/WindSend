@@ -124,13 +124,20 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           target: aarch64-apple-darwin
-      # - name: Set up JDK
-      #   uses: actions/setup-java@v4
-      #   with:
-      #     java-version: "17"
-      #     distribution: "adopt"
-      # - name: Setup Ninja
-      #   uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "adopt"
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Print Flutter Info
+        run: |
+          flutter --version
       - name: Run Build Script
         env:
           CI_RUNNING: true # for build script
