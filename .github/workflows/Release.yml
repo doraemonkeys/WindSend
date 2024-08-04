@@ -115,9 +115,41 @@ jobs:
             ./bin/*.zip
             ./bin/*.apk
           if-no-files-found: error
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-apple-darwin
+      # - name: Set up JDK
+      #   uses: actions/setup-java@v4
+      #   with:
+      #     java-version: "17"
+      #     distribution: "adopt"
+      # - name: Setup Ninja
+      #   uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Run Build Script
+        env:
+          CI_RUNNING: true # for build script
+        working-directory: ./
+        run: |
+          chmod +x ./*.sh
+          ./build_macos.sh
+
+      - name: Archive artifacts
+        id: build_archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindSend-Archives-macos
+          path: |
+            ./bin/*.zip
+          if-no-files-found: error
 
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
