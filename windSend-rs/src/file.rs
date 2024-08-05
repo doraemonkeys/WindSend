@@ -186,9 +186,8 @@ impl FileReceiveSessionManager {
                     .join(&head.path);
             actual_save_path = crate::utils::generate_unique_filepath(file_path)?;
         }
-        let separator = std::path::MAIN_SEPARATOR;
-        let actual_save_path = actual_save_path.replace("\\", &separator.to_string());
-        let actual_save_path = actual_save_path.replace("/", &separator.to_string());
+        use crate::utils::NormalizePath;
+        let actual_save_path = actual_save_path.normalize_path();
         debug!("uploading file: {}", actual_save_path);
         let dir = std::path::Path::new(&actual_save_path)
             .parent()

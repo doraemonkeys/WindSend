@@ -242,8 +242,11 @@ async fn paste_file_operation_handler(
         .save_path
         .clone(); // clone to avoid lock
     let download_dir = std::path::PathBuf::from(&save_path);
+
+    use crate::utils::NormalizePath;
     if let Some(empty_dir) = &op_info.empty_dirs {
         for dir in empty_dir {
+            let dir = dir.normalize_path();
             let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
             if let Err(err) = r {
                 error!("create dir error: {}", err);

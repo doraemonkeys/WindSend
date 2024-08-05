@@ -582,3 +582,29 @@ where
         format!("{} B", bytes)
     }
 }
+
+pub trait NormalizePath {
+    /// Converts a given path to use the system's main separator.
+    ///
+    /// This function replaces all occurrences of backslashes (`\`) and forward slashes (`/`)
+    /// in the input path with the system's main separator, which is platform-dependent.
+    /// For example, on Windows, the main separator is `\`, and on Unix-like systems, it is `/`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use NormalizePath;
+    /// let path = "some\\path/to\\convert";
+    /// println!("{}", path.normalize_path()); // Output will depend on the system's main separator
+    /// ```
+    fn normalize_path(&self) -> String;
+}
+
+impl<T: ?Sized + AsRef<str>> NormalizePath for T {
+    fn normalize_path(&self) -> String {
+        let separator = std::path::MAIN_SEPARATOR.to_string();
+        self.as_ref()
+            .replace("\\", &separator)
+            .replace("/", &separator)
+    }
+}
