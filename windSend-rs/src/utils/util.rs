@@ -595,7 +595,10 @@ pub trait NormalizePath {
     /// ```
     /// use NormalizePath;
     /// let path = "some\\path/to\\convert";
-    /// println!("{}", path.normalize_path()); // Output will depend on the system's main separator
+    /// #[cfg(target_os = "linux")]
+    /// assert_eq!(path.normalize_path(), "some/path/to/convert");
+    /// #[cfg(target_os = "windows")]
+    /// assert_eq!(path.normalize_path(), "some\\path\\to\\convert");
     /// ```
     fn normalize_path(&self) -> String;
 }
