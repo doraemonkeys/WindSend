@@ -110,20 +110,26 @@ async fn send_files<T: IntoIterator<Item = String> + std::fmt::Debug>(
             rpi.size = path_attr.len();
             resp_paths.push(rpi);
             continue;
+        } else {
+            rpi.type_ = crate::route::PathType::Dir;
         }
-        rpi.type_ = crate::route::PathType::Dir;
+        resp_paths.push(rpi);
+
         let dir_root = std::path::Path::new(&path1)
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        rpi.save_path.clone_from(&dir_root);
-        resp_paths.push(rpi);
-
         static DEFAULT_SEPARATOR: &str = "/";
         static REVERSE_SEPARATOR: &str = "\\";
         let path1 = path1.replace(REVERSE_SEPARATOR, DEFAULT_SEPARATOR);
+        let mut is_root_dir = true;
         for entry in walkdir::WalkDir::new(&path1) {
+            if is_root_dir {
+                // skip root dir
+                is_root_dir = false;
+                continue;
+            }
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(err) => {

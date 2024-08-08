@@ -333,7 +333,7 @@ class FileDownloader {
 
   Future<String> parallelDownload(
     DownloadInfo targetFile,
-    String fileSavePath,
+    String fileSaveDir,
   ) async {
     String systemSeparator = filepathpkg.separator;
     var targetFilePath = targetFile.remotePath;
@@ -342,7 +342,7 @@ class FileDownloader {
     targetFilePath = targetFilePath.replaceAll('\\', systemSeparator);
 
     var filename = filepathpkg.basename(targetFilePath);
-    var newFilepath = filepathpkg.join(fileSavePath, filename);
+    var newFilepath = filepathpkg.join(fileSaveDir, filename);
     newFilepath = newFilepath.replaceAll('/', systemSeparator);
     newFilepath = newFilepath.replaceAll('\\', systemSeparator);
     newFilepath = generateUniqueFilepath(newFilepath);

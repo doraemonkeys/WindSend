@@ -562,9 +562,9 @@ class Device {
         threadNum: device.downloadThread,
       );
       for (var item in targetItems) {
-        var fileName = filepath.basename(item.remotePath);
+        var baseName = filepath.basename(item.remotePath);
         String saveDir;
-        if (hasImageExtension(fileName)) {
+        if (hasImageExtension(baseName)) {
           saveDir = imageSavePath;
         } else {
           saveDir = fileSavePath;
@@ -578,10 +578,11 @@ class Device {
           String systemSeparator = filepath.separator;
           saveDir = saveDir.replaceAll('/', systemSeparator);
           saveDir = saveDir.replaceAll('\\', systemSeparator);
-          futures.add(Directory(saveDir).create(recursive: true));
+          futures.add(Directory(filepath.join(saveDir, baseName))
+              .create(recursive: true));
           continue;
         }
-        // await Directory(saveDir).create(recursive: true);
+        // print('download: ${item.toJson()}, saveDir: $saveDir');
         lastRealSavePath = await downloader.parallelDownload(item, saveDir);
       }
       await Future.wait(futures);
