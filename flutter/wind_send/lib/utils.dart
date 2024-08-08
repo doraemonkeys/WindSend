@@ -154,7 +154,7 @@ class SharedLogger {
             lineLength: 50,
             colors: true,
             printEmojis: true,
-            printTime: true,
+            dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
           ),
           level: Level.trace,
         );
@@ -180,7 +180,7 @@ class SharedLogger {
         lineLength: 50,
         colors: true,
         printEmojis: true,
-        printTime: true,
+        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
       ),
       level: Level.trace,
       output: MultiOutput([
@@ -221,10 +221,13 @@ String generateUniqueFilepath(String filePath) {
   if (!file.existsSync()) {
     return filePath;
   }
-  // print('file exists');
+  // print('file exists: $filePath');
   var name = file.path.replaceAll('\\', '/').split('/').last;
-  var fileExt = name.split('.').last;
-  name = name.substring(0, name.length - fileExt.length - 1);
+  var fileExt = '';
+  if (name.split('.').length > 1) {
+    var fileExt = name.split('.').last;
+    name = name.substring(0, name.length - fileExt.length - 1);
+  }
   for (var i = 1; i < 100; i++) {
     String newPath;
     if (fileExt.isNotEmpty) {
