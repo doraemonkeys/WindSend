@@ -244,7 +244,7 @@ class UploadOperationInfo {
   /// The number of files to upload for this operation
   int filesCountInThisOp = 0;
 
-  /// files and dirs to upload for this operation
+  /// files and dirs to upload for this operation.(not recursive)
   Map<String, PathInfo>? uploadPaths;
 
   /// A collection of empty directories uploaded by this operation
