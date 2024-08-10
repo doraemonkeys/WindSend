@@ -768,7 +768,9 @@ class Device {
   }
 
   // ============================ super_clipboard code  ============================
-  Future<void> doPasteClipboardAction({
+
+  /// return true indicates that the clipboard is text
+  Future<bool> doPasteClipboardAction({
     Duration timeout = const Duration(seconds: 2),
   }) async {
     final clipboard = SystemClipboard.instance;
@@ -791,7 +793,8 @@ class Device {
       if (fileLists.isNotEmpty) {
         // clear clipboard
         await clipboard.write([]);
-        return doSendAction(fileLists);
+        doSendAction(fileLists);
+        return false;
       }
     } catch (e) {
       SharedLogger()
@@ -802,7 +805,8 @@ class Device {
     String? pasteText =
         await superClipboardReadText(reader, SharedLogger().logger.e);
     if (pasteText != null) {
-      return doPasteTextAction(text: pasteText, timeout: timeout);
+      doPasteTextAction(text: pasteText, timeout: timeout);
+      return true;
     }
 
     List<SimpleFileFormat> imageFormats = [
@@ -830,7 +834,7 @@ class Device {
       });
       await done.stream.first;
       done.close();
-      return;
+      return false;
     }
     throw Exception('Empty clipboard');
   }

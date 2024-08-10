@@ -924,10 +924,12 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onTap: () async {
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () {
-              String successMsg =
+              String pasteSuccess =
                   context.formatString(AppLocale.pasteSuccess, []);
-              Future<void> f = device.doPasteClipboardAction();
-              return f.then((_) => successMsg);
+              String sendSuccess =
+                  context.formatString(AppLocale.sendSuccess, []);
+              Future<bool> f = device.doPasteClipboardAction();
+              return f.then((isText) => isText ? pasteSuccess : sendSuccess);
             });
           },
         ),

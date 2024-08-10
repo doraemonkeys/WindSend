@@ -49,6 +49,7 @@ mixin AppLocale {
   static const String pasteSuccess = 'pasteSuccess';
   static const String filesSaved = 'filesSaved';
   static const String syncTextSuccess = 'syncTextSuccess';
+  static const String sendSuccess = 'sendSuccess';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -101,6 +102,7 @@ mixin AppLocale {
     pasteSuccess: '粘贴成功',
     filesSaved: '%a 个文件已保存',
     syncTextSuccess: '同步文本成功',
+    sendSuccess: '发送成功',
   };
 
   static const Map<String, dynamic> en = {
@@ -154,6 +156,7 @@ mixin AppLocale {
     pasteSuccess: 'Paste successfully',
     filesSaved: '%a files saved',
     syncTextSuccess: 'Sync text success',
+    sendSuccess: 'Send successfully',
   };
 
   static List<String> getSupportLanguageCode() {
