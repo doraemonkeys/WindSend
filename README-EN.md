@@ -5,7 +5,7 @@
 
 ## What is WindSend
 
-A set of applications for quickly and securely transferring clipboards, transferring files or directories between different devices (supports windows image and file clipboards).
+A set of applications for quickly and securely transferring clipboards, transferring files or directories between different devices (supports image and file clipboards).
 
 ## Why choose WindSend
 
