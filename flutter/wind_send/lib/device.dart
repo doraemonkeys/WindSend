@@ -625,7 +625,7 @@ class Device {
     int totalSize = 0;
     List<String> emptyDirs = [];
     Map<String, PathInfo> pathInfoMap = {};
-    List<String> filePaths = [];
+    List<String> allFilePath = [];
     fileRelativeSavePath ??= {};
 
     for (var itemPath in paths) {
@@ -634,7 +634,7 @@ class Device {
         throw Exception('File not found: $itemPath');
       }
       if (itemType != FileSystemEntityType.directory) {
-        filePaths.add(itemPath);
+        allFilePath.add(itemPath);
         var itemSize = await File(itemPath).length();
         totalSize += itemSize;
         pathInfoMap[itemPath] = PathInfo(
@@ -659,10 +659,9 @@ class Device {
         emptyDirs.add(filepath.basename(itemPath2));
         continue;
       }
-      List<String> scannedEmptyDirs = [];
       await for (var entity in Directory(itemPath2).list(recursive: true)) {
         if (entity is File) {
-          filePaths.add(entity.path);
+          allFilePath.add(entity.path);
           var itemSize = await entity.length();
           totalSize += itemSize;
           // safe check(should not happen,remove later)
@@ -682,14 +681,13 @@ class Device {
           }
           if (await directoryIsEmpty(entity.path)) {
             String relativePath = entity.path.substring(itemPath2.length + 1);
-            scannedEmptyDirs.add(filepath.join(
+            emptyDirs.add(filepath.join(
               filepath.basename(itemPath2),
               relativePath == '.' ? '' : relativePath,
             ));
           }
         }
       }
-      emptyDirs.addAll(scannedEmptyDirs);
     }
 
     int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
@@ -718,7 +716,7 @@ class Device {
       await fileUploader.close();
     }
 
-    await compute(uploadFiles, filePaths);
+    await compute(uploadFiles, allFilePath);
   }
 
   Future<void> pickFilesDoSendAction({
@@ -779,24 +777,32 @@ class Device {
     }
     final reader = await clipboard.read();
 
+    try {
+      /// file list
+      /// super_clipboard will read file list as plain text on linux,
+      /// so we need to read file list first
+      List<String> fileLists = [];
+      for (var element in reader.items) {
+        final value = await element.readValue(Formats.fileUri);
+        if (value != null) {
+          fileLists.add(value.toFilePath());
+        }
+      }
+      if (fileLists.isNotEmpty) {
+        // clear clipboard
+        await clipboard.write([]);
+        return doSendAction(fileLists);
+      }
+    } catch (e) {
+      SharedLogger()
+          .logger
+          .e('doPasteClipboardAction read file clipboard error: $e');
+    }
+
     String? pasteText =
         await superClipboardReadText(reader, SharedLogger().logger.e);
     if (pasteText != null) {
       return doPasteTextAction(text: pasteText, timeout: timeout);
-    }
-
-    /// file list
-    List<String> fileLists = [];
-    for (var element in reader.items) {
-      final value = await element.readValue(Formats.fileUri);
-      if (value != null) {
-        fileLists.add(value.toFilePath());
-      }
-    }
-    if (fileLists.isNotEmpty) {
-      // clear clipboard
-      await clipboard.write([]);
-      return doSendAction(fileLists);
     }
 
     List<SimpleFileFormat> imageFormats = [

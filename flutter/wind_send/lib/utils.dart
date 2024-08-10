@@ -21,12 +21,14 @@ Future<String?> superClipboardReadText(
     if (reader.canProvide(Formats.plainText)) {
       ret = await reader.readValue(Formats.plainText);
       if (ret != null) {
+        // print('superClipboardReadText plainText: $ret');
         return ret;
       }
     }
     if (reader.canProvide(Formats.htmlText)) {
       ret = await reader.readValue(Formats.htmlText);
       if (ret != null) {
+        // print('superClipboardReadText htmlText: $ret');
         return ret;
       }
     }
