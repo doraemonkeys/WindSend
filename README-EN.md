@@ -29,7 +29,7 @@ A set of applications for quickly and securely transferring clipboards, transfer
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
 
-> PC: You can choose to download **WindSend-S**-XX-x86_64-XXXXX.zip
+> PC: You can choose to download **WindSend-S-Rust**-x86_64-XXXXX.zip
 > 
 > Mobile: You can choose to download **WindSend-flutter**-arm64-v8a-release.apk
 
