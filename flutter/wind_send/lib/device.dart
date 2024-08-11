@@ -756,7 +756,7 @@ class Device {
     }
     var selectedDirPath = await FilePicker.platform.getDirectoryPath();
     if (selectedDirPath == null || selectedDirPath.isEmpty) {
-      throw Exception('No dir selected');
+      throw UserCancelPickException();
     }
 
     if (selectedDirPath.endsWith('/') || selectedDirPath.endsWith('\\')) {
