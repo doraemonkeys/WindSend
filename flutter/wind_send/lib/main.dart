@@ -659,16 +659,28 @@ class DeviceCard extends StatefulWidget {
             .i('commonActionFunc failed(try: $i)', error: e, stackTrace: s);
         // print('commonActionFunc err: $err\n, $s');
       }
-      if (i == 0 &&
-          tempErr != null &&
-          device.autoSelect &&
-          (tempErr is SocketException || tempErr is UnauthorizedException)) {
-        if (!await device.findServer()) {
-          // errorMsg = tempErr.toString();
-          throw tempErr;
+
+      bool isAutoSelectError(dynamic err) {
+        const autoSelectErrorTypes = {
+          SocketException,
+          UnauthorizedException,
+          TimeoutException,
+        };
+        return autoSelectErrorTypes.contains(err.runtimeType);
+      }
+
+      if (tempErr != null) {
+        if (i == 0 && device.autoSelect && isAutoSelectError(tempErr)) {
+          if (!await device.findServer()) {
+            // errorMsg = tempErr.toString();
+            throw tempErr;
+          }
+          onChanged(device);
+          continue;
         }
-        onChanged(device);
-        continue;
+        if (tempErr is UserCancelPickException) {
+          return 'canceled';
+        }
       }
       if (i >= 1) {
         throw tempErr;
