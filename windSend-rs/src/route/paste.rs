@@ -135,13 +135,14 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
 
     let (conn_reader, mut conn_writer) = tokio::io::split(conn);
 
-    // 8 is a magic number
     const MIN_WRITE_BUF_SIZE: i64 = 4 * 1024 * 1024;
     const MAX_WRITE_BUF_SIZE: i64 = 8 * 1024 * 1024;
+    const PART_SIZE: i64 = 4096;
+    // Divide by 8 to estimate a reasonable buffer size
     let mut write_buf_size: i64 = std::cmp::max(data_len / 8, MIN_WRITE_BUF_SIZE);
-    // make write buffer size multiple of 8
-    write_buf_size = write_buf_size / 8;
-    write_buf_size *= 8;
+    // Round down to nearest multiple of PART_SIZE
+    write_buf_size = write_buf_size / PART_SIZE;
+    write_buf_size *= PART_SIZE;
     if data_len < MIN_WRITE_BUF_SIZE {
         write_buf_size = data_len;
     } else if write_buf_size > MAX_WRITE_BUF_SIZE {
