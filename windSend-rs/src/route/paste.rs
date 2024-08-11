@@ -141,7 +141,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     // Divide by 8 to estimate a reasonable buffer size
     let mut write_buf_size: i64 = std::cmp::max(data_len / 8, MIN_WRITE_BUF_SIZE);
     // Round down to nearest multiple of PART_SIZE
-    write_buf_size = write_buf_size / PART_SIZE;
+    write_buf_size /= PART_SIZE;
     write_buf_size *= PART_SIZE;
     if data_len < MIN_WRITE_BUF_SIZE {
         write_buf_size = data_len;

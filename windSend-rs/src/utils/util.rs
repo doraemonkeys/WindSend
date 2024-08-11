@@ -606,8 +606,6 @@ pub trait NormalizePath {
 impl<T: ?Sized + AsRef<str>> NormalizePath for T {
     fn normalize_path(&self) -> String {
         let separator = std::path::MAIN_SEPARATOR.to_string();
-        self.as_ref()
-            .replace("\\", &separator)
-            .replace("/", &separator)
+        self.as_ref().replace(['\\', '/'], &separator)
     }
 }
