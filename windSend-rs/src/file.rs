@@ -559,7 +559,7 @@ impl FileReceiveSessionManager {
                 let _ = win_toast_notify::WinToastNotify::progress_complete(
                     None,
                     &progress_tag,
-                    "Completed",
+                    &format!("Completed, costing: {:?}", op_info._start_time.elapsed()),
                     &value_string,
                 );
             }

@@ -134,21 +134,31 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     });
 
     let (conn_reader, mut conn_writer) = tokio::io::split(conn);
+
     // 8 is a magic number
-    // let write_buf_size = std::cmp::max((data_len / 8) as usize, 4096);
-    // let write_buf_size = std::cmp::min(write_buf_size, 50 * 1024 * 1024);
-    let mut write_buf_size = std::cmp::min(data_len, 4 * 1024 * 1024) as usize;
-    if (data_len / 8) > (4 * 1024 * 1024) && (data_len / 8) < (10 * 1024 * 1024) {
-        write_buf_size = (data_len / 8) as usize;
+    const MIN_WRITE_BUF_SIZE: i64 = 4 * 1024 * 1024;
+    const MAX_WRITE_BUF_SIZE: i64 = 8 * 1024 * 1024;
+    let mut write_buf_size: i64 = std::cmp::max(data_len / 8, MIN_WRITE_BUF_SIZE);
+    // make write buffer size multiple of 8
+    write_buf_size = write_buf_size / 8;
+    write_buf_size *= 8;
+    if data_len < MIN_WRITE_BUF_SIZE {
+        write_buf_size = data_len;
+    } else if write_buf_size > MAX_WRITE_BUF_SIZE {
+        write_buf_size = MAX_WRITE_BUF_SIZE;
     }
-    // let write_buf_size = std::cmp::min(write_buf_size, 50 * 1024 * 1024);
-    // let copy_buffer_size = std::cmp::min(data_len, 3 * 1024 * 1024) as usize;
+
+    // Testing large file upload in 10 chunks
+    // 8192 KB read buffer, 2M ~ 4M write buffer: fastest speed 80 MB/s
+    // 8192 KB read buffer, 7M write buffer: slightly slower speed 89 MB/s
+    // 8192 KB read buffer, 0M write buffer: slightly slower speed 50 MB/s
+    // 7M read buffer, 0M write buffer: very slow speed 18 MB/s
+
     // let mut conn_buf_reader =
     //     tokio::io::BufReader::with_capacity(copy_buffer_size, conn_reader.take(data_len as u64));
-    let mut file_buf_writer = tokio::io::BufWriter::with_capacity(write_buf_size, &mut file_writer);
+    let mut file_buf_writer =
+        tokio::io::BufWriter::with_capacity(write_buf_size as usize, &mut file_writer);
 
-    // rust需要写缓冲速度才会上来。
-    // rust只开启读缓冲或同时开启写缓冲和读缓冲速度都很慢。
     let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut file_buf_writer).await;
     // let n = tokio::io::copy_buf(&mut conn_buf_reader, &mut file_buf_writer).await;
     if let Err(err) = n {
