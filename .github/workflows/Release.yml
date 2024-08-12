@@ -43,9 +43,18 @@ jobs:
           flutter --version
           flutter doctor
 
+      - name: Cearate Key Store
+        run: echo "$SIGNING_KEY" | base64 -d >flutter/wind_send/android/app/key.jks
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+
       - name: Run Build Script
         env:
           CI_RUNNING: true # for build script
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_PATH: key.jks
         working-directory: ./
         run: |
           chmod +x ./*.sh
