@@ -776,22 +776,16 @@ class Device {
     }
     final reader = await clipboard.read();
 
+    List<String> fileLists = [];
     try {
       /// file list
       /// super_clipboard will read file list as plain text on linux,
       /// so we need to read file list first
-      List<String> fileLists = [];
       for (var element in reader.items) {
         final value = await element.readValue(Formats.fileUri);
         if (value != null) {
           fileLists.add(value.toFilePath());
         }
-      }
-      if (fileLists.isNotEmpty) {
-        // clear clipboard
-        await clipboard.write([]);
-        doSendAction(fileLists);
-        return false;
       }
     } catch (e) {
       SharedLogger()
@@ -799,10 +793,17 @@ class Device {
           .e('doPasteClipboardAction read file clipboard error: $e');
     }
 
+    if (fileLists.isNotEmpty) {
+      // clear clipboard
+      await clipboard.write([]);
+      await doSendAction(fileLists);
+      return false;
+    }
+
     String? pasteText =
         await superClipboardReadText(reader, SharedLogger().logger.e);
     if (pasteText != null) {
-      doPasteTextAction(text: pasteText, timeout: timeout);
+      await doPasteTextAction(text: pasteText, timeout: timeout);
       return true;
     }
 
