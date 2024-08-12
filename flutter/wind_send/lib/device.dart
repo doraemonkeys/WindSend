@@ -135,6 +135,24 @@ class Device {
     return headEncryptedHex;
   }
 
+  Future<SecureSocket> connect({Duration? timeout}) async {
+    // See commit https://github.com/doraemonkeys/WindSend/commit/063c311fd58c62d68e13d9ae6364ac8700471cc9
+    Duration socketFutureTimeout;
+    if (timeout != null) {
+      socketFutureTimeout = timeout + const Duration(seconds: 1);
+    } else {
+      socketFutureTimeout = const Duration(seconds: 5);
+    }
+    return SecureSocket.connect(
+      iP,
+      port,
+      onBadCertificate: (X509Certificate certificate) {
+        return true;
+      },
+      timeout: timeout,
+    ).timeout(socketFutureTimeout);
+  }
+
   static String? Function(String?) deviceNameValidator(
       BuildContext context, List<Device> devices) {
     return (String? value) {
@@ -269,14 +287,7 @@ class Device {
     var bodyUint8List = Uint8List.fromList(body);
     var encryptedBody = crypter.encrypt(bodyUint8List);
     SecureSocket conn;
-    conn = await SecureSocket.connect(
-      iP,
-      port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
-      timeout: timeout,
-    ).timeout(timeout + const Duration(seconds: 1));
+    conn = await connect(timeout: timeout);
 
     final now = DateTime.now().toUtc();
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
@@ -427,14 +438,7 @@ class Device {
 
   Future<(String, int)> doCopyAction(
       [Duration connectTimeout = const Duration(seconds: 2)]) async {
-    var conn = await SecureSocket.connect(
-      iP,
-      port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
-      timeout: connectTimeout,
-    );
+    var conn = await connect(timeout: connectTimeout);
     var headInfo = HeadInfo(
       AppConfigModel().deviceName,
       DeviceAction.copy,
@@ -507,14 +511,7 @@ class Device {
       // pasteText = await Pasteboard.text ?? '';
     }
 
-    var conn = await SecureSocket.connect(
-      iP,
-      port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
-      timeout: timeout,
-    );
+    var conn = await connect(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(pasteText);
     var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.syncText,
         generateTimeipHeadHex(),
@@ -844,14 +841,7 @@ class Device {
     required String text,
     Duration timeout = const Duration(seconds: 2),
   }) async {
-    var conn = await SecureSocket.connect(
-      iP,
-      port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
-      timeout: timeout,
-    );
+    var conn = await connect(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(text);
     var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.pasteText,
         generateTimeipHeadHex(),
