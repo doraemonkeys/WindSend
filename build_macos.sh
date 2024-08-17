@@ -23,17 +23,18 @@ fi
 # Build WindSend Rust for x86_64
 WindSendRustBin_X86_64DirName="WindSend-S-Rust-x86_64-macos"
 rustBinName="wind_send"
+rustTarget="x86_64-apple-darwin"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
-if ! cargo build --release; then
-    echo "Build Failed!"
+if ! cargo build --target $rustTarget --verbose --release; then
+    echo "Build x86_64 Failed!"
     exit 1
 fi
 
 mkdir -p ../bin/$WindSendRustBin_X86_64DirName
-cp -r target/release/$rustBinName ../bin/$WindSendRustBin_X86_64DirName
+cp -r target/$rustTarget/release/$rustBinName ../bin/$WindSendRustBin_X86_64DirName
 mv ../bin/$WindSendRustBin_X86_64DirName/$rustBinName ../bin/$WindSendRustBin_X86_64DirName/$WINDSEND_RUST_SERVER_BIN_NAME
 
 cd "$WINDSEND_PROJECT_PATH" || exit
@@ -54,7 +55,7 @@ cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
 if ! cargo build --target $rustTarget --verbose --release; then
-    echo "Build Windows aarch64 Failed!"
+    echo "Build aarch64 Failed!"
     exit 1
 fi
 
