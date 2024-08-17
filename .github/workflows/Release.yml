@@ -147,6 +147,8 @@ jobs:
       - name: Print Flutter Info
         run: |
           flutter --version
+      - name: rustup show
+        run: rustup show
       - name: Run Build Script
         env:
           CI_RUNNING: true # for build script
