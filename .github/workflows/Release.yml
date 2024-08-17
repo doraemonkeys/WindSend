@@ -19,6 +19,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           target: aarch64-unknown-linux-gnu
+      - name: rustup show
+        run: rustup show
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -86,6 +88,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           target: aarch64-pc-windows-msvc
+      - name: rustup show
+        run: rustup show
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -132,7 +136,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          target: aarch64-apple-darwin
+          target: x86_64-apple-darwin,aarch64-apple-darwin
+      - name: Set default Rust target
+        run: |
+          rustup default stable-x86_64-apple-darwin
+          rustup show
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -147,8 +155,6 @@ jobs:
       - name: Print Flutter Info
         run: |
           flutter --version
-      - name: rustup show
-        run: rustup show
       - name: Run Build Script
         env:
           CI_RUNNING: true # for build script
