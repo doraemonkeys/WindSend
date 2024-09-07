@@ -15,7 +15,7 @@ disable-systray-support = []
 log = "0.4.0"
 aes = "0.8.3"
 hex = "0.4.3"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.40", features = ["full"] }
 rand = "0.8"
 image = "0.25"
 crossbeam-channel = "0.5"
@@ -44,7 +44,7 @@ cbc = "0.1.2"
 cipher = "0.4"
 chrono = "0.4.31"
 subslice = "0.2.3"
-regex = "1.9.6"
+regex = "1.10"
 arboard = { version = "3.4", features = [
     "core-graphics",
     "image",
@@ -54,14 +54,14 @@ arboard = { version = "3.4", features = [
 ] }
 # notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
 # tokio-native-tls = "0.3.1"
-rustls-pemfile = "2.0.0"
+rustls-pemfile = "2.1"
 # https://aws.github.io/aws-lc-rs/requirements/windows.html
 # tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
 tokio-rustls = "0.26"
 hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5.5" }
-clipboard-rs = "0.1.11"
+clipboard-rs = "0.2"
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
@@ -82,8 +82,8 @@ urlencoding = "2.1.3"
 openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
-tao = "0.28"
-tray-icon = "0.14"
+tao = "0.30"
+tray-icon = "0.17"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.14.1"
@@ -101,4 +101,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.28"
+tao = "0.30"
