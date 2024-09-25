@@ -4,7 +4,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'language.dart';
 import 'utils.dart';
 import 'device.dart';
-import 'main.dart';
+import 'device_card.dart';
 
 enum SendTextMethod {
   p2p("P2P"),
