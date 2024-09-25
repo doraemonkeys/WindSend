@@ -886,7 +886,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
   final int maxStringLen = max(
     max(
       context.formatString(AppLocale.copy, []).length,
-      context.formatString(AppLocale.paste, []).length,
+      context.formatString(AppLocale.push, []).length,
     ),
     context.formatString(AppLocale.transferFile, []).length,
   );
@@ -929,7 +929,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               const SizedBox(width: 10),
               SizedBox(
                   width: 38.0 + maxStringLen,
-                  child: Text(context.formatString(AppLocale.paste, []),
+                  child: Text(context.formatString(AppLocale.push, []),
                       maxLines: 1)),
             ],
           ),
@@ -1027,7 +1027,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           children: [
             const Icon(Icons.paste_outlined),
             const SizedBox(width: 10),
-            Text('${context.formatString(AppLocale.paste, [])}[Web]'),
+            Text('${context.formatString(AppLocale.push, [])}[Web]'),
           ],
         ),
         onTap: () async {

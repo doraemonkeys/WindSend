@@ -50,6 +50,7 @@ mixin AppLocale {
   static const String filesSaved = 'filesSaved';
   static const String syncTextSuccess = 'syncTextSuccess';
   static const String sendSuccess = 'sendSuccess';
+  static const String push = 'push';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -61,6 +62,7 @@ mixin AppLocale {
     sort: '排序',
     copy: '复制',
     paste: '粘贴',
+    push: '推送',
     transferFile: '文件',
     editDeviceItem: '编辑',
     deleteDeviceItem: '删除',
@@ -115,6 +117,7 @@ mixin AppLocale {
     sort: 'Sorting',
     copy: 'Copy',
     paste: 'Paste',
+    push: 'Push',
     transferFile: 'Files',
     editDeviceItem: 'Edit',
     deleteDeviceItem: 'Delete',
