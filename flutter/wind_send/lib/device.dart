@@ -21,12 +21,15 @@ import 'utils.dart';
 import 'web.dart';
 import 'cnf.dart';
 import 'protocol/protocol.dart';
+import 'file_picker_service.dart';
 
 class Device {
   late String targetDeviceName;
   // late String subtitle;
   late String secretKey;
   late String iP;
+  // use third party file picker
+  String filePickerPackageName = '';
 
   int port = defaultPort;
   bool autoSelect = true;
@@ -50,6 +53,7 @@ class Device {
     // required this.subtitle,
     required this.iP,
     required this.secretKey,
+    this.filePickerPackageName = '',
     this.port = defaultPort,
     this.autoSelect = true,
     this.downloadThread = 6,
@@ -68,6 +72,7 @@ class Device {
     iP = device.iP;
     port = device.port;
     secretKey = device.secretKey;
+    filePickerPackageName = device.filePickerPackageName;
     autoSelect = device.autoSelect;
     downloadThread = device.downloadThread;
     uploadThread = device.uploadThread;
@@ -89,7 +94,7 @@ class Device {
     iP = json['IP'] ?? '';
     port = json['port'] ?? defaultPort;
     secretKey = json['SecretKey'] ?? '';
-
+    filePickerPackageName = json['FilePickerPackageName'] ?? '';
     autoSelect = json['AutoSelect'] ?? autoSelect;
     downloadThread = json['DownloadThread'] ?? downloadThread;
     uploadThread = json['UploadThread'] ?? uploadThread;
@@ -107,6 +112,7 @@ class Device {
     data['TargetDeviceName'] = targetDeviceName;
     // data['subtitle'] = subtitle;
     data['IP'] = iP;
+    data['FilePickerPackageName'] = filePickerPackageName;
     data['port'] = port;
     data['AutoSelect'] = autoSelect;
     data['SecretKey'] = secretKey;
@@ -202,6 +208,13 @@ class Device {
       if (value == null || value.isEmpty) {
         return context.formatString(AppLocale.cannotBeEmpty, ['SecretKey']);
       }
+      return null;
+    };
+  }
+
+  static String? Function(String?) filePickerPackageNameValidator(
+      BuildContext context) {
+    return (String? value) {
       return null;
     };
   }
@@ -725,12 +738,26 @@ class Device {
     if (Platform.isAndroid) {
       await checkOrRequestAndroidPermission();
     }
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result == null || result.files.isEmpty) {
-      throw UserCancelPickException();
+    List<String> selectedFilePaths;
+    if (Platform.isAndroid && filePickerPackageName.isNotEmpty) {
+      try {
+        final result = await FilePickerService.pickFiles(filePickerPackageName);
+        print('pickFilesDoSendAction result: $result');
+        if (result.isEmpty) {
+          throw UserCancelPickException();
+        }
+        selectedFilePaths = result;
+      } catch (e) {
+        SharedLogger().logger.e('pickFilesDoSendAction error: $e');
+        throw UserCancelPickException();
+      }
+    } else {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result == null || result.files.isEmpty) {
+        throw UserCancelPickException();
+      }
+      selectedFilePaths = result.files.map((file) => file.path!).toList();
     }
-    var selectedFilePaths = result.files.map((file) => file.path!).toList();
-
     await doSendAction(selectedFilePaths,
         fileRelativeSavePath: fileSavePathMap);
 
