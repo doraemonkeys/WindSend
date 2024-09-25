@@ -34,7 +34,7 @@ dependencies:
   flutter_localization: ^0.2.0
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
-  file_picker: ^8.0.0+1
+  file_picker: ^8.1.2
   receive_sharing_intent: ^1.6.7
   flutter_toastr: ^1.0.3
   permission_handler: ^11.1.0
@@ -45,8 +45,8 @@ dependencies:
   line_icons: ^2.0.3
   cookie_jar: ^4.0.8
   dio_cookie_manager: ^3.1.1
-  dio: ^5.4.0
-  crypto: ^3.0.3
+  dio: ^5.6.0
+  crypto: ^3.0.5
   aes_crypt_null_safe:
     git:
       url: https://github.com/doraemonkeys/aes_crypt_null_safe
@@ -61,7 +61,7 @@ dependencies:
   custom_refresh_indicator: ^4.0.0
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
-  super_clipboard: ^0.8.19
+  super_clipboard: ^0.8.22
   # pasteboard: ^0.2.0
 
 # dependency_overrides:
