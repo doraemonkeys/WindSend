@@ -109,6 +109,9 @@ pub struct FileReceiveSessionManager {
     file_sessions: Arc<TokioMutex<HashMap<u32, Arc<RecvFileInfo>>>>,
     /// key: opID value: OpInfo
     operation_sessions: Arc<TokioMutex<HashMap<u32, OpInfo>>>,
+    #[cfg(target_os = "windows")]
+    /// Used to synchronize the notification of the progress bar
+    notify_lock: Arc<std::sync::Mutex<()>>,
 }
 
 /// The progress of the operation is updated in real time.
@@ -163,6 +166,8 @@ impl FileReceiveSessionManager {
         Self {
             file_sessions: Arc::new(TokioMutex::new(HashMap::new())),
             operation_sessions: Arc::new(TokioMutex::new(HashMap::new())),
+            #[cfg(target_os = "windows")]
+            notify_lock: Arc::new(std::sync::Mutex::new(())),
         }
     }
 
@@ -310,6 +315,7 @@ impl FileReceiveSessionManager {
                     value_string: format!("{}/{} 0%", 0, op_info.expected_count),
                 },
             );
+            let notify_lock = Arc::clone(&self.notify_lock);
             RUNTIME.get().unwrap().spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
                 let total = op_info.total_expectation;
@@ -344,13 +350,16 @@ impl FileReceiveSessionManager {
                         op_info.expected_count,
                         percent * 100.0
                     );
-                    if let Err(e) = win_toast_notify::WinToastNotify::progress_update(
-                        None,
-                        &progress_tag,
-                        percent,
-                        &value_string,
-                    ) {
-                        error!("progress update error: {}", e);
+                    {
+                        let _guard = notify_lock.lock().unwrap();
+                        if let Err(e) = win_toast_notify::WinToastNotify::progress_update(
+                            None,
+                            &progress_tag,
+                            percent,
+                            &value_string,
+                        ) {
+                            error!("progress update error: {}", e);
+                        }
                     }
                     op_info.progress.inform_pos.store(current, Relaxed);
                 }
@@ -556,6 +565,7 @@ impl FileReceiveSessionManager {
             {
                 let progress_tag = format!("{}", op_id);
                 let value_string = format!("{}/{} files", success_count, op_info.expected_count);
+                let _guard = self.notify_lock.lock().unwrap();
                 let _ = win_toast_notify::WinToastNotify::progress_complete(
                     None,
                     &progress_tag,
