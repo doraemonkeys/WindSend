@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 // import 'package:filesaverz/filesaverz.dart';
+import 'dart:io' show Platform;
 
 import 'cnf.dart';
 import 'language.dart';
@@ -58,6 +59,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                       : null,
                 ),
               ),
+              SettingsSection.defaultDivider(context),
+              // filePickerPackageNameTile(context),
+              if (Platform.isAndroid) filePickerPackageNameTile(context),
             ],
           ),
           SettingsSection(
@@ -208,6 +212,42 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                     deviceNameController.text.trim();
               }
               widget.device.targetDeviceName = deviceNameController.text.trim();
+            });
+          },
+        );
+      },
+    );
+  }
+
+  ListTile filePickerPackageNameTile(BuildContext context) {
+    return ListTile(
+      title: Text(context.formatString(AppLocale.useThirdPartyFilePicker, [])),
+      subtitle: Text(widget.device.filePickerPackageName),
+      onTap: () {
+        final filePickerPackageNameController =
+            TextEditingController(text: widget.device.filePickerPackageName);
+        alertDialogFunc(
+          context,
+          Text(context.formatString(AppLocale.useThirdPartyFilePicker, [])),
+          content: Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: filePickerPackageNameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: context
+                    .formatString(AppLocale.filePickerPackageNameHint, []),
+              ),
+              validator: Device.filePickerPackageNameValidator(context),
+            ),
+          ),
+          canConfirm: () {
+            return _formKey.currentState?.validate() ?? false;
+          },
+          onConfirmed: () {
+            setState(() {
+              widget.device.filePickerPackageName =
+                  filePickerPackageNameController.text.trim();
             });
           },
         );
