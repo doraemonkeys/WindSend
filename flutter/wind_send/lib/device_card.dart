@@ -48,7 +48,7 @@ class DeviceCard extends StatefulWidget {
         // print('commonActionFunc err: $err\n, $s');
       }
 
-      bool isAutoSelectError(dynamic err) {
+      bool shouldAutoSelectError(dynamic err) {
         const autoSelectErrorTypes = {
           SocketException,
           UnauthorizedException,
@@ -58,7 +58,7 @@ class DeviceCard extends StatefulWidget {
       }
 
       if (tempErr != null) {
-        if (i == 0 && device.autoSelect && isAutoSelectError(tempErr)) {
+        if (i == 0 && device.autoSelect && shouldAutoSelectError(tempErr)) {
           if (!await device.findServer()) {
             // errorMsg = tempErr.toString();
             throw tempErr;
@@ -68,6 +68,9 @@ class DeviceCard extends StatefulWidget {
         }
         if (tempErr is UserCancelPickException) {
           return 'canceled';
+        }
+        if (tempErr is FilePickerException) {
+          throw tempErr;
         }
       }
       if (i >= 1) {

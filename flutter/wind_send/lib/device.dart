@@ -742,14 +742,12 @@ class Device {
     if (Platform.isAndroid && filePickerPackageName.isNotEmpty) {
       try {
         final result = await FilePickerService.pickFiles(filePickerPackageName);
-        print('pickFilesDoSendAction result: $result');
         if (result.isEmpty) {
           throw UserCancelPickException();
         }
         selectedFilePaths = result;
       } catch (e) {
-        SharedLogger().logger.e('pickFilesDoSendAction error: $e');
-        throw UserCancelPickException();
+        throw FilePickerException(filePickerPackageName, e.toString());
       }
     } else {
       final result = await FilePicker.platform.pickFiles(allowMultiple: true);

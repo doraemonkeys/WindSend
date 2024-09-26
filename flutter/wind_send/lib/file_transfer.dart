@@ -448,3 +448,14 @@ class UnauthorizedException extends RequestException {
 class UserCancelPickException implements Exception {
   UserCancelPickException();
 }
+
+class FilePickerException implements Exception {
+  final String packageName;
+  final String message;
+  FilePickerException(this.packageName, this.message);
+
+  @override
+  String toString() {
+    return "FilePickerException($packageName): $message";
+  }
+}
