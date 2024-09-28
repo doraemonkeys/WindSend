@@ -356,18 +356,27 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onTap: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
+            List<String> selectedFilePaths = [];
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              await device.pickFilesDoSendAction();
+              if (selectedFilePaths.isEmpty) {
+                selectedFilePaths = await device.pickFiles();
+              }
+              await device.doSendAction(selectedFilePaths);
+              device.clearTemporaryFiles();
               return successMsg;
             });
           },
           onLongPress: () async {
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
+            String selectedDirPath = '';
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              await device.pickDirDoSendAction();
+              if (selectedDirPath.isEmpty) {
+                selectedDirPath = await device.pickDir();
+              }
+              await device.doSendAction([selectedDirPath]);
               return successMsg;
             });
           },

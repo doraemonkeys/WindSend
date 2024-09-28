@@ -631,6 +631,7 @@ class Device {
 
   /// Send files or dirs.
   Future<void> doSendAction(List<String> paths,
+      // key: filePath value: relativeSavePath
       {Map<String, String>? fileRelativeSavePath}) async {
     int totalSize = 0;
     List<String> emptyDirs = [];
@@ -729,11 +730,7 @@ class Device {
     await compute(uploadFiles, allFilePath);
   }
 
-  Future<void> pickFilesDoSendAction({
-    List<String>? filePathList,
-    // key: filePath value: relativeSavePath
-    Map<String, String>? fileSavePathMap,
-  }) async {
+  Future<List<String>> pickFiles() async {
     // check permission
     if (Platform.isAndroid) {
       await checkOrRequestAndroidPermission();
@@ -756,9 +753,10 @@ class Device {
       }
       selectedFilePaths = result.files.map((file) => file.path!).toList();
     }
-    await doSendAction(selectedFilePaths,
-        fileRelativeSavePath: fileSavePathMap);
+    return selectedFilePaths;
+  }
 
+  void clearTemporaryFiles() {
     // delete cache file
     // for (var file in selectedFilesPath) {
     //   if (file.startsWith('/data/user/0/com.doraemon.clipboard/cache')) {
@@ -771,7 +769,7 @@ class Device {
     }
   }
 
-  Future<void> pickDirDoSendAction() async {
+  Future<String> pickDir() async {
     // check permission
     if (Platform.isAndroid) {
       await checkOrRequestAndroidPermission();
@@ -785,8 +783,7 @@ class Device {
       selectedDirPath =
           selectedDirPath.substring(0, selectedDirPath.length - 1);
     }
-
-    await doSendAction([selectedDirPath]);
+    return selectedDirPath;
   }
 
   // ============================ super_clipboard code  ============================
