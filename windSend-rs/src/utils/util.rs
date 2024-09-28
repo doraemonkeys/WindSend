@@ -28,7 +28,7 @@ impl StartHelper {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
         let win_user_home_dir =
-            home::home_dir().ok_or("获取当前Windows用户的home directory失败")?;
+            home::home_dir().ok_or("failed to get current windows user home dir")?;
         let start_file = format!(
             r#"{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\{}_start.vbs"#,
             win_user_home_dir.to_str().unwrap(),
@@ -37,7 +37,7 @@ impl StartHelper {
 
         let path = std::env::current_dir().map_err(|err| {
             format!(
-                "获取当前文件目录失败: {}",
+                "failed to get working directory : {}",
                 err.to_string().replace('\\', "\\\\")
             )
         })?;
@@ -66,7 +66,7 @@ impl StartHelper {
     }
     #[cfg(target_os = "macos")]
     fn set_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let home_dir = home::home_dir().ok_or("获取当前用户的home directory失败")?;
+        let home_dir = home::home_dir().ok_or("failed to get current user home dir")?;
         let start_file = format!(
             "{}/Library/LaunchAgents/{}_start.plist",
             home_dir.to_str().unwrap(),
@@ -74,7 +74,7 @@ impl StartHelper {
         );
         let cur_path = std::env::current_dir().map_err(|err| {
             format!(
-                "获取当前文件目录失败: {}",
+                "failed to get working directory : {}",
                 err.to_string().replace('\\', "\\\\")
             )
         })?;
@@ -134,7 +134,7 @@ impl StartHelper {
     #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
-            home::home_dir().ok_or("获取当前Windows用户的home directory失败")?;
+            home::home_dir().ok_or("failed to get current windows user home dir")?;
         let start_file = format!(
             r#"{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\{}_start.vbs"#,
             win_user_home_dir.to_str().unwrap(),
@@ -151,7 +151,7 @@ impl StartHelper {
 
     #[cfg(target_os = "macos")]
     fn unset_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let home_dir = home::home_dir().ok_or("获取当前用户的home directory失败")?;
+        let home_dir = home::home_dir().ok_or("failed to get current user home dir")?;
         let start_file = format!(
             "{}/Library/LaunchAgents/{}_start.plist",
             home_dir.to_str().unwrap(),
