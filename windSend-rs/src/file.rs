@@ -1,6 +1,7 @@
 use crate::RUNTIME;
 use std::collections::HashMap;
 use std::io::SeekFrom;
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, Take};
 use tokio::sync::Mutex as TokioMutex;
@@ -319,7 +320,6 @@ impl FileReceiveSessionManager {
             RUNTIME.get().unwrap().spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(700));
                 let total = op_info.total_expectation;
-                use std::sync::atomic::Ordering::Relaxed;
                 let mut useless_times = 0;
                 const MAX_USELESS_TIMES: u32 = 150;
                 loop {
@@ -506,15 +506,9 @@ impl FileReceiveSessionManager {
             .clone();
 
         if success {
-            op_info
-                .progress
-                .success_count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            op_info.progress.success_count.fetch_add(1, Relaxed);
         } else {
-            op_info
-                .progress
-                .failure_count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            op_info.progress.failure_count.fetch_add(1, Relaxed);
         }
 
         // It should be deleted regardless of whether the download was successful or not,
@@ -538,14 +532,8 @@ impl FileReceiveSessionManager {
             }
         }
 
-        let success_count = op_info
-            .progress
-            .success_count
-            .load(std::sync::atomic::Ordering::Relaxed);
-        let failure_count = op_info
-            .progress
-            .failure_count
-            .load(std::sync::atomic::Ordering::Relaxed);
+        let success_count = op_info.progress.success_count.load(Relaxed);
+        let failure_count = op_info.progress.failure_count.load(Relaxed);
         if success_count + failure_count == op_info.expected_count {
             // This operation has been completed
             self.operation_sessions.lock().await.remove(&op_id);
