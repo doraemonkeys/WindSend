@@ -239,7 +239,10 @@ async fn paste_file_operation_handler(
             return false;
         }
     };
-
+    info!(
+        "paste file operation, total size: {}, total count: {}",
+        op_info.files_size_in_this_op, op_info.files_count_in_this_op
+    );
     debug!("paste file operation info: {:?}", op_info);
 
     if let Err(e) = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER

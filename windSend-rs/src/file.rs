@@ -78,7 +78,7 @@ impl tokio::io::AsyncWrite for FilePartWriter {
         if let std::task::Poll::Ready(Ok(n)) = poll {
             self.pos += n;
             if let Some(f) = &self.on_pull_write_ok {
-                f(new_src);
+                f(&new_src[..n]);
             }
         }
         poll
@@ -317,7 +317,7 @@ impl FileReceiveSessionManager {
             );
             let notify_lock = Arc::clone(&self.notify_lock);
             RUNTIME.get().unwrap().spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(700));
                 let total = op_info.total_expectation;
                 use std::sync::atomic::Ordering::Relaxed;
                 let mut useless_times = 0;
@@ -343,6 +343,12 @@ impl FileReceiveSessionManager {
                         continue;
                     }
                     let percent = current as f32 / total as f32;
+                    if current > total {
+                        error!(
+                            "current > total: {},total: {},current: {}",
+                            current, total, current
+                        );
+                    }
 
                     let value_string = format!(
                         "{}/{} {:.2}%",
