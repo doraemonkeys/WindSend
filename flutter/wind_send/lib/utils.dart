@@ -227,7 +227,7 @@ String generateUniqueFilepath(String filePath) {
   var name = file.path.replaceAll('\\', '/').split('/').last;
   var fileExt = '';
   if (name.split('.').length > 1) {
-    var fileExt = name.split('.').last;
+    fileExt = name.split('.').last;
     name = name.substring(0, name.length - fileExt.length - 1);
   }
   for (var i = 1; i < 100; i++) {
