@@ -571,8 +571,13 @@ class Device {
         localDeviceName,
         threadNum: device.downloadThread,
       );
+      Future<String>? lastRealSavePathFuture;
+      String systemSeparator = filepath.separator;
       for (var item in targetItems) {
-        var baseName = filepath.basename(item.remotePath);
+        String remotePath = item.remotePath.replaceAll('/', systemSeparator);
+        remotePath = remotePath.replaceAll('\\', systemSeparator);
+        var baseName = filepath.basename(remotePath);
+
         String saveDir;
         if (hasImageExtension(baseName)) {
           saveDir = imageSavePath;
@@ -585,7 +590,6 @@ class Device {
         }
         // print('fileName: $fileName, saveDir: $saveDir');
         if (item.type == PathType.dir) {
-          String systemSeparator = filepath.separator;
           saveDir = saveDir.replaceAll('/', systemSeparator);
           saveDir = saveDir.replaceAll('\\', systemSeparator);
           futures.add(Directory(filepath.join(saveDir, baseName))
