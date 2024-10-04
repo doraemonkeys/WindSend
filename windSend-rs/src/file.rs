@@ -321,7 +321,7 @@ impl FileReceiveSessionManager {
                 let total = op_info.total_expectation;
                 use std::sync::atomic::Ordering::Relaxed;
                 let mut useless_times = 0;
-                const MAX_USELESS_TIMES: u32 = 30;
+                const MAX_USELESS_TIMES: u32 = 150;
                 loop {
                     interval.tick().await;
                     let current = op_info.progress.current_pos.load(Relaxed);
@@ -335,7 +335,7 @@ impl FileReceiveSessionManager {
                         break;
                     }
                     if useless_times > MAX_USELESS_TIMES {
-                        error!("useless times exceed limit");
+                        error!("progress loop: useless times exceed limit");
                         break;
                     }
                     if inform_pos == current {
