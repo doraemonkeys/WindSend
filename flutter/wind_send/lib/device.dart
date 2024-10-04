@@ -127,7 +127,7 @@ class Device {
     return data;
   }
 
-  CbcAESCrypt get crypter => CbcAESCrypt.fromHex(secretKey);
+  CbcAESCrypt get cryptor => CbcAESCrypt.fromHex(secretKey);
 
   String generateTimeipHeadHex() {
     // 2006-01-02 15:04:05 192.168.1.1
@@ -136,7 +136,7 @@ class Device {
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     final head = utf8.encode('$timestr $iP');
     final headUint8List = Uint8List.fromList(head);
-    final headEncrypted = crypter.encrypt(headUint8List);
+    final headEncrypted = cryptor.encrypt(headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
     return headEncryptedHex;
   }
@@ -298,7 +298,7 @@ class Device {
     // print('checkServer: $ip:$port');
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
-    var encryptedBody = crypter.encrypt(bodyUint8List);
+    var encryptedBody = cryptor.encrypt(bodyUint8List);
     SecureSocket conn;
     conn = await connect(timeout: timeout);
 
@@ -306,7 +306,7 @@ class Device {
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     final timeIpHead = utf8.encode('$timestr $iP');
     final headUint8List = Uint8List.fromList(timeIpHead);
-    final headEncrypted = crypter.encrypt(headUint8List);
+    final headEncrypted = cryptor.encrypt(headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
     var headInfo = HeadInfo(
         AppConfigModel().deviceName, DeviceAction.ping, headEncryptedHex,
@@ -329,7 +329,7 @@ class Device {
       conn.destroy();
       throw Exception('${respHead.msg}');
     }
-    var decryptedBody = crypter.decrypt(Uint8List.fromList(respBody));
+    var decryptedBody = cryptor.decrypt(Uint8List.fromList(respBody));
     var decryptedBodyStr = utf8.decode(decryptedBody);
     conn.destroy();
     if (decryptedBodyStr != 'pong') {
