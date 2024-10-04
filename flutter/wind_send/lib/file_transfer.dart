@@ -116,6 +116,10 @@ class FileUploader {
       // var data = await fileAccess.read(readSize);
       sentSize += n;
       conn.add(Uint8List.view(buffer.buffer, 0, n));
+      if (sentSize < end - start) {
+        // The buffer list should not be modified before flush.
+        await conn.flush();
+      }
     }
     await fileAccess.close();
 
