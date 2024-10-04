@@ -597,8 +597,9 @@ class Device {
           continue;
         }
         // print('download: ${item.toJson()}, saveDir: $saveDir');
-        lastRealSavePath = await downloader.parallelDownload(item, saveDir);
+        lastRealSavePathFuture = await downloader.addTask(item, saveDir);
       }
+      lastRealSavePath = await lastRealSavePathFuture;
       await Future.wait(futures);
       await downloader.close();
       // print('all download done');
@@ -725,7 +726,7 @@ class Device {
           throw Exception('threadNum can not be 0');
         }
         // print('uploading $filepath');
-        await fileUploader.upload(
+        await fileUploader.addTask(
             filepath, fileRelativeSavePath![filepath] ?? '', opID);
       }
       await fileUploader.close();

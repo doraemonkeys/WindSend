@@ -19,26 +19,27 @@ class FileUploader {
   final int threadNum;
   // final String filePath;
   // final String savePath;
-  static int maxBufferSize = 1024 * 1024 * 30;
+  static int maxBufferSize = 1024 * 1024 * 20;
 
   /// 分片大小的最小值
   final int minPartSize = maxBufferSize ~/ 2;
-  late int fileID;
+
   // final int opID;
   // final int filesCountInThisOp;
 
   // List<(SecureSocket, Stream<Uint8List>)> conns = [];
   late final ConnectionManager _connectionManager;
   final Duration timeout;
+  List<Future<void>> smallFileTasks = [];
 
   FileUploader(this.device, this.loaclDeviceName,
       {this.threadNum = 10, this.timeout = const Duration(seconds: 4)}) {
-    fileID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
     _connectionManager = ConnectionManager(device, timeout: timeout);
     // print('fileID: $fileID');
   }
 
   Future<void> close() async {
+    await Future.wait(smallFileTasks);
     await _connectionManager.closeAllConn();
   }
 
@@ -80,6 +81,7 @@ class FileUploader {
     String filePath,
     String savePath,
     int opID,
+    int fileID,
   ) async {
     // print('conns.length: ${_connectionManager.conns.length}');
     var (conn, stream) = await _connectionManager.getConnection();
@@ -147,17 +149,20 @@ class FileUploader {
   // }
 
   /// It's caller's responsibility to close the uploader.
-  Future<void> upload(
+  Future<void> _upload(
     String filePath,
     String savePath,
+    File file,
+    int fileSize,
     int opID,
   ) async {
-    var file = File(filePath);
     // 计算md5
     // print('filepath: $filePath');
     // var md5 = await calculateMD5(file);
     // print('md5: $md5');
-    var fileSize = await file.length();
+    int fileID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
+
+    // var fileSize = await file.length();
     int partSize = fileSize ~/ threadNum;
     if (partSize < minPartSize) {
       partSize = minPartSize;
@@ -173,7 +178,8 @@ class FileUploader {
     if (fileSize == 0) {
       // 空文件
       var fileAccess = await file.open();
-      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID));
+      futures.add(
+          uploader(fileAccess, start, end, filePath, savePath, opID, fileID));
     }
     while (end < fileSize) {
       // [start, end)
@@ -184,11 +190,42 @@ class FileUploader {
       }
       // print("part $partNum: $start - $end");
       var fileAccess = await file.open(); //每次都重新打开文件，不用担心await导致seek位置不对
-      futures.add(uploader(fileAccess, start, end, filePath, savePath, opID));
+      futures.add(
+          uploader(fileAccess, start, end, filePath, savePath, opID, fileID));
       partNum++;
     }
     // print('partNum: $partNum');
     await Future.wait(futures);
+  }
+
+  /// It's caller's responsibility to close the uploader.
+  Future<Future<void>> addTask(
+    String filePath,
+    String savePath,
+    int opID,
+  ) async {
+    var file = File(filePath);
+    var fileSize = await file.length();
+    int smallFileThreadNum = min(threadNum * 1.5, 35).toInt();
+    const int smallFileMinPartSize = 1024 * 1024 * 2;
+    if (fileSize < smallFileMinPartSize) {
+      // print('''addTask, size: $fileSize,
+      //     idleConnNum: ${_connectionManager.idleConnNum},
+      //     totalConnNum:  ${_connectionManager.totalConnNum},
+      //     tasks.length: ${smallFileTasks.length}''');
+      var task = _upload(filePath, savePath, file, fileSize, opID);
+      smallFileTasks.add(task);
+      if (smallFileTasks.length >= smallFileThreadNum) {
+        await Future.wait(smallFileTasks);
+        smallFileTasks.clear();
+      }
+      return Future.value(task);
+    }
+    await Future.wait(smallFileTasks);
+    smallFileTasks.clear();
+    await _upload(filePath, savePath, file, fileSize, opID);
+    var ret = Future<void>.value();
+    return Future.value(ret);
   }
 
   /// It's caller's responsibility to close the uploader.
@@ -242,11 +279,12 @@ class FileDownloader {
   final int minPartSize;
   // final TargetPaths paths;
   // String fileSavePath;
-  int threadNum;
-  int maxChunkSize;
+  final int threadNum;
+  final int maxChunkSize;
   // RandomAccessFile? _fileAccess;
   late final ConnectionManager _connectionManager;
   final Duration connTimeout;
+  List<Future<String>> smallFileTasks = [];
 
   FileDownloader(
     this.device,
@@ -260,6 +298,7 @@ class FileDownloader {
   }
 
   Future<void> close() async {
+    await Future.wait(smallFileTasks);
     await _connectionManager.closeAllConn();
   }
 
@@ -296,6 +335,7 @@ class FileDownloader {
     bool isHeadReading = true;
     Uint8List buf = Uint8List(1024 * 1024);
     int n = 0;
+    await fileAccess.setPosition(start);
     await for (var data in stream) {
       // buf.addAll(data);
       if (data.length + n > buf.length) {
@@ -322,8 +362,9 @@ class FileDownloader {
         }
       }
       if (n >= chunkSize || pos + n >= end) {
-        fileAccess.setPositionSync(pos);
-        fileAccess.writeFromSync(buf, 0, n);
+        // fileAccess.setPositionSync(pos);
+        // fileAccess.writeFromSync(buf, 0, n);
+        await fileAccess.writeFrom(buf, 0, n);
         pos += n;
         n = 0;
         // print("start $start part $partNum: ${pos - start} / ${end - start}");
@@ -333,9 +374,11 @@ class FileDownloader {
       }
     }
     _connectionManager.putConnection(conn, stream);
+    await fileAccess.close();
   }
 
-  Future<String> parallelDownload(
+  /// It's caller's responsibility to close the downloader.
+  Future<String> _parallelDownload(
     DownloadInfo targetFile,
     String fileSaveDir,
   ) async {
@@ -360,8 +403,9 @@ class FileDownloader {
     var fileAccess = await file.open(mode: FileMode.write);
     if (targetFileSize != 0) {
       // 预分配空间
-      fileAccess.setPositionSync(targetFileSize - 1);
-      fileAccess.writeByteSync(1);
+      await fileAccess.setPosition(targetFileSize - 1);
+      await fileAccess.writeByte(1);
+      await fileAccess.flush();
     }
 
     int partSize = targetFileSize ~/ threadNum;
@@ -385,19 +429,47 @@ class FileDownloader {
       }
       // print("part $partNum: $start - $end");
       futures.add(_writeRangeFile(start, end, partNum, fileAccess, targetFile));
+      if (end < targetFileSize) {
+        fileAccess = await file.open(mode: FileMode.write);
+      }
       partNum++;
     }
     await Future.wait(futures);
-    await fileAccess.flush();
-    await fileAccess.close();
     return newFilepath;
+  }
+
+  /// It's caller's responsibility to close the downloader.
+  Future<Future<String>> addTask(
+    DownloadInfo targetFile,
+    String fileSaveDir,
+  ) async {
+    var smallFileThreadNum = min(threadNum * 2, 35);
+    if (targetFile.size < minPartSize) {
+      // print('''addTask, size: ${targetFile.size},
+      //     idleConnNum: ${_connectionManager.idleConnNum},
+      //     totalConnNum:  ${_connectionManager.totalConnNum},
+      //     tasks.length: ${smallFileTasks.length}''');
+      var task = _parallelDownload(targetFile, fileSaveDir);
+      smallFileTasks.add(task);
+      if (smallFileTasks.length >= smallFileThreadNum) {
+        await Future.wait(smallFileTasks);
+        smallFileTasks.clear();
+      }
+      return Future.value(task);
+    }
+    await Future.wait(smallFileTasks);
+    smallFileTasks.clear();
+    var savepath = await _parallelDownload(targetFile, fileSaveDir);
+    var ret = Future.value(savepath);
+    return ret;
   }
 }
 
 class ConnectionManager {
   final Device device;
   Duration? timeout;
-
+  int totalConnNum = 0;
+  int get idleConnNum => conns.length;
   List<(SecureSocket, Stream<Uint8List>)> conns = [];
 
   ConnectionManager(this.device, {this.timeout});
@@ -413,6 +485,7 @@ class ConnectionManager {
         timeout: timeout,
       );
       var stream = conn.asBroadcastStream();
+      totalConnNum++;
       return (conn, stream);
     }
     return conns.removeLast();
