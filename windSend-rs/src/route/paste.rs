@@ -119,10 +119,13 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     }
     let mut file_writer = file_writer.unwrap();
 
-    let progress_handle = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+    let progress_handle = match crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
         .get_op_progress_handle(head.op_id)
         .await
-        .unwrap();
+    {
+        Some(handle) => handle,
+        None => return false, // this operation had been terminated
+    };
 
     file_writer = file_writer.set_on_pull_write_ok(move |data: &[u8]| {
         if !data.is_empty() {
