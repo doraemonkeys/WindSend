@@ -4547,6 +4547,7 @@ dependencies = [
  "aes",
  "anyhow",
  "arboard",
+ "backtrace",
  "cbc",
  "chrono",
  "cipher",

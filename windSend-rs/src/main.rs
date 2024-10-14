@@ -34,11 +34,6 @@ static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
-// keep atleast one reference to clipboard to prevent it from being dropped
-#[cfg(target_os = "linux")]
-static _ARBOARD_CLIPBOARD_INSTANCE: OnceLock<Result<arboard::Clipboard, arboard::Error>> =
-    OnceLock::new();
-
 fn init() {
     config::init();
     let r = tokio::runtime::Builder::new_multi_thread()
@@ -47,13 +42,26 @@ fn init() {
         .unwrap();
     RUNTIME.set(r).unwrap();
     SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        default_panic(panic_info);
+        panic_hook(panic_info);
+    }));
+}
 
-    #[cfg(target_os = "linux")]
+fn panic_hook(info: &std::panic::PanicInfo) {
+    error!("panic: {}", info);
+    let backtrace = backtrace::Backtrace::new();
+    let panic_message = format!("Panic: {}\n{:?}\n\nBacktrace:\n{:?}", info, info, backtrace);
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(std::path::Path::new(config::DEFAULT_LOG_DIR).join("panic.log"))
     {
-        let instance = arboard::Clipboard::new()
-            .inspect_err(|e| error!("Failed to initialize clipboard: {}", e));
-        _ARBOARD_CLIPBOARD_INSTANCE.set(instance).ok();
+        use std::io::Write;
+        let _ = writeln!(f, "{}", panic_message);
     }
+    std::process::abort();
 }
 
 fn main() {

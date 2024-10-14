@@ -31,6 +31,7 @@ lazy_static = "1.4"
 home = "0.5.5"
 encoding = "0.2.33"
 tracing = "0.1"
+backtrace = "0.3"
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "fmt",
