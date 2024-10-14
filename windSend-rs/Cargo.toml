@@ -45,7 +45,7 @@ cbc = "0.1.2"
 cipher = "0.4"
 chrono = "0.4.31"
 subslice = "0.2.3"
-regex = "1.10"
+regex = "1.11"
 arboard = { version = "3.4", features = [
     "core-graphics",
     "image",
@@ -55,7 +55,7 @@ arboard = { version = "3.4", features = [
 ] }
 # notify-rust = { git = "https://github.com/doraemonkeys/notify-rust", branch = "main" }
 # tokio-native-tls = "0.3.1"
-rustls-pemfile = "2.1"
+rustls-pemfile = "2.2"
 # https://aws.github.io/aws-lc-rs/requirements/windows.html
 # tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
 tokio-rustls = "0.26"
