@@ -318,7 +318,7 @@ impl FileReceiveSessionManager {
             );
             let notify_lock = Arc::clone(&self.notify_lock);
             RUNTIME.get().unwrap().spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(700));
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
                 let total = op_info.total_expectation;
                 let mut useless_times = 0;
                 const MAX_USELESS_TIMES: u32 = 150;
