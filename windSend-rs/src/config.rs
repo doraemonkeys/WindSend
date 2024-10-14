@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, RwLock};
 use std::{path::Path, str::FromStr};
 use tracing::{debug, error, warn};
+use utils::clipboard::ClipboardManager;
 
 static CONFIG_FILE_PATH: &str = "config.yaml";
 static TLS_DIR: &str = "./tls";
 static TLS_CERT_FILE: &str = "cert.pem";
 static TLS_KEY_FILE: &str = "key.pem";
 static APP_ICON_NAME: &str = "icon-192.png";
+pub const DEFAULT_LOG_DIR: &str = "./logs";
 
 pub static APP_ICON_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
@@ -25,9 +27,6 @@ lazy_static! {
     pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
 }
 lazy_static! {
-    pub static ref CLIPBOARD: utils::ClipboardManager = utils::ClipboardManager::new();
-}
-lazy_static! {
     pub static ref ALLOW_TO_BE_SEARCHED: Mutex<bool> = Mutex::new(false);
 }
 
@@ -36,6 +35,13 @@ pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std:
         hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
     )?;
     Ok(cryptor)
+}
+lazy_static! {
+    pub static ref CLIPBOARD: ClipboardManager = ClipboardManager::new()
+        .inspect_err(|err| {
+            error!("init clipboard error: {}", err);
+        })
+        .unwrap();
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -174,7 +180,7 @@ pub fn init() {
 
 fn init_global_logger() {
     let file_appender =
-        tracing_appender::rolling::never("./logs", format!("{}.log", crate::PROGRAM_NAME));
+        tracing_appender::rolling::never(DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
     let log_writer = LogWriter::new(file_appender);
     let (non_blocking_appender, writer_guard) = tracing_appender::non_blocking(log_writer);
     // let subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -263,22 +269,4 @@ pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::erro
     Ok(tokio_rustls::TlsAcceptor::from(std::sync::Arc::new(
         server_conf,
     )))
-}
-
-pub async fn set_clipboard_from_img_bytes(bytes: &[u8]) -> Result<(), ()> {
-    use std::borrow::Cow;
-
-    // In order of priority CF_DIB and CF_BITMAP
-    let img = image::load_from_memory(bytes)
-        .map_err(|e| error!("load image from bytes failed, err: {}", e))?;
-    let rgba8_img = image::DynamicImage::ImageRgba8(img.to_rgba8());
-    let img_data = arboard::ImageData {
-        width: rgba8_img.width() as usize,
-        height: rgba8_img.height() as usize,
-        bytes: Cow::from(rgba8_img.into_bytes()),
-    };
-    crate::config::CLIPBOARD
-        .with_clipboard(|clipboard| clipboard.set_image(img_data))
-        .map_err(|e| error!("set clipboard image failed, err: {}", e))?;
-    Ok(())
 }

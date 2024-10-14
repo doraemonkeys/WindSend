@@ -16,9 +16,7 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
     {
-        let r = crate::config::CLIPBOARD
-            .with_clipboard(|clipboard| clipboard.set_text(Cow::clone(&body)));
-        if let Err(e) = r {
+        if let Err(e) = crate::config::CLIPBOARD.write_text(Cow::clone(&body)) {
             error!("set clipboard text failed, err: {}", e);
         }
     }
@@ -43,33 +41,32 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         debug!("paste text data: {}", body.as_ref().unwrap());
     }
 
-    let mut cur_clipboard_text: Result<_, arboard::Error> = Ok("".to_string());
-    let f = |clipboard: &mut arboard::Clipboard| {
-        cur_clipboard_text = clipboard.get_text();
-        if let Some(body) = body {
-            // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
-            if cur_clipboard_text.is_ok() && cur_clipboard_text.as_ref().unwrap() == &body {
-                return Ok(());
-            }
-            if let Err(e) = clipboard.set_text(body) {
+    let cur_clipboard_text = match crate::config::CLIPBOARD.read_text() {
+        Ok(text) => text,
+        Err(e) => {
+            let msg = format!("read clipboard text failed, err: {}", e);
+            error!("{}", msg);
+            let _ = resp_common_error_msg(conn, &msg).await;
+            return;
+        }
+    };
+    if let Some(body) = body {
+        // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+        if cur_clipboard_text != body {
+            if let Err(e) = crate::config::CLIPBOARD.write_text(body) {
                 let msg = format!("set clipboard text failed, err: {}", e);
                 error!("{}", msg);
-                if cur_clipboard_text.is_err() {
-                    return Err(msg);
-                }
+                let _ = resp_common_error_msg(conn, &msg).await;
+                return;
             }
         }
-        Ok(())
-    };
-    if let Err(e) = crate::config::CLIPBOARD.with_clipboard(f) {
-        let _ = resp_common_error_msg(conn, &e).await;
-        return;
     }
+
     send_msg_with_body(
         conn,
         &"".to_string(),
         RouteDataType::Text,
-        cur_clipboard_text.unwrap_or_default().as_ref(),
+        cur_clipboard_text.as_ref(),
     )
     .await
     .ok();

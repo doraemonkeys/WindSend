@@ -30,41 +30,15 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     }
 
     // 文件剪切板(在读文本剪切板之前查看，文件地址可能会被当做文本读取到)
-    match clipboard_rs::ClipboardContext::new() {
-        Ok(cctx) => {
-            use clipboard_rs::Clipboard;
-            match cctx.get_files() {
-                Ok(files) => {
-                    debug!("clipboard_rs get_files: {:?}", &files);
-                    let files = files
-                        .into_iter()
-                        .map(|f| f.trim_start_matches("file://").to_string())
-                        .collect::<Vec<_>>();
-                    #[cfg(target_os = "linux")]
-                    let files = files
-                        .into_iter()
-                        .map(|f| {
-                            urlencoding::decode(&f)
-                                .map_err(|e| {
-                                    error!("urlencoding::decode failed, err: {}", e);
-                                    e
-                                })
-                                .unwrap_or_default()
-                                .into_owned()
-                        })
-                        .filter(|f| !f.is_empty())
-                        .collect::<Vec<_>>();
-                    if !files.is_empty() && send_files(conn, files).await.is_ok() {
-                        if let Err(e) = cctx.clear() {
-                            error!("clear clipboard failed, err: {}", e);
-                        }
-                        return;
-                    }
+    match crate::config::CLIPBOARD.get_files() {
+        Ok(files) => {
+            if !files.is_empty() && send_files(conn, files).await.is_ok() {
+                if let Err(e) = crate::config::CLIPBOARD.clear() {
+                    error!("clear clipboard failed, err: {}", e);
                 }
-                Err(e) => debug!("clipboard_rs read failed, err: {:?}", e),
             }
         }
-        Err(e) => error!("clipboard_rs new failed, err: {:?}", e),
+        Err(e) => debug!("get clipboard files failed, err: {}", e),
     }
 
     {
@@ -204,20 +178,32 @@ async fn send_clipboard_image(
     conn: &mut TlsStream<TcpStream>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
-    let raw_image = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_image());
-    if let Err(err) = raw_image {
-        return Err(err.into());
+    let raw_image = match crate::config::CLIPBOARD.read_image() {
+        Ok(raw_image) => raw_image,
+        Err(err) => return Err(format!("read clipboard image failed, err: {}", err).into()),
+    };
+    let dyn_img: image::DynamicImage;
+    let mut cursor_buf: std::io::Cursor<Vec<u8>>;
+    if let Some(image1) = raw_image.image1 {
+        let img_buf = image::ImageBuffer::from_vec(
+            image1.width as u32,
+            image1.height as u32,
+            image1.bytes.into_owned(),
+        )
+        .ok_or("image::ImageBuffer::from_vec failed")?;
+        cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
+        dyn_img = image::DynamicImage::ImageRgba8(img_buf);
+    } else if let Some(image2) = raw_image.image2 {
+        use clipboard_rs::common::RustImage;
+        dyn_img = match image2.get_dynamic_image() {
+            Ok(img) => img,
+            Err(err) => return Err(format!("image2.get_dynamic_image failed, err: {}", err).into()),
+        };
+        cursor_buf = std::io::Cursor::new(Vec::with_capacity(1024 * 100));
+    } else {
+        return Err("no image in clipboard".into());
     }
-    let raw_image = raw_image.unwrap();
-    let img_buf = image::ImageBuffer::from_vec(
-        raw_image.width as u32,
-        raw_image.height as u32,
-        raw_image.bytes.into_owned(),
-    )
-    .ok_or("image::ImageBuffer::from_vec failed")?;
-    let mut cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
-    let img_buf = image::DynamicImage::ImageRgba8(img_buf);
-    img_buf.write_to(&mut cursor_buf, image::ImageFormat::Png)?;
+    dyn_img.write_to(&mut cursor_buf, image::ImageFormat::Png)?;
     send_msg_with_body(
         conn,
         &image_name,
@@ -230,7 +216,10 @@ async fn send_clipboard_image(
 }
 
 async fn send_clipboard_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
-    let data_text = crate::config::CLIPBOARD.with_clipboard(|clipboard| clipboard.get_text())?;
+    let data_text = match crate::config::CLIPBOARD.read_text() {
+        Ok(data_text) => data_text,
+        Err(err) => return Err(format!("read clipboard text failed, err: {}", err)),
+    };
     send_msg_with_body(
         conn,
         &"".to_string(),

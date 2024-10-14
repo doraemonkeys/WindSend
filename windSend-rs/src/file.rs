@@ -527,7 +527,7 @@ impl FileReceiveSessionManager {
                 error!("write to clipboard failed:{}", e);
             } else {
                 RUNTIME.get().unwrap().spawn(async move {
-                    let _ = crate::config::set_clipboard_from_img_bytes(&image.unwrap()).await;
+                    let _ = crate::config::CLIPBOARD.write_image_from_bytes(&image.unwrap());
                 });
             }
         }
