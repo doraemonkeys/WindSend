@@ -153,7 +153,7 @@ impl ClipboardManager {
                 .map(|f| {
                     urlencoding::decode(&f)
                         .map_err(|e| {
-                            error!("urlencoding::decode failed, err: {}", e);
+                            tracing::error!("urlencoding::decode failed, err: {}", e);
                             e
                         })
                         .unwrap_or_default()
