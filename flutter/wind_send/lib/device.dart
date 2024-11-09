@@ -249,6 +249,7 @@ class Device {
               name.contains('eth') ||
               name.contains('en0') ||
               name.contains('en1') ||
+              name.contains('以太网') ||
               name.contains('wl')) &&
           (!name.contains('virtual') && !name.contains('vethernet'))) {
         for (var addr in interface.addresses) {
