@@ -220,8 +220,8 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     let items: &[&dyn IsMenuItem] = &[
         &add_files_i,
         &clear_files_i,
-        &copy_from_web_i,
-        &paste_to_web_i,
+        // &copy_from_web_i,
+        // &paste_to_web_i,
         &PredefinedMenuItem::separator(),
         &save_path_i,
         &sub_menu_hide,

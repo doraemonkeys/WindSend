@@ -56,10 +56,11 @@ class TextEditPageState extends State<TextEditPage> {
         });
       }
     });
-    _sendType = widget.device.iP != Device.webIP
-        ? SendTextMethod.p2p
-        : SendTextMethod.web;
-    _sendType = widget.device.actionPasteText ? _sendType : SendTextMethod.web;
+    // _sendType = widget.device.iP != Device.webIP
+    //     ? SendTextMethod.p2p
+    //     : SendTextMethod.web;
+    // _sendType = widget.device.actionPasteText ? _sendType : SendTextMethod.web;
+    _sendType = SendTextMethod.p2p;
     super.initState();
   }
 
@@ -87,11 +88,13 @@ class TextEditPageState extends State<TextEditPage> {
               },
               items: SendTextMethod.valueNames
                   .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  })
+                  .where((e) => e.value != SendTextMethod.web.name)
+                  .toList(),
             ),
             const SizedBox(width: 20),
             IconButton(

@@ -151,26 +151,26 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                 }
               : null,
         ),
-        SettingsSection.defaultDivider(context),
-        SwitchListTile(
-          title: Text('${context.formatString(AppLocale.copy, [])}[Web]'),
-          value: widget.device.actionWebCopy,
-          onChanged: (value) {
-            setState(() {
-              widget.device.actionWebCopy = value;
-            });
-          },
-        ),
-        SettingsSection.defaultDivider(context),
-        SwitchListTile(
-          title: Text('${context.formatString(AppLocale.pasteText, [])}[Web]'),
-          value: widget.device.actionWebPaste,
-          onChanged: (value) {
-            setState(() {
-              widget.device.actionWebPaste = value;
-            });
-          },
-        ),
+        // SettingsSection.defaultDivider(context),
+        // SwitchListTile(
+        //   title: Text('${context.formatString(AppLocale.copy, [])}[Web]'),
+        //   value: widget.device.actionWebCopy,
+        //   onChanged: (value) {
+        //     setState(() {
+        //       widget.device.actionWebCopy = value;
+        //     });
+        //   },
+        // ),
+        // SettingsSection.defaultDivider(context),
+        // SwitchListTile(
+        //   title: Text('${context.formatString(AppLocale.pasteText, [])}[Web]'),
+        //   value: widget.device.actionWebPaste,
+        //   onChanged: (value) {
+        //     setState(() {
+        //       widget.device.actionWebPaste = value;
+        //     });
+        //   },
+        // ),
       ],
     );
   }
