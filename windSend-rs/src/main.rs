@@ -49,7 +49,7 @@ fn init() {
     }));
 }
 
-fn panic_hook(info: &std::panic::PanicInfo) {
+fn panic_hook(info: &std::panic::PanicHookInfo) {
     error!("panic: {}", info);
     let backtrace = backtrace::Backtrace::new();
     let panic_message = format!("Panic: {}\n{:?}\n\nBacktrace:\n{:?}", info, info, backtrace);
