@@ -61,7 +61,7 @@ dependencies:
   custom_refresh_indicator: ^4.0.0
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
-  super_clipboard: ^0.8.22
+  super_clipboard: ^0.8.24
   # pasteboard: ^0.2.0
 
 # dependency_overrides:
