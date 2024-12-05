@@ -14,6 +14,8 @@ import 'theme.dart';
 import 'language.dart';
 import 'device.dart';
 
+const androidAppPackageName = 'com.doraemon.wind_send';
+
 class AppSharedCnfService {
   static const String _fileSavePathKey = 'FileSavePath';
   static const String _imageSavePathKey = 'ImageSavePath';

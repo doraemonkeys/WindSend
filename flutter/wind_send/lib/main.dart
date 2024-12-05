@@ -461,11 +461,18 @@ class _MainBodyState extends State<MainBody> {
             continue;
           }
           if (element.mimeType == 'text/html') {
-            if (File(element.path).existsSync()) {
+            if (await File(element.path).exists()) {
               fileList.add(element.path);
             } else {
               text = element.path;
             }
+            continue;
+          }
+          if (Platform.isAndroid &&
+              element.path.startsWith('/') &&
+              element.path.contains(androidAppPackageName) &&
+              await File(element.path).exists()) {
+            fileList.add(element.path);
             continue;
           }
           text = element.path;
