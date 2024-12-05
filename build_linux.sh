@@ -63,7 +63,8 @@ cp README.md ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
 cp README-EN.md ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
 cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
 cd ./bin || exit
-zip -r $WindSend_Rust_Bin_X86_64_LinuxMusl_DirName.zip $WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
+# Add Z to sort it to the end
+zip -r Z-$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName.zip $WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
 
 ######################################################################################
 
