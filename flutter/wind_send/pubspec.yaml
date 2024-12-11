@@ -62,6 +62,8 @@ dependencies:
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
   super_clipboard: ^0.8.24
+  network_info_plus: ^6.1.1
+  collection: ^1.18.0
   # pasteboard: ^0.2.0
 
 # dependency_overrides:

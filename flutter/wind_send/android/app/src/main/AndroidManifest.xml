@@ -2,8 +2,14 @@
     <!-- 开启网络请求的权限 -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- For Android 10 (API level 29) and higher -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- For Android versions below 10 (API level 29) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- For Android 12 (API level 31) and higher -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!--Permissions
         for the Android below 11 (R)-->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />

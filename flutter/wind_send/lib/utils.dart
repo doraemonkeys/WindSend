@@ -218,6 +218,14 @@ Future<void> checkOrRequestAndroidPermission() async {
   }
 }
 
+// Future<void> checkOrRequestAndroidNetworkPermission() async {
+//   final androidInfo = await DeviceInfoPlugin().androidInfo;
+//   if (androidInfo.version.sdkInt >= 31 &&
+//       !await Permission.locationWhenInUse.request().isGranted) {
+//     throw Exception('need locationWhenInUse permission');
+//   }
+// }
+
 String generateUniqueFilepath(String filePath) {
   var file = File(filePath);
   if (!file.existsSync()) {

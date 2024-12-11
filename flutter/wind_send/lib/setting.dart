@@ -1,6 +1,8 @@
 // import 'dart:isolate';
 // import 'dart:typed_data';
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:file_picker/file_picker.dart';
@@ -29,6 +31,8 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   bool followSystemTheme = AppSharedCnfService.followSystemTheme;
+  bool autoSelectShareDeviceByBssid =
+      AppSharedCnfService.autoSelectShareDeviceByBssid;
   Locale language = AppSharedCnfService.locale;
   String deviceName = AppConfigModel().deviceName;
   String defaultSyncDevice = AppConfigModel().defaultSyncDevice ?? '';
@@ -60,6 +64,7 @@ class _SettingPageState extends State<SettingPage> {
             tiles: [
               defaultSyncDeviceSetting(context),
               defaultShareDeviceSetting(context),
+              autoSelectShareDeviceSetting(context),
             ],
           ),
         ],
@@ -78,6 +83,32 @@ class _SettingPageState extends State<SettingPage> {
           followSystemTheme = value;
         });
         widget.onFollowSystemThemeChanged(value);
+      },
+    );
+  }
+
+  SettingsTile autoSelectShareDeviceSetting(BuildContext context) {
+    return SettingsTile.switchTile(
+      title: Text(context.formatString(AppLocale.autoSelectShareDevice, [])),
+      leading: const Icon(Icons.wifi),
+      initialValue: autoSelectShareDeviceByBssid,
+      activeSwitchColor: Theme.of(context).colorScheme.primary,
+      onToggle: (value) {
+        setState(() {
+          autoSelectShareDeviceByBssid = value;
+        });
+        AppSharedCnfService.autoSelectShareDeviceByBssid = value;
+      },
+      onPressed: (context) {
+        // show auto select share device by bssid dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title:
+                Text(context.formatString(AppLocale.autoSelectShareDevice, [])),
+            content: Text(jsonEncode(AppSharedCnfService.bssidDeviceNameMap)),
+          ),
+        );
       },
     );
   }

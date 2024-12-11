@@ -6,6 +6,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:collection/collection.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -266,6 +268,24 @@ class AppSharedCnfService {
   static set followSystemTheme(bool value) =>
       _sp.setBool('FollowSystemTheme', value);
 
+  /// Auto select share device by wifi bssid
+  static bool get autoSelectShareDeviceByBssid =>
+      _sp.getBool('AutoSelectShareDeviceByBssid') ?? true;
+  static set autoSelectShareDeviceByBssid(bool value) =>
+      _sp.setBool('AutoSelectShareDeviceByBssid', value);
+
+  /// bssid:device name
+  static Map<String, String?> get bssidDeviceNameMap {
+    var value = _sp.getString('BssidDeviceNameMap');
+    if (value == null) {
+      return {};
+    }
+    return (jsonDecode(value) as Map<String, dynamic>).cast<String, String?>();
+  }
+
+  static set bssidDeviceNameMap(Map<String, String?> value) =>
+      _sp.setString('BssidDeviceNameMap', json.encode(value));
+
   // 语言
   static Locale get locale {
     String? language = _sp.getString('Language');
@@ -443,4 +463,39 @@ class MatchActionResp {
     data['secretKeyHex'] = secretKeyHex;
     return data;
   }
+}
+
+Future<void> saveDeviceWifiBssid(Device device) async {
+  final info = NetworkInfo();
+  final wifiBSSID = await info.getWifiBSSID();
+  // print('saveDeviceWifiBssid: $wifiBSSID');
+  if (wifiBSSID == null) {
+    return;
+  }
+  var bssidDeviceNameMap = AppSharedCnfService.bssidDeviceNameMap;
+  // print('bssidDeviceNameMap: $bssidDeviceNameMap');
+  if (bssidDeviceNameMap[wifiBSSID] == device.targetDeviceName) {
+    return;
+  }
+  bssidDeviceNameMap[wifiBSSID] = device.targetDeviceName;
+
+  AppSharedCnfService.bssidDeviceNameMap = bssidDeviceNameMap;
+}
+
+Future<Device?> getShareDevice() async {
+  if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+    final info = NetworkInfo();
+    final wifiBSSID = await info.getWifiBSSID();
+    if (wifiBSSID != null) {
+      final bssidDeviceNameMap = AppSharedCnfService.bssidDeviceNameMap;
+      Device? device = AppSharedCnfService.devices?.firstWhereOrNull(
+        (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
+      );
+      if (device != null) {
+        return device;
+      }
+    }
+  }
+  return AppSharedCnfService.devices?.firstWhere(
+      (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice);
 }

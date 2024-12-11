@@ -15,6 +15,7 @@ import 'text_edit.dart';
 import 'utils.dart';
 import 'device_edit.dart';
 import 'device.dart';
+import 'cnf.dart';
 
 class DeviceCard extends StatefulWidget {
   final Device device;
@@ -301,6 +302,9 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               var (c, count) = await device.doCopyAction();
+              if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+                saveDeviceWifiBssid(device);
+              }
               if (c.isEmpty) {
                 return context.formatString(AppLocale.filesSaved, [count]);
               }
@@ -332,7 +336,12 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               String sendSuccess =
                   context.formatString(AppLocale.sendSuccess, []);
               Future<bool> f = device.doPasteClipboardAction();
-              return f.then((isText) => isText ? pasteSuccess : sendSuccess);
+              return f.then((isText) {
+                if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+                  saveDeviceWifiBssid(device);
+                }
+                return isText ? pasteSuccess : sendSuccess;
+              });
             });
           },
         ),
@@ -364,6 +373,9 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               }
               await device.doSendAction(selectedFilePaths);
               device.clearTemporaryFiles();
+              if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+                saveDeviceWifiBssid(device);
+              }
               return successMsg;
             });
           },

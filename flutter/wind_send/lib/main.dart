@@ -422,6 +422,7 @@ class _MainBodyState extends State<MainBody> {
   var shareSuccessMsg =
       'Successfully shared to ${AppConfigModel().defaultShareDevice}';
   // bool _showRefreshCompleteIndicator = false;
+  final GlobalKey<_MainBodyState> mainBodyKey = GlobalKey();
 
   @override
   void initState() {
@@ -439,14 +440,17 @@ class _MainBodyState extends State<MainBody> {
           content: Text(err.toString()));
     }
 
-    handleSharedMediaFile(List<SharedMediaFile> shared) {
+    handleSharedMediaFile(List<SharedMediaFile> shared) async {
       if (shared.isEmpty) {
         return;
       }
-      var defaultDevice = widget.devices.firstWhere(
-          (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice!);
+      var defaultDevice = await getShareDevice();
+      if (defaultDevice == null) {
+        return;
+      }
       var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-      DeviceCard.commonActionFuncWithToastr(context, defaultDevice, (Device d) {
+      DeviceCard.commonActionFuncWithToastr(
+          mainBodyKey.currentContext!, defaultDevice, (Device d) {
         widget.devices[defaultDeviceIndex] = d;
         AppSharedCnfService.devices = widget.devices;
         widget.devicesRebuild();
@@ -511,6 +515,7 @@ class _MainBodyState extends State<MainBody> {
     shareSuccessMsg = context.formatString(
         AppLocale.shareSuccess, [AppConfigModel().defaultShareDevice]);
     return Center(
+      key: mainBodyKey,
       child: SizedBox(
         width: MediaQuery.of(context).size.width > MainBody.maxBodyWidth
             ? MainBody.maxBodyWidth
