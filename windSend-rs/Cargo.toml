@@ -15,7 +15,7 @@ disable-systray-support = []
 log = "0.4.0"
 aes = "0.8.3"
 hex = "0.4.3"
-tokio = { version = "1.40", features = ["full"] }
+tokio = { version = "1.42", features = ["full"] }
 rand = "0.8"
 image = "0.25"
 crossbeam-channel = "0.5"
@@ -30,7 +30,7 @@ time = { version = "0.3", features = ["macros", "local-offset"] }
 lazy_static = "1.4"
 home = "0.5.5"
 encoding = "0.2.33"
-tracing = "0.1"
+tracing = "0.1.4"
 backtrace = "0.3"
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
@@ -61,8 +61,8 @@ rustls-pemfile = "2.2"
 tokio-rustls = "0.26"
 hostname = "0.4"
 walkdir = "2.4"
-socket2 = { features = ["all"], version = "0.5.5" }
-clipboard-rs = "0.2"
+socket2 = { features = ["all"], version = "0.5" }
+clipboard-rs = "0.2.2"
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
@@ -83,8 +83,8 @@ urlencoding = "2.1.3"
 openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
-tao = "0.30"
-tray-icon = "0.19"
+tao = "0.31"
+tray-icon = "0.19.2"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.15"
@@ -102,4 +102,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.30"
+tao = "0.31"
