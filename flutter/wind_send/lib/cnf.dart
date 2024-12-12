@@ -15,6 +15,7 @@ import 'dart:io';
 import 'theme.dart';
 import 'language.dart';
 import 'device.dart';
+import 'utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
 
@@ -466,6 +467,7 @@ class MatchActionResp {
 }
 
 Future<void> saveDeviceWifiBssid(Device device) async {
+  await checkOrRequestNetworkPermission();
   final info = NetworkInfo();
   final wifiBSSID = await info.getWifiBSSID();
   // print('saveDeviceWifiBssid: $wifiBSSID');
@@ -484,6 +486,7 @@ Future<void> saveDeviceWifiBssid(Device device) async {
 
 Future<Device?> getShareDevice() async {
   if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+    await checkOrRequestNetworkPermission();
     final info = NetworkInfo();
     final wifiBSSID = await info.getWifiBSSID();
     if (wifiBSSID != null) {

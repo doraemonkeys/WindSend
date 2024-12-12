@@ -96,6 +96,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 - 两个设备之间的时间差不能超过5分钟，否则会导致配对失败。
 - Windows上的通知发送依赖于PowerShell，如果你没有看到通知，请检查PowerShell是否在环境变量中。
+- APP的定位权限用于获取WIFI信息。
 
 
 

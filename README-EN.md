@@ -92,6 +92,7 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 
 - The time difference between the two devices cannot exceed 5 minutes, otherwise the pairing will fail.
 - Notification delivery on Windows relies on PowerShell, if you don't see notifications, check that PowerShell is in the environment variable.
+- APP's location permission is used to obtain WIFI information.
 
 ## Tips
 

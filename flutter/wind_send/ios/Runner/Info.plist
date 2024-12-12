@@ -45,5 +45,14 @@
 		<true />
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true />
+		<key>NSLocationUsageDescription</key>
+		<string>We require your location to provide you with turn-by-turn navigation and track your
+			route history.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>We need access to your location to offer location-based reminders and geofencing
+			services.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>We need access to your location to provide you with personalized weather forecasts
+			and recommend nearby attractions.</string>
 	</dict>
 </plist>
