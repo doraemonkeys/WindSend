@@ -22,6 +22,8 @@ import 'device.dart';
 import 'device_card.dart';
 
 const String appName = 'WindSend';
+// bool _showRefreshCompleteIndicator = false;
+final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
 
 Future<void> init() async {
   // 初始化插件前需调用初始化代码 runApp()函数之前
@@ -180,10 +182,10 @@ class MyHomePage extends StatefulWidget {
   });
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
 
   void devicesRebuild() {
@@ -194,6 +196,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: appWidgetKey,
       appBar: AppBar(
         title: Text(context.formatString(AppLocale.appBarTitle, [])),
         actions: [

@@ -49,6 +49,7 @@ Future<T?> alertDialogFunc<T>(
   Widget? title, {
   Widget? content,
   void Function()? onConfirmed,
+  void Function()? onCanceled,
   bool Function()? canConfirm,
 }) {
   return showDialog(
@@ -59,6 +60,7 @@ Future<T?> alertDialogFunc<T>(
         title,
         content: content,
         onConfirmed: onConfirmed,
+        onCanceled: onCanceled,
         canConfirm: canConfirm,
       );
     },
@@ -70,6 +72,7 @@ AlertDialog alertDialogDefault(
   Widget? title, {
   Widget? content,
   void Function()? onConfirmed,
+  void Function()? onCanceled,
   bool Function()? canConfirm,
 }) {
   canConfirm ??= () => true;
@@ -81,6 +84,9 @@ AlertDialog alertDialogDefault(
     actions: [
       TextButton(
         onPressed: () {
+          if (onCanceled != null) {
+            onCanceled();
+          }
           Navigator.pop(context);
         },
         child: Text(context.formatString(AppLocale.cancel, [])),

@@ -22,6 +22,7 @@ import 'web.dart';
 import 'cnf.dart';
 import 'protocol/protocol.dart';
 import 'file_picker_service.dart';
+import 'main.dart';
 
 class Device {
   late String targetDeviceName;
@@ -676,7 +677,13 @@ class Device {
         emptyDirs.add(filepath.basename(itemPath2));
         continue;
       }
-      await for (var entity in Directory(itemPath2).list(recursive: true)) {
+      // await for (var entity in Directory(itemPath2).list(recursive: true)) {
+      // }
+
+      final stream = Directory(itemPath2).list(recursive: true);
+      List<dynamic> dirListError = [];
+      var doneStream = StreamController(sync: true);
+      stream.listen((entity) async {
         if (entity is File) {
           allFilePath.add(entity.path);
           var itemSize = await entity.length();
@@ -687,7 +694,7 @@ class Device {
           }
           String relativePath =
               filepath.dirname(entity.path.substring(itemPath2.length + 1));
-          fileRelativeSavePath[entity.path] = filepath.join(
+          fileRelativeSavePath![entity.path] = filepath.join(
             filepath.basename(itemPath2),
             relativePath == '.' ? '' : relativePath,
           );
@@ -703,6 +710,25 @@ class Device {
               relativePath == '.' ? '' : relativePath,
             ));
           }
+        }
+      }, onError: (error) {
+        dirListError.add(error);
+      }, onDone: () {
+        doneStream.add(null);
+      });
+      await doneStream.stream.first;
+      doneStream.close();
+      if (dirListError.isNotEmpty) {
+        bool isCancel = false;
+        var ctx = appWidgetKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          await alertDialogFunc(
+              ctx, Text(ctx.formatString(AppLocale.continueWithError, [])),
+              content: Text(dirListError.join('\n')),
+              onCanceled: () => isCancel = true);
+        }
+        if (isCancel) {
+          return;
         }
       }
     }

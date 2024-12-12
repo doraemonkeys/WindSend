@@ -54,6 +54,7 @@ mixin AppLocale {
   static const String useThirdPartyFilePicker = 'useThirdPartyFilePicker';
   static const String filePickerPackageNameHint = 'filePickerPackageNameHint';
   static const String autoSelectShareDevice = 'autoSelectShareDevice';
+  static const String continueWithError = 'continueWithError';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -111,6 +112,7 @@ mixin AppLocale {
     useThirdPartyFilePicker: '使用第三方文件选择器',
     filePickerPackageNameHint: '请输入文件管理应用的包名',
     autoSelectShareDevice: '根据WIFI自动选择分享设备',
+    continueWithError: '出现错误还要继续吗',
   };
 
   static const Map<String, dynamic> en = {
@@ -170,6 +172,7 @@ mixin AppLocale {
     filePickerPackageNameHint:
         'Please enter the package name of the file manager app',
     autoSelectShareDevice: 'Auto select share device by wifi info',
+    continueWithError: 'Continue with error?',
   };
 
   static List<String> getSupportLanguageCode() {
