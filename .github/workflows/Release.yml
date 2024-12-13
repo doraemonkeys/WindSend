@@ -79,6 +79,7 @@ jobs:
         with:
           path: |
             flutter/wind_send/build/
+            ~/.pub-cache
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-flutter-
@@ -163,6 +164,7 @@ jobs:
         with:
           path: |
             flutter/wind_send/build/
+            ~/.pub-cache
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-flutter-
@@ -234,6 +236,7 @@ jobs:
         with:
           path: |
             flutter/wind_send/build/
+            ~/.pub-cache
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-flutter-
