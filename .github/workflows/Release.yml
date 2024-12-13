@@ -70,6 +70,19 @@ jobs:
           flutter --version
           flutter doctor
 
+      # download flutter dependencies(to generate pubspec.lock)
+      - name: Download Flutter Dependencies
+        working-directory: flutter/wind_send
+        run: flutter pub get
+      # cache flutter build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            flutter/wind_send/build/
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
       - name: Cearate Key Store
         run: echo "$SIGNING_KEY" | base64 -d >flutter/wind_send/android/app/key.jks
         env:
@@ -108,7 +121,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            windSend-rs/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -131,6 +154,19 @@ jobs:
       - run: |
           flutter --version
           flutter doctor
+      # download flutter dependencies(to generate pubspec.lock)
+      - name: Download Flutter Dependencies
+        working-directory: flutter/wind_send
+        run: flutter pub get
+      # cache flutter build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            flutter/wind_send/build/
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
       - uses: msys2/setup-msys2@v2
         with:
           update: true
@@ -157,7 +193,17 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            windSend-rs/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -179,6 +225,18 @@ jobs:
       - name: Print Flutter Info
         run: |
           flutter --version
+      # download flutter dependencies(to generate pubspec.lock)
+      - name: Download Flutter Dependencies
+        working-directory: flutter/wind_send
+        run: flutter pub get
+      # cache flutter build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            flutter/wind_send/build/
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
       - name: Run Build Script
         env:
           CI_RUNNING: true # for build script
