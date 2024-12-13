@@ -422,8 +422,6 @@ class MainBody extends StatefulWidget {
 }
 
 class _MainBodyState extends State<MainBody> {
-  var shareSuccessMsg =
-      'Successfully shared to ${AppConfigModel().defaultShareDevice}';
   // bool _showRefreshCompleteIndicator = false;
   final GlobalKey<_MainBodyState> mainBodyKey = GlobalKey();
 
@@ -497,7 +495,9 @@ class _MainBodyState extends State<MainBody> {
             await defaultDevice.doPasteTextAction(text: text);
           }
         }
-        return shareSuccessMsg;
+        return appWidgetKey.currentContext?.formatString(
+                AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
+            'share success';
       });
     }
 
@@ -515,8 +515,6 @@ class _MainBodyState extends State<MainBody> {
 
   @override
   Widget build(BuildContext context) {
-    shareSuccessMsg = context.formatString(
-        AppLocale.shareSuccess, [AppConfigModel().defaultShareDevice]);
     return Center(
       key: mainBodyKey,
       child: SizedBox(
