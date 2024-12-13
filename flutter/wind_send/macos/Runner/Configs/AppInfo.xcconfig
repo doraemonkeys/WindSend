@@ -8,7 +8,7 @@
 PRODUCT_NAME = wind_send
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.doraemon.windSend
+PRODUCT_BUNDLE_IDENTIFIER = com.doraemon.wind_send
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2023 com.doraemon. All rights reserved.
