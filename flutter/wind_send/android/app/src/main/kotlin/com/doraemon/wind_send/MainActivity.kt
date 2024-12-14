@@ -13,9 +13,15 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import androidx.annotation.NonNull
 import java.io.File
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.core.content.FileProvider
+
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.doraemon.wind_send/file_picker"
+    private val CHANNEL_CLIPBOARD = "com.doraemon.wind_send/clipboard"
     private val REQUEST_CODE_PICK_FILES = 1001
     private val REQUEST_CODE_PICK_FOLDER = 1002
     private var packageNameToLaunch: String? = null
@@ -41,6 +47,27 @@ class MainActivity: FlutterActivity() {
                 }
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_CLIPBOARD).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "writeFilePath" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath == null) {
+                       result.error("INVALID_ARGUMENT", "File path is null", null)
+                       return@setMethodCallHandler
+                    }
+                    val error: String? = copyFileToClipboard(filePath)
+                    if (error != null) {
+                        result.error("COPY_FILE_TO_CLIPBOARD_FAILED", error, null)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
     }
 
     private fun launchFileManager() {
@@ -59,6 +86,34 @@ class MainActivity: FlutterActivity() {
         } ?: run {
             resultCallback?.error("INVALID_ARGUMENT", "Package name is null", null)
         }
+    }
+
+    private fun copyFileToClipboard(filePath: String): String? {
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val fileUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", File(filePath))
+            val clip = ClipData.newUri(contentResolver, "URI", fileUri)
+            clipboard.setPrimaryClip(clip)
+            return null
+        } catch (e: Exception) {
+            return e.message
+        }
+    }
+
+    private fun copyFileToClipboardIntent(filePath: String): String? {
+        val file = File(filePath)
+        val uri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
+        
+        val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newUri(contentResolver, "File", uri)
+        clipboardManager.setPrimaryClip(clip)
+
+        val intent = Intent(Intent.ACTION_SEND)
+        intent.type = contentResolver.getType(uri)
+        intent.putExtra(Intent.EXTRA_STREAM, uri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        
+        return null
     }
 
     private fun launchFolderPicker() {

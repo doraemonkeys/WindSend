@@ -12,7 +12,221 @@ import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:super_clipboard/super_clipboard.dart';
+import 'package:wind_send/clipboard/clipboard_service.dart';
+// import 'package:wind_send/main.dart';
 import 'language.dart';
+
+Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
+  if (clipboard == null) {
+    return;
+  }
+  if (Platform.isIOS) {
+    if (await file.length() > 30 * 1024 * 1024) {
+      return;
+    }
+  }
+  final item = DataWriterItem();
+  bool itemAdded = true;
+  if (await file.length() < 30 * 1024 * 1024) {
+    switch (file.path.split('.').last) {
+      case 'txt':
+        if (await file.length() > 1 * 1024 * 1024) {
+          item.add(Formats.fileUri(
+              Uri.file(file.path, windows: Platform.isWindows)));
+        } else {
+          item.add(Formats.plainTextFile(await file.readAsBytes()));
+        }
+        break;
+      case 'html':
+        item.add(Formats.htmlFile(await file.readAsBytes()));
+        break;
+      case 'jpg':
+        item.add(Formats.jpeg(await file.readAsBytes()));
+        break;
+      case 'jpeg':
+        item.add(Formats.jpeg(await file.readAsBytes()));
+        break;
+      case 'png':
+        item.add(Formats.png(await file.readAsBytes()));
+        break;
+      case 'svg':
+        item.add(Formats.svg(await file.readAsBytes()));
+        break;
+      case 'gif':
+        item.add(Formats.gif(await file.readAsBytes()));
+        break;
+      case 'webp':
+        item.add(Formats.webp(await file.readAsBytes()));
+        break;
+      case 'tiff':
+        item.add(Formats.tiff(await file.readAsBytes()));
+        break;
+      case 'bmp':
+        item.add(Formats.bmp(await file.readAsBytes()));
+        break;
+      case 'ico':
+        item.add(Formats.ico(await file.readAsBytes()));
+        break;
+      case 'heic':
+        item.add(Formats.heic(await file.readAsBytes()));
+        break;
+      case 'heif':
+        item.add(Formats.heif(await file.readAsBytes()));
+        break;
+      case 'mp4':
+        item.add(Formats.mp4(await file.readAsBytes()));
+        break;
+      case 'mov':
+        item.add(Formats.mov(await file.readAsBytes()));
+        break;
+      case 'm4v':
+        item.add(Formats.m4v(await file.readAsBytes()));
+        break;
+      case 'avi':
+        item.add(Formats.avi(await file.readAsBytes()));
+        break;
+      case 'mpeg':
+        item.add(Formats.mpeg(await file.readAsBytes()));
+        break;
+      case 'webm':
+        item.add(Formats.webm(await file.readAsBytes()));
+        break;
+      case 'ogg':
+        item.add(Formats.ogg(await file.readAsBytes()));
+        break;
+      case 'wmv':
+        item.add(Formats.wmv(await file.readAsBytes()));
+        break;
+      case 'flv':
+        item.add(Formats.flv(await file.readAsBytes()));
+        break;
+      case 'mkv':
+        item.add(Formats.mkv(await file.readAsBytes()));
+        break;
+      case 'ts':
+        item.add(Formats.ts(await file.readAsBytes()));
+        break;
+      case 'mp3':
+        item.add(Formats.mp3(await file.readAsBytes()));
+        break;
+      case 'oga':
+        item.add(Formats.oga(await file.readAsBytes()));
+        break;
+      case 'aac':
+        item.add(Formats.aac(await file.readAsBytes()));
+        break;
+      case 'wav':
+        item.add(Formats.wav(await file.readAsBytes()));
+        break;
+      case 'pdf':
+        item.add(Formats.pdf(await file.readAsBytes()));
+        break;
+      case 'doc':
+        item.add(Formats.doc(await file.readAsBytes()));
+        break;
+      case 'docx':
+        item.add(Formats.docx(await file.readAsBytes()));
+        break;
+      case 'csv':
+        item.add(Formats.csv(await file.readAsBytes()));
+        break;
+      case 'xls':
+        item.add(Formats.xls(await file.readAsBytes()));
+        break;
+      case 'xlsx':
+        item.add(Formats.xlsx(await file.readAsBytes()));
+        break;
+      case 'ppt':
+        item.add(Formats.ppt(await file.readAsBytes()));
+        break;
+      case 'pptx':
+        item.add(Formats.pptx(await file.readAsBytes()));
+        break;
+      case 'rtf':
+        item.add(Formats.rtf(await file.readAsBytes()));
+        break;
+      case 'json':
+        item.add(Formats.json(await file.readAsBytes()));
+        break;
+      case 'zip':
+        item.add(Formats.zip(await file.readAsBytes()));
+        break;
+      case 'tar':
+        item.add(Formats.tar(await file.readAsBytes()));
+        break;
+      case 'gzip':
+        item.add(Formats.gzip(await file.readAsBytes()));
+        break;
+      case 'bzip2':
+        item.add(Formats.bzip2(await file.readAsBytes()));
+        break;
+      case 'xz':
+        item.add(Formats.xz(await file.readAsBytes()));
+        break;
+      case 'rar':
+        item.add(Formats.rar(await file.readAsBytes()));
+        break;
+      case 'jar':
+        item.add(Formats.jar(await file.readAsBytes()));
+        break;
+      case 'dmg':
+        item.add(Formats.dmg(await file.readAsBytes()));
+        break;
+      case 'iso':
+        item.add(Formats.iso(await file.readAsBytes()));
+        break;
+      case 'deb':
+        item.add(Formats.deb(await file.readAsBytes()));
+        break;
+      case 'rpm':
+        item.add(Formats.rpm(await file.readAsBytes()));
+        break;
+      case 'apk':
+        item.add(Formats.apk(await file.readAsBytes()));
+        break;
+      case 'exe':
+        item.add(Formats.exe(await file.readAsBytes()));
+        break;
+      case 'msi':
+        item.add(Formats.msi(await file.readAsBytes()));
+        break;
+      case 'dll':
+        item.add(Formats.dll(await file.readAsBytes()));
+        break;
+      default:
+        itemAdded = false;
+    }
+  }
+
+  Future<void> writeFileUri(DataWriterItem item) async {
+    item.add(Formats.fileUri(Uri.file(file.path, windows: Platform.isWindows)));
+  }
+
+  Future<void> writeFileChannel(DataWriterItem item) async {
+    try {
+      await ClipboardService.writeFilePath(file.path);
+    } catch (e) {
+      SharedLogger().logger.e('writeFileToClipboard error: $e');
+    }
+  }
+
+  if (!itemAdded) {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt < 24) {
+        await writeFileUri(item);
+      } else {
+        await writeFileChannel(item);
+        return;
+      }
+    } else if (Platform.isIOS) {
+      await writeFileUri(item);
+    } else {
+      await writeFileUri(item);
+    }
+  }
+  await clipboard.write([item]);
+}
 
 Future<String?> superClipboardReadText(
     ClipboardReader reader, Function(String message) logErr) async {

@@ -37,9 +37,19 @@
         <!-- github.com/superlistapp/super_native_extensions/tree/main/super_clipboard -->
         <provider
             android:name="com.superlist.super_native_extensions.DataProvider"
-            android:authorities="com.doraemon.wind_send"
+            android:authorities="${applicationId}.SuperClipboardDataProvider"
             android:exported="true"
             android:grantUriPermissions="true">
+        </provider>
+        <!-- file clipboard -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
         </provider>
         <activity
             android:name=".MainActivity"

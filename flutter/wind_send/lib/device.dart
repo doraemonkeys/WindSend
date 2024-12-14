@@ -564,8 +564,8 @@ class Device {
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
-    String? lastRealSavePath;
-    void startDownload((Device, List<DownloadInfo>) args) async {
+    Future<String?> startDownload((Device, List<DownloadInfo>) args) async {
+      String? lastRealSavePath;
       var (device, targetItems) = args;
       var futures = <Future>[];
       var downloader = FileDownloader(
@@ -605,11 +605,12 @@ class Device {
       await Future.wait(futures);
       await downloader.close();
       // print('all download done');
+      return lastRealSavePath;
     }
 
     // 开启一个isolate
     // 不try, Exception 直接抛出
-    await compute(
+    final lastRealSavePath = await compute(
       startDownload,
       (this, targetItems),
     );
@@ -617,10 +618,7 @@ class Device {
     if (targetItems.length == 1) {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null && lastRealSavePath != null) {
-        final item = DataWriterItem();
-        item.add(Formats.fileUri(
-            Uri.file(lastRealSavePath!, windows: Platform.isWindows)));
-        await clipboard.write([item]);
+        await writeFileToClipboard(clipboard, File(lastRealSavePath));
       }
     }
 
