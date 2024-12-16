@@ -451,7 +451,11 @@ class Device {
     return await _matchDeviceLoop(StreamController<Device>(), myIp);
   }
 
-  Future<(String, int)> doCopyAction(
+  /// Return parameters:
+  /// 1. Copied content
+  /// 2. Downloaded file list
+  /// 3. The actual save path of the files(if too many files, return empty list)
+  Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction(
       [Duration connectTimeout = const Duration(seconds: 2)]) async {
     var conn = await connect(timeout: connectTimeout);
     var headInfo = HeadInfo(
@@ -472,10 +476,7 @@ class Device {
     if (respHead.dataType == RespHead.dataTypeText) {
       final content = utf8.decode(respBody);
       await Clipboard.setData(ClipboardData(text: content));
-      if (content.length > 40) {
-        return ('${content.substring(0, 40)}...', 0);
-      }
-      return (content, 0);
+      return (content, <DownloadInfo>[], <String>[]);
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
       final imageName = respHead.msg;
@@ -485,7 +486,7 @@ class Device {
       await File(filePath).writeAsBytes(respBody);
       final clipboard = SystemClipboard.instance;
       if (clipboard == null) {
-        return ("", 1);
+        return (null, <DownloadInfo>[], [filePath]);
       }
       final item = DataWriterItem();
       if (Platform.isAndroid) {
@@ -494,15 +495,15 @@ class Device {
         item.add(Formats.png(Uint8List.fromList(respBody)));
       }
       await clipboard.write([item]);
-      return ("", 1);
+      return (null, <DownloadInfo>[], [filePath]);
     }
     if (respHead.dataType == RespHead.dataTypeFiles) {
       // print('respBody: ${utf8.decode(respBody)}');
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
       List<DownloadInfo> respPaths =
           respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();
-      int fileCount = await _downloadFiles(respPaths);
-      return ("", fileCount);
+      var realSavePaths = await _downloadFiles(respPaths);
+      return (null, respPaths, realSavePaths);
     }
     throw Exception('Unknown data type: ${respHead.dataType}');
   }
@@ -560,12 +561,12 @@ class Device {
     return (content, pasteText);
   }
 
-  Future<int> _downloadFiles(List<DownloadInfo> targetItems) async {
+  Future<List<String>> _downloadFiles(List<DownloadInfo> targetItems) async {
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
-    Future<String?> startDownload((Device, List<DownloadInfo>) args) async {
-      String? lastRealSavePath;
+    Future<List<String>> startDownload(
+        (Device, List<DownloadInfo>) args) async {
       var (device, targetItems) = args;
       var futures = <Future>[];
       var downloader = FileDownloader(
@@ -573,7 +574,18 @@ class Device {
         localDeviceName,
         threadNum: device.downloadThread,
       );
-      Future<String>? lastRealSavePathFuture;
+      bool tooManyFiles = false;
+      int tempFileCount = 0;
+      for (var item in targetItems) {
+        if (item.isFile()) {
+          tempFileCount++;
+          if (tempFileCount > 20) {
+            tooManyFiles = true;
+            break;
+          }
+        }
+      }
+      List<Future<String>> realSavePathsFuture = [];
       String systemSeparator = filepath.separator;
       for (var item in targetItems) {
         String remotePath = item.remotePath.replaceAll('/', systemSeparator);
@@ -599,13 +611,16 @@ class Device {
           continue;
         }
         // print('download: ${item.toJson()}, saveDir: $saveDir');
-        lastRealSavePathFuture = await downloader.addTask(item, saveDir);
+        var lastRealSavePathFuture = await downloader.addTask(item, saveDir);
+        if (!tooManyFiles) {
+          realSavePathsFuture.add(lastRealSavePathFuture);
+        }
       }
-      lastRealSavePath = await lastRealSavePathFuture;
+      var realSavePaths = await Future.wait(realSavePathsFuture);
       await Future.wait(futures);
       await downloader.close();
       // print('all download done');
-      return lastRealSavePath;
+      return realSavePaths;
     }
 
     // 开启一个isolate
@@ -617,21 +632,11 @@ class Device {
 
     if (targetItems.length == 1) {
       final clipboard = SystemClipboard.instance;
-      if (clipboard != null && lastRealSavePath != null) {
-        await writeFileToClipboard(clipboard, File(lastRealSavePath));
+      if (clipboard != null && lastRealSavePath.length == 1) {
+        await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
       }
     }
-
-    // 计算保存的目录
-    // Set<String> pathSet = {};
-    int fileCount = 0;
-    for (var item in targetItems) {
-      if (item.type == PathType.dir) {
-        continue;
-      }
-      fileCount++;
-    }
-    return fileCount;
+    return lastRealSavePath;
   }
 
   /// Send files or dirs.

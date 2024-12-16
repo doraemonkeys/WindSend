@@ -6,7 +6,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:flutter_toastr/flutter_toastr.dart';
 import 'package:wind_send/file_transfer.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
@@ -16,6 +15,7 @@ import 'utils.dart';
 import 'device_edit.dart';
 import 'device.dart';
 import 'cnf.dart';
+import 'toast.dart';
 
 class DeviceCard extends StatefulWidget {
   final Device device;
@@ -31,15 +31,15 @@ class DeviceCard extends StatefulWidget {
   });
 
   /// throw Exception if failed
-  static Future<String> commonActionFunc(
+  static Future<ToastResult> commonActionFunc(
       Device device,
       void Function(Device device) onChanged,
-      Future<String> Function() task) async {
-    String successMsg = '';
+      Future<ToastResult> Function() task) async {
+    ToastResult result;
     for (var i = 0;; i++) {
       dynamic tempErr;
       try {
-        successMsg = await task();
+        result = await task();
         break; // success exit
       } catch (e, s) {
         tempErr = e;
@@ -68,7 +68,7 @@ class DeviceCard extends StatefulWidget {
           continue;
         }
         if (tempErr is UserCancelPickException) {
-          return 'canceled';
+          return ToastResult(message: 'canceled');
         }
         if (tempErr is FilePickerException) {
           throw tempErr;
@@ -78,17 +78,17 @@ class DeviceCard extends StatefulWidget {
         throw tempErr;
       }
     }
-    return successMsg;
+    return result;
   }
 
   static Future<void> commonActionFuncWithToastr(
       BuildContext context,
       Device device,
       void Function(Device device) onChanged,
-      Future<String> Function() task,
+      Future<ToastResult> Function() task,
       {bool showIndicator = true}) async {
-    String msg = '';
-    bool isErrored = false;
+    ToastResult result;
+    // bool isErrored = false;
     var indicatorExited = false;
     // Show loading spinner
     if (showIndicator) {
@@ -104,29 +104,15 @@ class DeviceCard extends StatefulWidget {
       dialog.whenComplete(() => indicatorExited = true);
     }
     try {
-      msg = await commonActionFunc(device, onChanged, task);
+      result = await commonActionFunc(device, onChanged, task);
     } catch (e) {
-      msg = e.toString();
-      isErrored = true;
+      result = ToastResult(message: e.toString(), status: ToastStatus.failure);
     }
     if (showIndicator && context.mounted && !indicatorExited) {
       Navigator.of(context).pop();
     }
     if (context.mounted) {
-      FlutterToastr.show(
-        msg,
-        context,
-        duration: 3,
-        position: FlutterToastr.bottom,
-        border: Border.all(
-          // color: Theme.of(context).colorScheme.inversePrimary,
-          color: isErrored
-              ? Theme.of(context).colorScheme.error
-              : Theme.of(context).colorScheme.inversePrimary,
-          width: 2.5,
-          style: BorderStyle.solid,
-        ),
-      );
+      result.showToast(context);
     }
   }
 
@@ -301,14 +287,61 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           onTap: () async {
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              var (c, count) = await device.doCopyAction();
+              var (copiedText, downloadInfos, realSavePaths) =
+                  await device.doCopyAction();
               if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
-              if (c.isEmpty) {
-                return context.formatString(AppLocale.filesSaved, [count]);
+              if (copiedText != null) {
+                final copiedTextMsg = copiedText.length > 40
+                    ? '${copiedText.substring(0, 40)}...'
+                    : copiedText;
+                return ToastResult(
+                  message:
+                      '${context.formatString(AppLocale.copySuccess, [])}\n$copiedTextMsg',
+                  shareText: copiedText,
+                );
               }
-              return '${context.formatString(AppLocale.copySuccess, [])}\n$c';
+              if (downloadInfos.isNotEmpty) {
+                int count = 0;
+                bool haveDir = false;
+                bool allFileBothImage = true;
+                for (var info in downloadInfos) {
+                  if (info.isFile()) {
+                    count++;
+                    if (!hasImageExtension(info.remotePath)) {
+                      allFileBothImage = false;
+                    }
+                  } else {
+                    haveDir = true;
+                  }
+                }
+                var openPath =
+                    realSavePaths.length == 1 ? realSavePaths.first : '';
+                if (count > 1) {
+                  openPath = haveDir || !allFileBothImage
+                      ? AppConfigModel().fileSavePath
+                      : AppConfigModel().imageSavePath;
+                }
+                return ToastResult(
+                  message: context.formatString(AppLocale.filesSaved, [count]),
+                  shareFile: realSavePaths,
+                  openPath: openPath,
+                );
+              }
+              if (realSavePaths.isNotEmpty) {
+                return ToastResult(
+                  message: context.formatString(
+                      AppLocale.filesSaved, [realSavePaths.length]),
+                  shareFile: realSavePaths,
+                  openPath:
+                      realSavePaths.length == 1 ? realSavePaths.first : '',
+                );
+              }
+              return ToastResult(
+                message: 'unknown error',
+                status: ToastStatus.failure,
+              );
             });
           },
         ),
@@ -340,7 +373,9 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
                   saveDeviceWifiBssid(device);
                 }
-                return isText ? pasteSuccess : sendSuccess;
+                return ToastResult(
+                  message: isText ? pasteSuccess : sendSuccess,
+                );
               });
             });
           },
@@ -376,7 +411,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
-              return successMsg;
+              return ToastResult(message: successMsg);
             });
           },
           onLongPress: () async {
@@ -389,7 +424,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 selectedDirPath = await device.pickDir();
               }
               await device.doSendAction([selectedDirPath]);
-              return successMsg;
+              return ToastResult(message: successMsg);
             });
           },
         ),
@@ -423,7 +458,9 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           await DeviceCard.commonActionFuncWithToastr(
               context, device, onChanged, () async {
             String msg = await device.doCopyActionWeb();
-            return msg.isEmpty ? successMsg : '$successMsg\n$msg';
+            return ToastResult(
+              message: msg.isEmpty ? successMsg : '$successMsg\n$msg',
+            );
           });
         },
       ),
@@ -448,7 +485,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           await DeviceCard.commonActionFuncWithToastr(
               context, device, onChanged, () async {
             await device.doPasteTextActionWeb();
-            return successMsg;
+            return ToastResult(message: successMsg);
           });
         },
       ),

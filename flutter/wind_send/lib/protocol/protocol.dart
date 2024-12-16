@@ -311,21 +311,29 @@ class PathInfo {
     data['size'] = size;
     return data;
   }
+
+  bool isFile() {
+    return type == PathType.file;
+  }
+
+  bool isDir() {
+    return type == PathType.dir;
+  }
 }
 
 class DownloadInfo {
-  /// 文件在服务端设备上的路径
+  /// The path of the file on the server device
   String remotePath;
 
-  /// 文件在本地设备上的相对保存路径
+  /// The relative save path of the file on the local device
   String savePath;
 
-  /// 传输类型
+  /// The transfer type.
+  ///
+  /// Do not recursively download files in directories, as these files are already included in the Download list.
   PathType type;
-  // static const String pathInfoTypeFile = 'file';
-  // static const String pathInfoTypeDir = 'dir';
 
-  /// 文件大小(字节)，目录为0
+  /// The file size in bytes, 0 for directories
   int size;
 
   DownloadInfo(this.remotePath, this.savePath, this.size,
@@ -344,5 +352,13 @@ class DownloadInfo {
     data['type'] = type;
     data['size'] = size;
     return data;
+  }
+
+  bool isFile() {
+    return type == PathType.file;
+  }
+
+  bool isDir() {
+    return type == PathType.dir;
   }
 }

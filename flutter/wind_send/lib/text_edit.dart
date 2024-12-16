@@ -5,6 +5,7 @@ import 'language.dart';
 import 'utils.dart';
 import 'device.dart';
 import 'device_card.dart';
+import 'toast.dart';
 
 enum SendTextMethod {
   p2p("P2P"),
@@ -120,7 +121,7 @@ class TextEditPageState extends State<TextEditPage> {
                       widget.device, (_) => widget.onChanged(), () {
                     return widget.device
                         .doPasteTextAction(text: _controller.text)
-                        .then((_) => successMsg);
+                        .then((_) => ToastResult(message: successMsg));
                   });
                 } else {
                   await widget.device

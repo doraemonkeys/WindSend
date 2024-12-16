@@ -20,6 +20,7 @@ import 'sorting.dart';
 import 'about.dart';
 import 'device.dart';
 import 'device_card.dart';
+import 'toast.dart';
 
 const String appName = 'WindSend';
 // bool _showRefreshCompleteIndicator = false;
@@ -495,9 +496,11 @@ class _MainBodyState extends State<MainBody> {
             await defaultDevice.doPasteTextAction(text: text);
           }
         }
-        return appWidgetKey.currentContext?.formatString(
-                AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
-            'share success';
+        return ToastResult(
+          message: appWidgetKey.currentContext?.formatString(
+                  AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
+              'share success',
+        );
       });
     }
 
@@ -585,12 +588,20 @@ class _MainBodyState extends State<MainBody> {
           () async {
             var (respText, sentText) = await defaultDevice.doSyncTextAction();
             if (respText.isNotEmpty && sentText.isEmpty) {
-              return '${context.formatString(AppLocale.copySuccess, [])}\n$respText';
+              return ToastResult(
+                message:
+                    '${context.formatString(AppLocale.copySuccess, [])}\n$respText',
+                shareText: respText,
+              );
             }
             if (respText.isEmpty && sentText.isNotEmpty) {
-              return context.formatString(AppLocale.pasteSuccess, []);
+              return ToastResult(
+                message: context.formatString(AppLocale.pasteSuccess, []),
+              );
             }
-            return context.formatString(AppLocale.syncTextSuccess, []);
+            return ToastResult(
+              message: context.formatString(AppLocale.syncTextSuccess, []),
+            );
           },
           showIndicator: false,
         );
