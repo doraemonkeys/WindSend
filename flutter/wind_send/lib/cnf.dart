@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter_localization/flutter_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -284,6 +285,11 @@ class AppSharedCnfService {
     return (jsonDecode(value) as Map<String, dynamic>).cast<String, String?>();
   }
 
+  static bool get isLocationPermissionDialogShown =>
+      _sp.getBool('IsLocationPermissionDialogShown') ?? false;
+  static set isLocationPermissionDialogShown(bool value) =>
+      _sp.setBool('IsLocationPermissionDialogShown', value);
+
   static set bssidDeviceNameMap(Map<String, String?> value) =>
       _sp.setString('BssidDeviceNameMap', json.encode(value));
 
@@ -466,14 +472,55 @@ class MatchActionResp {
   }
 }
 
+Future<void> showFirstTimeLocationPermissionDialog(
+    BuildContext context, Device device) async {
+  if (AppSharedCnfService.isLocationPermissionDialogShown) {
+    return;
+  }
+  AppSharedCnfService.isLocationPermissionDialogShown = true;
+
+  // location permission dialog
+  if ((Platform.isIOS || Platform.isAndroid) &&
+      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+    await alertDialogFunc(
+        context, Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
+        content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
+        onConfirmed: () async {
+      try {
+        await checkOrRequestNetworkPermission();
+        await saveDeviceWifiBssid(device);
+      } catch (e) {
+        AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+      }
+    });
+  }
+}
+
+bool networkPermissionChecked = false;
+
 Future<void> saveDeviceWifiBssid(Device device) async {
-  await checkOrRequestNetworkPermission();
+  if (!AppSharedCnfService.isLocationPermissionDialogShown) {
+    // The first network permission request is completed in the dialog
+    return;
+  }
+  if (!networkPermissionChecked &&
+      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+    try {
+      networkPermissionChecked = true;
+      await checkOrRequestNetworkPermission();
+    } catch (e) {
+      AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+    }
+  }
   final info = NetworkInfo();
   final wifiBSSID = await info.getWifiBSSID();
   // print('saveDeviceWifiBssid: $wifiBSSID');
   if (wifiBSSID == null) {
     return;
   }
+  // if (wifiBSSID == '02:00:00:00:00:00' || wifiBSSID == '00:00:00:00:00:00') {
+  //   return;
+  // }
   var bssidDeviceNameMap = AppSharedCnfService.bssidDeviceNameMap;
   // print('bssidDeviceNameMap: $bssidDeviceNameMap');
   if (bssidDeviceNameMap[wifiBSSID] == device.targetDeviceName) {
@@ -485,8 +532,16 @@ Future<void> saveDeviceWifiBssid(Device device) async {
 }
 
 Future<Device?> getShareDevice() async {
+  if (!networkPermissionChecked &&
+      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+    try {
+      networkPermissionChecked = true;
+      await checkOrRequestNetworkPermission();
+    } catch (e) {
+      AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+    }
+  }
   if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
-    await checkOrRequestNetworkPermission();
     final info = NetworkInfo();
     final wifiBSSID = await info.getWifiBSSID();
     if (wifiBSSID != null) {

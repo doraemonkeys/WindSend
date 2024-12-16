@@ -114,6 +114,9 @@ class DeviceCard extends StatefulWidget {
     if (context.mounted) {
       result.showToast(context);
     }
+    if (result.status == ToastStatus.success && context.mounted) {
+      showFirstTimeLocationPermissionDialog(context, device);
+    }
   }
 
   @override

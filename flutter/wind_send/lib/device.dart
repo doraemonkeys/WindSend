@@ -767,9 +767,7 @@ class Device {
 
   Future<List<String>> pickFiles() async {
     // check permission
-    if (Platform.isAndroid) {
-      await checkOrRequestAndroidPermission();
-    }
+    await checkOrRequestPermission();
     List<String> selectedFilePaths;
     if (Platform.isAndroid && filePickerPackageName.isNotEmpty) {
       try {
@@ -806,9 +804,7 @@ class Device {
 
   Future<String> pickDir() async {
     // check permission
-    if (Platform.isAndroid) {
-      await checkOrRequestAndroidPermission();
-    }
+    await checkOrRequestPermission();
     var selectedDirPath = await FilePicker.platform.getDirectoryPath();
     if (selectedDirPath == null || selectedDirPath.isEmpty) {
       throw UserCancelPickException();

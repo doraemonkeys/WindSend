@@ -423,6 +423,22 @@ class SharedLogger {
   Logger get logger => _logger;
 }
 
+Future<void> checkOrRequestPermission() async {
+  if (Platform.isAndroid) {
+    await checkOrRequestAndroidPermission();
+  }
+  // if ((Platform.isAndroid || Platform.isIOS) &&
+  //     !AppSharedCnfService.isLocationPermissionDialogShown &&
+  //     AppSharedCnfService.autoSelectShareDeviceByBssid) {
+  //   try {
+  //     AppSharedCnfService.isLocationPermissionDialogShown = true;
+  //     await checkOrRequestNetworkPermission();
+  //   } catch (e) {
+  //     AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+  //   }
+  // }
+}
+
 Future<void> checkOrRequestAndroidPermission() async {
   final androidInfo = await DeviceInfoPlugin().androidInfo;
   if (androidInfo.version.sdkInt >= 30 &&

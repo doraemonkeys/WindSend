@@ -93,7 +93,22 @@ class _SettingPageState extends State<SettingPage> {
       leading: const Icon(Icons.wifi),
       initialValue: autoSelectShareDeviceByBssid,
       activeSwitchColor: Theme.of(context).colorScheme.primary,
-      onToggle: (value) {
+      onToggle: (value) async {
+        if (value) {
+          try {
+            await checkOrRequestNetworkPermission();
+          } catch (e) {
+            if (context.mounted) {
+              alertDialogFunc(
+                context,
+                Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
+                content:
+                    Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
+              );
+            }
+            return;
+          }
+        }
         setState(() {
           autoSelectShareDeviceByBssid = value;
         });
