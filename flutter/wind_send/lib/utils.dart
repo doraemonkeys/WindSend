@@ -30,11 +30,10 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   if (await file.length() < 30 * 1024 * 1024) {
     switch (file.path.split('.').last) {
       case 'txt':
-        if (await file.length() > 1 * 1024 * 1024) {
-          item.add(Formats.fileUri(
-              Uri.file(file.path, windows: Platform.isWindows)));
-        } else {
+        if (await file.length() < 1 * 1024 * 1024) {
           item.add(Formats.plainTextFile(await file.readAsBytes()));
+        } else {
+          itemAdded = false;
         }
         break;
       case 'html':
