@@ -42,6 +42,9 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 1. Unzip **WindSend-S-XX-x86_64-linux.zip** to any directory (minimum version 1.3.0).
 
    ```shell
+    sudo apt install libxdo3
+   ```
+   ```shell
     sudo chmod +x *.sh && ./install.sh
    ```
 
