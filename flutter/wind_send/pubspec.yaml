@@ -67,6 +67,10 @@ dependencies:
   share_plus: ^10.1.3
   fluttertoast: ^8.2.10
   open_filex: ^4.6.0
+  media_scanner:
+    git:
+      url: https://github.com/mbfakourii/media_scanner
+      ref: support_gradle_8
 
 dev_dependencies:
   flutter_test:

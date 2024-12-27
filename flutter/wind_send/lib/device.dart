@@ -23,6 +23,8 @@ import 'cnf.dart';
 import 'protocol/protocol.dart';
 import 'file_picker_service.dart';
 import 'main.dart';
+import 'package:media_scanner/media_scanner.dart';
+// import 'package:flutter/services.dart' show rootBundle;
 
 class Device {
   late String targetDeviceName;
@@ -484,6 +486,9 @@ class Device {
           filepath.join(AppConfigModel().imageSavePath, imageName);
       await Directory(AppConfigModel().imageSavePath).create(recursive: true);
       await File(filePath).writeAsBytes(respBody);
+      if (Platform.isAndroid) {
+        MediaScanner.loadMedia(path: filePath);
+      }
       final clipboard = SystemClipboard.instance;
       if (clipboard == null) {
         return (null, <DownloadInfo>[], [filePath]);
@@ -634,6 +639,13 @@ class Device {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null && lastRealSavePath.length == 1) {
         await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
+      }
+    }
+    if (Platform.isAndroid) {
+      String lastImagePath = lastRealSavePath
+          .lastWhere((element) => hasImageExtension(element), orElse: () => '');
+      if (lastImagePath.isNotEmpty) {
+        MediaScanner.loadMedia(path: lastImagePath);
       }
     }
     return lastRealSavePath;
