@@ -337,7 +337,7 @@ enum TaskStatus {
 
 bool hasImageExtension(String name) {
   final ext = name.split('.').last;
-  var extList = [
+  const extList = [
     'jpg',
     'jpeg',
     'png',
@@ -347,6 +347,24 @@ bool hasImageExtension(String name) {
     'svg',
     'ico',
     'tif'
+  ];
+  return extList.contains(ext);
+}
+
+bool hasVideoExtension(String name) {
+  final ext = name.split('.').last;
+  const extList = [
+    'mp4',
+    'mov',
+    'm4v',
+    'avi',
+    'mpeg',
+    'webm',
+    'ogg',
+    'wmv',
+    'flv',
+    'mkv',
+    'ts'
   ];
   return extList.contains(ext);
 }

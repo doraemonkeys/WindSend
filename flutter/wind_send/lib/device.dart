@@ -642,8 +642,9 @@ class Device {
       }
     }
     if (Platform.isAndroid) {
-      String lastImagePath = lastRealSavePath
-          .lastWhere((element) => hasImageExtension(element), orElse: () => '');
+      String lastImagePath = lastRealSavePath.lastWhere(
+          (element) => hasImageExtension(element) || hasVideoExtension(element),
+          orElse: () => '');
       if (lastImagePath.isNotEmpty) {
         MediaScanner.loadMedia(path: lastImagePath);
       }
