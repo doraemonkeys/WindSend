@@ -53,7 +53,7 @@ mixin AppLocale {
   static const String push = 'push';
   static const String useThirdPartyFilePicker = 'useThirdPartyFilePicker';
   static const String filePickerPackageNameHint = 'filePickerPackageNameHint';
-  static const String autoSelectShareDevice = 'autoSelectShareDevice';
+  static const String autoSelectShareSyncDevice = 'autoSelectShareSyncDevice';
   static const String continueWithError = 'continueWithError';
   static const String autoSelectShareSyncDeviceTip = 'selectShareSyncDeviceTip';
   static const String getWIFIBSSIDTitle = 'getWIFIBSSIDTitle';
@@ -114,7 +114,7 @@ mixin AppLocale {
     sendSuccess: '发送成功',
     useThirdPartyFilePicker: '使用第三方文件选择器',
     filePickerPackageNameHint: '请输入文件管理应用的包名',
-    autoSelectShareDevice: '根据WIFI自动选择分享设备',
+    autoSelectShareSyncDevice: '根据WIFI自动选择设备',
     continueWithError: '出现错误还要继续吗',
     autoSelectShareSyncDeviceTip: '此功能需要授予位置权限',
     getWIFIBSSIDTitle: '授予精确定位权限',
@@ -178,7 +178,7 @@ mixin AppLocale {
     useThirdPartyFilePicker: 'Use third party file picker',
     filePickerPackageNameHint:
         'Please enter the package name of the file manager app',
-    autoSelectShareDevice: 'Auto select share device by wifi info',
+    autoSelectShareSyncDevice: 'Auto select device by wifi info',
     continueWithError: 'Continue with error?',
     autoSelectShareSyncDeviceTip: 'This feature requires location permission',
     getWIFIBSSIDTitle: 'Grant precise location permission',

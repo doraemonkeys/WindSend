@@ -89,7 +89,8 @@ class _SettingPageState extends State<SettingPage> {
 
   SettingsTile autoSelectShareDeviceSetting(BuildContext context) {
     return SettingsTile.switchTile(
-      title: Text(context.formatString(AppLocale.autoSelectShareDevice, [])),
+      title:
+          Text(context.formatString(AppLocale.autoSelectShareSyncDevice, [])),
       leading: const Icon(Icons.wifi),
       initialValue: autoSelectShareDeviceByBssid,
       activeSwitchColor: Theme.of(context).colorScheme.primary,
@@ -119,8 +120,8 @@ class _SettingPageState extends State<SettingPage> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title:
-                Text(context.formatString(AppLocale.autoSelectShareDevice, [])),
+            title: Text(
+                context.formatString(AppLocale.autoSelectShareSyncDevice, [])),
             content: Text(jsonEncode(AppSharedCnfService.bssidDeviceNameMap)),
           ),
         );
