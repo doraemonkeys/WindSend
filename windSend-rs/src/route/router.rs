@@ -8,7 +8,7 @@ use tokio_rustls::server::TlsStream;
 use tracing::info;
 use tracing::{debug, error, trace, warn};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum RouteAction {
     #[serde(rename = "ping")]
     Ping,
@@ -224,22 +224,22 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
 
 pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHead, ()> {
     const UNAUTHORIZED_CODE: i32 = 401;
-    // 头部不能超过10KB，以防止恶意攻击导致内存溢出
+    // The header cannot exceed 10KB to prevent malicious attacks from causing memory overflow
     const MAX_HEAD_LEN: isize = 1024 * 10;
 
-    let remote_ip = conn
+    let remote_addr = conn
         .get_ref()
         .0
         .peer_addr()
         .map_err(|e| error!("get peer addr failed, err: {}", e))
         .unwrap_or(std::net::SocketAddr::from(([0, 0, 0, 0], 0)));
-    debug!("try to read head, remote ip: {}", remote_ip);
+    debug!("try to read head, remote ip: {}", remote_addr);
 
-    // 读取json长度
+    // Read the length of the json
     let mut head_len = [0u8; 4];
     if let Err(e) = conn.read_exact(&mut head_len).await {
         match e.kind() {
-            std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_ip),
+            std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_addr),
             _ => error!("read head len failed, err: {}", e),
         }
         return Err(());
@@ -251,7 +251,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     }
     let mut head_buf = vec![0u8; head_len as usize];
     trace!("head_len: {}", head_len);
-    // 读取json
+    // Read the json
     conn.read_exact(&mut head_buf)
         .await
         .map_err(|e| error!("read head failed, err: {}", e))?;
@@ -266,7 +266,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         let msg = format!(
             "search not allowed, deviceName: {}, ip: {}",
             head.device_name,
-            remote_ip.ip()
+            remote_addr.ip()
         );
         warn!("{}", msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
@@ -274,7 +274,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     }
 
     if head.time_ip.is_empty() {
-        let msg = format!("time-ip field is empty, remote ip: {}", remote_ip.ip());
+        let msg = format!("time-ip field is empty, remote ip: {}", remote_addr.ip());
         error!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
@@ -288,7 +288,11 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .decrypt(&time_and_ip_bytes);
 
     if let Err(e) = decrypted {
-        let msg = format!("decrypt failed, err: {}, remote_ip: {}", e, remote_ip.ip());
+        let msg = format!(
+            "decrypt failed, err: {}, remote_ip: {}",
+            e,
+            remote_addr.ip()
+        );
         info!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
@@ -299,18 +303,25 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         String::from_utf8(decrypted).map_err(|e| error!("utf8 decode failed, err: {}", e))?;
     let time_len = EXAMINE_TIME_STR.len();
     if time_and_ip_str.len() < time_len {
-        let msg = format!("time-ip is too short, remote_ip: {}", remote_ip.ip());
+        let msg = format!("time-ip is too short, remote_ip: {}", remote_addr.ip());
         error!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
     }
     let time_str = &time_and_ip_str[..time_len];
-    let ip = &time_and_ip_str[time_len + 1..];
-    trace!("time_str: {}, ip: {}", time_str, ip);
+    // The original address of the remote access
+    let remote_access_host = &time_and_ip_str[time_len + 1..];
+    trace!(
+        "time_str: {}, remote access host: {}",
+        time_str,
+        remote_access_host
+    );
     let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
         .map_err(|e| error!("parse time failed, err: {}", e))?;
     let now = chrono::Utc::now();
+    // Replay attack, if the time difference is greater than MAX_TIME_DIFF seconds, it is considered that the time has expired
     if now.signed_duration_since(t.and_utc()).num_seconds() > MAX_TIME_DIFF {
+        // The problem that cannot be solved: the clock synchronization problem of timestamp verification
         let msg = format!("time expired! recv time: {}, local time: {}", t, now);
         debug!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
@@ -323,25 +334,44 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .map_err(|e| error!("get local addr failed, err: {}", e))?
         .ip()
         .to_string();
-    debug!("ip: {}, myip: {}", ip, myip);
+    debug!(
+        "remote access host: {}, remote ip: {}, my ip: {}",
+        remote_access_host,
+        remote_addr.ip(),
+        myip
+    );
     let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
-    let mut ip = ip;
-    if ip.contains('%') {
-        ip = &ip[..ip.find('%').unwrap()];
+    let mut rah = remote_access_host;
+    if rah.contains('%') {
+        rah = &rah[..rah.find('%').unwrap()];
     }
-    if ip != myip {
+    if rah == myip {
+        return Ok(head);
+    }
+
         {
             let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
-            if !external_ips.is_none() && external_ips.as_ref().unwrap().contains(&ip.to_string()) {
+        if external_ips.is_some() && external_ips.as_ref().unwrap().contains(&rah.to_string()) {
                 return Ok(head);
             }
         }
-        let msg = format!("ip not match: {} != {}", ip, myip);
+    {
+        let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
+        // dbg!(trh);
+        // dbg!(remote_ip.to_string());
+        if trh.is_some()
+            && trh
+                .as_ref()
+                .unwrap()
+                .contains(&remote_addr.ip().to_string())
+        {
+            return Ok(head);
+        }
+    }
+    let msg = format!("ip not match: {} != {}", remote_access_host, myip);
         error!(msg);
         let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
         return Err(());
-    }
-    Ok(head)
 }
 
 async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {

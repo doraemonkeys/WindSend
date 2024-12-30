@@ -22,9 +22,13 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref GLOBAL_CONFIG: RwLock<Config> = RwLock::new(init_global_config());
-}
-lazy_static! {
-    pub static ref LOG_LEVEL: tracing::Level = tracing::Level::INFO;
+    pub static ref LOG_LEVEL: tracing::Level = GLOBAL_CONFIG
+        .read()
+        .map(|config| config
+            .log_level
+            .parse::<tracing::Level>()
+            .unwrap_or(tracing::Level::INFO))
+        .unwrap_or(tracing::Level::INFO);
 }
 lazy_static! {
     pub static ref ALLOW_TO_BE_SEARCHED: Mutex<bool> = Mutex::new(false);
@@ -58,8 +62,18 @@ pub struct Config {
     pub save_path: String,
     #[serde(rename = "language")]
     pub language: crate::language::Language,
+    #[serde(rename = "logLevel", default)]
+    pub log_level: String,
+    // Allow to be searched once after the program starts
+    #[serde(rename = "allowToBeSearchedOnce")]
+    #[serde(default)]
+    pub allow_to_be_searched_once: bool,
+    /// External NAT address of the local machine, other devices may access the local machine through this address
     #[serde(rename = "externalIPs")]
     pub external_ips: Option<Vec<String>>,
+    /// Trusted remote host
+    #[serde(rename = "trustedRemoteHosts", default)]
+    pub trusted_remote_hosts: Option<Vec<String>>,
 }
 
 impl Config {
@@ -117,7 +131,14 @@ impl Config {
                 "./".to_string()
             }),
             language: lang.unwrap_or_default(),
+            log_level: "INFO".to_string(),
+            allow_to_be_searched_once: false,
             external_ips: None,
+            trusted_remote_hosts: Some(vec![
+                "127.0.0.1".to_string(),
+                "localhost".to_string(),
+                "::1".to_string(),
+            ]),
         }
     }
 }
@@ -135,10 +156,19 @@ fn init_global_config() -> Config {
     if let Err(err) = cnf {
         panic!("deserialize config file error: {}", err);
     }
-    let cnf: Config = cnf.unwrap();
+    let mut cnf: Config = cnf.unwrap();
     if let Err(err) = cnf.set() {
         panic!("init_global_config error: {}", err);
     }
+
+    if cnf.allow_to_be_searched_once {
+        *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = true;
+        cnf.allow_to_be_searched_once = false;
+        cnf.save().expect("save config file error");
+    }
+
+    dbg!(&cnf);
+
     cnf
 }
 
@@ -168,7 +198,7 @@ impl std::io::Write for LogWriter {
 }
 
 pub fn init() {
-    init_global_logger();
+    init_global_logger(*LOG_LEVEL);
 
     let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
     let icon_path = current_dir.join(APP_ICON_NAME);
@@ -178,7 +208,7 @@ pub fn init() {
     init_tls_config();
 }
 
-fn init_global_logger() {
+fn init_global_logger(log_level: tracing::Level) {
     let file_appender =
         tracing_appender::rolling::never(DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
     let log_writer = LogWriter::new(file_appender);
@@ -196,7 +226,7 @@ fn init_global_logger() {
         filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt,
     };
     let filter = tracing_subscriber::filter::EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new((*LOG_LEVEL).to_string()))
+        .or_else(|_| EnvFilter::try_new(log_level.to_string()))
         .unwrap()
         // 屏蔽掉reqwest的日志
         .add_directive("reqwest=off".parse().unwrap())
