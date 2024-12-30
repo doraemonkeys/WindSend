@@ -1,6 +1,6 @@
 [package]
 name = "wind_send"
-version = "1.4.8"
+version = "1.4.9"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
