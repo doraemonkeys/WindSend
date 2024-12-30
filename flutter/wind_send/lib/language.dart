@@ -55,7 +55,7 @@ mixin AppLocale {
   static const String filePickerPackageNameHint = 'filePickerPackageNameHint';
   static const String autoSelectShareDevice = 'autoSelectShareDevice';
   static const String continueWithError = 'continueWithError';
-  static const String autoSelectShareDeviceTip = 'autoSelectShareDeviceTip';
+  static const String autoSelectShareSyncDeviceTip = 'selectShareSyncDeviceTip';
   static const String getWIFIBSSIDTitle = 'getWIFIBSSIDTitle';
   static const String getWIFIBSSIDTip = 'getWIFIBSSIDTip';
 
@@ -116,10 +116,10 @@ mixin AppLocale {
     filePickerPackageNameHint: '请输入文件管理应用的包名',
     autoSelectShareDevice: '根据WIFI自动选择分享设备',
     continueWithError: '出现错误还要继续吗',
-    autoSelectShareDeviceTip: '此功能需要授予位置权限',
+    autoSelectShareSyncDeviceTip: '此功能需要授予位置权限',
     getWIFIBSSIDTitle: '授予精确定位权限',
     getWIFIBSSIDTip:
-        'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择分享设备，此功能授予精确定位权限才能使用',
+        'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择分享与同步的设备，此功能授予精确定位权限才能使用',
   };
 
   static const Map<String, dynamic> en = {
@@ -180,10 +180,10 @@ mixin AppLocale {
         'Please enter the package name of the file manager app',
     autoSelectShareDevice: 'Auto select share device by wifi info',
     continueWithError: 'Continue with error?',
-    autoSelectShareDeviceTip: 'This feature requires location permission',
+    autoSelectShareSyncDeviceTip: 'This feature requires location permission',
     getWIFIBSSIDTitle: 'Grant precise location permission',
     getWIFIBSSIDTip:
-        'WindSend needs to get WIFI BSSID information to automatically select share device based on network environment, which requires precise location permission to use',
+        'WindSend requires access to WIFI BSSID information to automatically select devices for sharing and syncing based on the network environment. This feature requires granting precise location permissions to function.',
   };
 
   static List<String> getSupportLanguageCode() {

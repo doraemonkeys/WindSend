@@ -292,7 +292,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 context, device, onChanged, () async {
               var (copiedText, downloadInfos, realSavePaths) =
                   await device.doCopyAction();
-              if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+              if (AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
               if (copiedText != null) {
@@ -373,7 +373,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                   context.formatString(AppLocale.sendSuccess, []);
               Future<bool> f = device.doPasteClipboardAction();
               return f.then((isText) {
-                if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+                if (AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
                   saveDeviceWifiBssid(device);
                 }
                 return ToastResult(
@@ -411,7 +411,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               }
               await device.doSendAction(selectedFilePaths);
               device.clearTemporaryFiles();
-              if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+              if (AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
               return ToastResult(message: successMsg);

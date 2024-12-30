@@ -32,7 +32,7 @@ class SettingPage extends StatefulWidget {
 class _SettingPageState extends State<SettingPage> {
   bool followSystemTheme = AppSharedCnfService.followSystemTheme;
   bool autoSelectShareDeviceByBssid =
-      AppSharedCnfService.autoSelectShareDeviceByBssid;
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid;
   Locale language = AppSharedCnfService.locale;
   String deviceName = AppConfigModel().deviceName;
   String defaultSyncDevice = AppConfigModel().defaultSyncDevice ?? '';
@@ -112,7 +112,7 @@ class _SettingPageState extends State<SettingPage> {
         setState(() {
           autoSelectShareDeviceByBssid = value;
         });
-        AppSharedCnfService.autoSelectShareDeviceByBssid = value;
+        AppSharedCnfService.autoSelectShareSyncDeviceByBssid = value;
       },
       onPressed: (context) {
         // show auto select share device by bssid dialog

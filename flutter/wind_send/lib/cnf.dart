@@ -271,10 +271,10 @@ class AppSharedCnfService {
       _sp.setBool('FollowSystemTheme', value);
 
   /// Auto select share device by wifi bssid
-  static bool get autoSelectShareDeviceByBssid =>
-      _sp.getBool('AutoSelectShareDeviceByBssid') ?? true;
-  static set autoSelectShareDeviceByBssid(bool value) =>
-      _sp.setBool('AutoSelectShareDeviceByBssid', value);
+  static bool get autoSelectShareSyncDeviceByBssid =>
+      _sp.getBool('AutoSelectShareSyncDeviceByBssid') ?? true;
+  static set autoSelectShareSyncDeviceByBssid(bool value) =>
+      _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
 
   /// bssid:device name
   static Map<String, String?> get bssidDeviceNameMap {
@@ -481,7 +481,7 @@ Future<void> showFirstTimeLocationPermissionDialog(
 
   // location permission dialog
   if ((Platform.isIOS || Platform.isAndroid) &&
-      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
     await alertDialogFunc(
         context, Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
         content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
@@ -490,7 +490,7 @@ Future<void> showFirstTimeLocationPermissionDialog(
         await checkOrRequestNetworkPermission();
         await saveDeviceWifiBssid(device);
       } catch (e) {
-        AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+        AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
       }
     });
   }
@@ -504,12 +504,12 @@ Future<void> saveDeviceWifiBssid(Device device) async {
     return;
   }
   if (!networkPermissionChecked &&
-      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
     try {
       networkPermissionChecked = true;
       await checkOrRequestNetworkPermission();
     } catch (e) {
-      AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
     }
   }
   final info = NetworkInfo();
@@ -531,17 +531,20 @@ Future<void> saveDeviceWifiBssid(Device device) async {
   AppSharedCnfService.bssidDeviceNameMap = bssidDeviceNameMap;
 }
 
-Future<Device?> getShareDevice() async {
+Future<Device?> resolveTargetDevice({
+  bool defaultShareDevice = false,
+  bool defaultSyncDevice = false,
+}) async {
   if (!networkPermissionChecked &&
-      AppSharedCnfService.autoSelectShareDeviceByBssid) {
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
     try {
       networkPermissionChecked = true;
       await checkOrRequestNetworkPermission();
     } catch (e) {
-      AppSharedCnfService.autoSelectShareDeviceByBssid = false;
+      AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
     }
   }
-  if (AppSharedCnfService.autoSelectShareDeviceByBssid) {
+  if (AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
     final info = NetworkInfo();
     final wifiBSSID = await info.getWifiBSSID();
     if (wifiBSSID != null) {
@@ -554,6 +557,13 @@ Future<Device?> getShareDevice() async {
       }
     }
   }
-  return AppSharedCnfService.devices?.firstWhere(
-      (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice);
+  if (defaultShareDevice) {
+    return AppSharedCnfService.devices?.firstWhereOrNull(
+        (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice);
+  }
+  if (defaultSyncDevice) {
+    return AppSharedCnfService.devices?.firstWhereOrNull(
+        (e) => e.targetDeviceName == AppConfigModel().defaultSyncDevice);
+  }
+  return null;
 }

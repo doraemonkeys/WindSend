@@ -446,7 +446,7 @@ class _MainBodyState extends State<MainBody> {
       if (shared.isEmpty) {
         return;
       }
-      var defaultDevice = await getShareDevice();
+      var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
       if (defaultDevice == null) {
         return;
       }
@@ -573,14 +573,16 @@ class _MainBodyState extends State<MainBody> {
       onRefresh: () async {
         if (AppConfigModel().defaultSyncDevice == null ||
             AppConfigModel().defaultSyncDevice!.isEmpty) {
+          // disable sync
           return;
         }
-        if (!widget.devices.any((element) =>
-            element.targetDeviceName == AppConfigModel().defaultSyncDevice!)) {
+        var defaultDevice = await resolveTargetDevice(defaultSyncDevice: true);
+        if (defaultDevice == null) {
           return;
         }
-        var defaultDevice = widget.devices.firstWhere(
-            (e) => e.targetDeviceName == AppConfigModel().defaultSyncDevice!);
+        if (!context.mounted) {
+          return;
+        }
         return DeviceCard.commonActionFuncWithToastr(
           context,
           defaultDevice,
