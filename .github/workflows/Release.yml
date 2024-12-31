@@ -134,7 +134,7 @@ jobs:
 
       - name: Archive artifacts on Ubuntu latest
         if: matrix.os == 'ubuntu-latest'
-        id: build_archive
+        id: build_archive1
         uses: actions/upload-artifact@v4
         with:
           name: WindSend-Archives-ubuntu-latest
@@ -145,7 +145,7 @@ jobs:
 
       - name: Archive artifacts on Ubuntu 22.04
         if: matrix.os == 'ubuntu-22.04'
-        id: build_archive
+        id: build_archive2
         uses: actions/upload-artifact@v4
         with:
           name: WindSend-Archives-ubuntu-22.04
