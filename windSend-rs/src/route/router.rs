@@ -334,13 +334,15 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         .map_err(|e| error!("get local addr failed, err: {}", e))?
         .ip()
         .to_string();
+    let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
+    let remote_ip = remote_addr.ip().to_string();
+    let remote_ip = remote_ip
+        .strip_prefix("::ffff:")
+        .unwrap_or(remote_ip.as_str());
     debug!(
         "remote access host: {}, remote ip: {}, my ip: {}",
-        remote_access_host,
-        remote_addr.ip(),
-        myip
+        remote_access_host, remote_ip, myip
     );
-    let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
     let mut rah = remote_access_host;
     if rah.contains('%') {
         rah = &rah[..rah.find('%').unwrap()];
@@ -359,19 +361,14 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
         // dbg!(trh);
         // dbg!(remote_ip.to_string());
-        if trh.is_some()
-            && trh
-                .as_ref()
-                .unwrap()
-                .contains(&remote_addr.ip().to_string())
-        {
+        if trh.is_some() && trh.as_ref().unwrap().contains(&remote_ip.to_string()) {
             return Ok(head);
         }
     }
     let msg = format!("ip not match: {} != {}", remote_access_host, myip);
     error!(msg);
     let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-    return Err(());
+    Err(())
 }
 
 async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
