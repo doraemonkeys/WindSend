@@ -11,9 +11,18 @@ env:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    # runs-on: [ubuntu-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags || true
+          git tag --sort=-creatordate | head -n 1
 
       # 缓存 cargo 依赖
       - name: Cache cargo registry
@@ -63,6 +72,7 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Setup Flutter
+        if: matrix.os == 'ubuntu-latest'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -72,6 +82,7 @@ jobs:
 
       # download flutter dependencies(to generate pubspec.lock)
       - name: Download Flutter Dependencies
+        if: matrix.os == 'ubuntu-latest'
         working-directory: flutter/wind_send
         run: flutter pub get
       # cache flutter build
@@ -89,7 +100,18 @@ jobs:
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
 
+      - name: Run Build Script on Ubuntu 22.04
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          CI_RUNNING: true # for build script
+          COMPATIBLE_SYSTEM: true
+        working-directory: ./
+        run: |
+          chmod +x ./*.sh
+          ./build_linux.sh
+
       - name: Run Build Script
+        if: matrix.os == 'ubuntu-latest'
         env:
           CI_RUNNING: true # for build script
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -122,6 +144,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags || true
+          git tag --sort=-creatordate | head -n 1
+
       - uses: actions/cache@v4
         with:
           path: |
@@ -195,6 +223,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags || true
+          git tag --sort=-creatordate | head -n 1
+
       - uses: actions/cache@v4
         with:
           path: |

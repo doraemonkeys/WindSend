@@ -21,30 +21,38 @@ fi
 ######################################################################################
 
 # Build WindSend Rust for Linux x86_64
-WindSendRustBin_X86_64LinuxDirName="WindSend-S-Rust-x86_64-linux"
+if TheVariableIsTrue "$COMPATIBLE_SYSTEM"; then
+    WindSendRustBin_X86_64LinuxDirName="WindSend-linux-x64-S-Rust-compatible-$BUILD_TAG"
+else
+    WindSendRustBin_X86_64LinuxDirName="WindSend-linux-x64-S-Rust-$BUILD_TAG"
+fi
 rustBinName="wind_send"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
 cargo build --release
-mkdir -p ../bin/$WindSendRustBin_X86_64LinuxDirName
-cp -r target/release/$rustBinName ../bin/$WindSendRustBin_X86_64LinuxDirName
-mv ../bin/$WindSendRustBin_X86_64LinuxDirName/$rustBinName ../bin/$WindSendRustBin_X86_64LinuxDirName/$WINDSEND_RUST_SERVER_BIN_NAME
-cp install.sh ../bin/$WindSendRustBin_X86_64LinuxDirName
-cp uninstall.sh ../bin/$WindSendRustBin_X86_64LinuxDirName
+mkdir -p ../bin/"$WindSendRustBin_X86_64LinuxDirName"
+cp -r target/release/$rustBinName ../bin/"$WindSendRustBin_X86_64LinuxDirName"
+mv ../bin/"$WindSendRustBin_X86_64LinuxDirName"/$rustBinName ../bin/"$WindSendRustBin_X86_64LinuxDirName"/$WINDSEND_RUST_SERVER_BIN_NAME
+cp install.sh ../bin/"$WindSendRustBin_X86_64LinuxDirName"
+cp uninstall.sh ../bin/"$WindSendRustBin_X86_64LinuxDirName"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$WindSendRustBin_X86_64LinuxDirName
-cp README-EN.md ./bin/$WindSendRustBin_X86_64LinuxDirName
-cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/$WindSendRustBin_X86_64LinuxDirName
+cp README.md ./bin/"$WindSendRustBin_X86_64LinuxDirName"
+cp README-EN.md ./bin/"$WindSendRustBin_X86_64LinuxDirName"
+cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSendRustBin_X86_64LinuxDirName"
 cd ./bin || exit
-zip -r $WindSendRustBin_X86_64LinuxDirName.zip $WindSendRustBin_X86_64LinuxDirName
+zip -r "$WindSendRustBin_X86_64LinuxDirName".zip "$WindSendRustBin_X86_64LinuxDirName"
 
 ######################################################################################
 
 # Build WindSend for linux-musl x86_64
-WindSend_Rust_Bin_X86_64_LinuxMusl_DirName="WindSend-S-Rust-x86_64-linux-musl"
+if TheVariableIsTrue "$COMPATIBLE_SYSTEM"; then
+    WindSend_Rust_Bin_X86_64_LinuxMusl_DirName="WindSend-linux-NoGUI-x64-S-Rust-compatible-$BUILD_TAG"
+else
+    WindSend_Rust_Bin_X86_64_LinuxMusl_DirName="WindSend-linux-NoGUI-x64-S-Rust-$BUILD_TAG"
+fi
 Rust_Target="x86_64-unknown-linux-musl"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
@@ -52,19 +60,19 @@ cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
 rustup target add $Rust_Target
 cargo build --release --target $Rust_Target
-mkdir -p ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
-cp -r target/$Rust_Target/release/$rustBinName ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
-mv ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName/$rustBinName ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName/$WINDSEND_RUST_SERVER_BIN_NAME
-cp install.sh ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
-cp uninstall.sh ../bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
+mkdir -p ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
+cp -r target/$Rust_Target/release/$rustBinName ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
+mv ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"/$rustBinName ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"/$WINDSEND_RUST_SERVER_BIN_NAME
+cp install.sh ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
+cp uninstall.sh ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
-cp README-EN.md ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
-cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
+cp README.md ./bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
+cp README-EN.md ./bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
+cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
 cd ./bin || exit
 # Add Z to sort it to the end
-zip -r Z-$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName.zip $WindSend_Rust_Bin_X86_64_LinuxMusl_DirName
+zip -r "$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName".zip "$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
 
 ######################################################################################
 
@@ -72,24 +80,29 @@ zip -r Z-$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName.zip $WindSend_Rust_Bin_X86_
 
 ######################################################################################
 
+# If the system is compatible, skip the build
+if TheVariableIsTrue "$COMPATIBLE_SYSTEM"; then
+    exit 0
+fi
+
 # Press Enter to continue building WindSend Flutter for Linux x86_64
 if ! TheVariableIsTrue "$CI_RUNNING"; then
     read -rp "Press Enter to continue..."
 fi
 
-flutterX86_64LinuxDirName="WindSend-flutter-x86_64-linux"
+flutterX86_64LinuxDirName="WindSend-linux-x64-flutter-$BUILD_TAG"
 
 # Build WindSend Flutter for Linux x86_64
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_FLUTTER_PATH" || exit
 flutter build linux --release
 
-mkdir -p ../../bin/$flutterX86_64LinuxDirName
-cp -r build/linux/x64/release/bundle/* ../../bin/$flutterX86_64LinuxDirName
+mkdir -p ../../bin/"$flutterX86_64LinuxDirName"
+cp -r build/linux/x64/release/bundle/* ../../bin/"$flutterX86_64LinuxDirName"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$flutterX86_64LinuxDirName
-cp README-EN.md ./bin/$flutterX86_64LinuxDirName
+cp README.md ./bin/"$flutterX86_64LinuxDirName"
+cp README-EN.md ./bin/"$flutterX86_64LinuxDirName"
 
 cd ./bin || exit
-zip -r $flutterX86_64LinuxDirName.zip $flutterX86_64LinuxDirName
+zip -r "$flutterX86_64LinuxDirName".zip "$flutterX86_64LinuxDirName"

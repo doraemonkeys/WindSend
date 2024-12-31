@@ -21,7 +21,7 @@ fi
 ######################################################################################
 
 # Build WindSend Rust for windows x86_64
-WindSendRustBin_X86_64DirName="WindSend-S-Rust-x86_64-windows"
+WindSendRustBin_X86_64DirName="WindSend-windows-x64-S-Rust-$BUILD_TAG"
 rustBinName="wind_send.exe"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
@@ -32,21 +32,21 @@ if ! cargo build --release; then
     exit 1
 fi
 
-mkdir -p ../bin/$WindSendRustBin_X86_64DirName
-cp -r target/release/$rustBinName ../bin/$WindSendRustBin_X86_64DirName
-mv ../bin/$WindSendRustBin_X86_64DirName/$rustBinName ../bin/$WindSendRustBin_X86_64DirName/$WINDSEND_RUST_SERVER_BIN_NAME
+mkdir -p ../bin/"$WindSendRustBin_X86_64DirName"
+cp -r target/release/$rustBinName ../bin/"$WindSendRustBin_X86_64DirName"
+mv ../bin/"$WindSendRustBin_X86_64DirName"/$rustBinName ../bin/"$WindSendRustBin_X86_64DirName"/$WINDSEND_RUST_SERVER_BIN_NAME
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$WindSendRustBin_X86_64DirName
-cp README-EN.md ./bin/$WindSendRustBin_X86_64DirName
-cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/$WindSendRustBin_X86_64DirName
+cp README.md ./bin/"$WindSendRustBin_X86_64DirName"
+cp README-EN.md ./bin/"$WindSendRustBin_X86_64DirName"
+cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSendRustBin_X86_64DirName"
 cd ./bin || exit
-zip -r $WindSendRustBin_X86_64DirName.zip $WindSendRustBin_X86_64DirName
+zip -r "$WindSendRustBin_X86_64DirName".zip "$WindSendRustBin_X86_64DirName"
 
 ######################################################################################
 
 # Build WindSend for windows aarch64
-WindSendRustBin_X86_64DirName="WindSend-S-Rust-arm64-windows"
+WindSendRustBin_X86_64DirName="WindSend-windows-arm64-S-Rust-$BUILD_TAG"
 rustBinName="wind_send.exe"
 rustTarget="aarch64-pc-windows-msvc"
 
@@ -58,16 +58,16 @@ if ! cargo build --target $rustTarget --verbose --release; then
     exit 1
 fi
 
-mkdir -p ../bin/$WindSendRustBin_X86_64DirName
-cp -r target/$rustTarget/release/$rustBinName ../bin/$WindSendRustBin_X86_64DirName
-mv ../bin/$WindSendRustBin_X86_64DirName/$rustBinName ../bin/$WindSendRustBin_X86_64DirName/$WINDSEND_RUST_SERVER_BIN_NAME
+mkdir -p ../bin/"$WindSendRustBin_X86_64DirName"
+cp -r target/$rustTarget/release/$rustBinName ../bin/"$WindSendRustBin_X86_64DirName"
+mv ../bin/"$WindSendRustBin_X86_64DirName"/$rustBinName ../bin/"$WindSendRustBin_X86_64DirName"/$WINDSEND_RUST_SERVER_BIN_NAME
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$WindSendRustBin_X86_64DirName
-cp README-EN.md ./bin/$WindSendRustBin_X86_64DirName
-cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/$WindSendRustBin_X86_64DirName
+cp README.md ./bin/"$WindSendRustBin_X86_64DirName"
+cp README-EN.md ./bin/"$WindSendRustBin_X86_64DirName"
+cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSendRustBin_X86_64DirName"
 cd ./bin || exit
-zip -r $WindSendRustBin_X86_64DirName.zip $WindSendRustBin_X86_64DirName
+zip -r "$WindSendRustBin_X86_64DirName".zip "$WindSendRustBin_X86_64DirName"
 
 ######################################################################################
 
@@ -76,7 +76,7 @@ if ! TheVariableIsTrue "$CI_RUNNING"; then
     read -rp "Press Enter to continue..."
 fi
 
-flutterX86_64DirName="WindSend-flutter-x86_64-windows"
+flutterX86_64DirName="WindSend-windows-x64-flutter-$BUILD_TAG"
 
 # Build WindSend Flutter for windows x86_64
 cd "$WINDSEND_PROJECT_PATH" || exit
@@ -87,12 +87,12 @@ if ! flutter build windows --release; then
     exit 1
 fi
 
-mkdir -p ../../bin/$flutterX86_64DirName
-cp -r build/windows/x64/runner/Release/* ../../bin/$flutterX86_64DirName
+mkdir -p ../../bin/"$flutterX86_64DirName"
+cp -r build/windows/x64/runner/Release/* ../../bin/"$flutterX86_64DirName"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
-cp README.md ./bin/$flutterX86_64DirName
-cp README-EN.md ./bin/$flutterX86_64DirName
+cp README.md ./bin/"$flutterX86_64DirName"
+cp README-EN.md ./bin/"$flutterX86_64DirName"
 
 cd ./bin || exit
-zip -r $flutterX86_64DirName.zip $flutterX86_64DirName
+zip -r "$flutterX86_64DirName".zip "$flutterX86_64DirName"
