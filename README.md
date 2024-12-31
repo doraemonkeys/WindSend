@@ -29,7 +29,7 @@
 
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
-> PC端: 一般可以选择下载 **WindSend-S-Rust**-x86_64-XXXXX.zip (⚠️不要下载flutter版本!!!)
+> PC端: 一般可以选择下载 **x64** 的 **Rust** 版本 (⚠️不要下载flutter版本!!!)
 > 
 > 移动端：一般可以选择下载 **WindSend-flutter**-arm64-v8a-release.apk
 
@@ -39,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. 解压 **WindSend-S-XX-x86_64-linux.zip** 到任意目录(最低版本为 1.3.0)。
+1. 解压 **WindSend-linux-x64-S-Rust-v\*.zip** 到任意目录(最低版本为 1.3.0)。
 
    ```shell
     sudo apt install libxdo3
@@ -47,6 +47,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
    ```shell
     sudo chmod +x *.sh && ./install.sh
    ```
+   > 如果 GLIBC 版本不匹配可以下载 compatible 版本或者自行编译
 
 #### Windows
 

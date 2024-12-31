@@ -29,9 +29,9 @@ A set of applications for quickly and securely transferring clipboards, transfer
 github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/releases)
 
 
-> PC: You can choose to download **WindSend-S-Rust**-x86_64-XXXXX.zip (⚠️Do not download the flutter version!!!)
+> PC: Generally, you can choose to download the **x64 Rust** version (⚠️ Do not download the Flutter version!!!)
 > 
-> Mobile: You can choose to download **WindSend-flutter**-arm64-v8a-release.apk
+> Mobile: Generally, you can choose to download WindSend-flutter-arm64-v8a-release.apk
 
 
 
@@ -39,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. Unzip **WindSend-S-XX-x86_64-linux.zip** to any directory (minimum version 1.3.0).
+1. Unzip **WindSend-linux-x64-S-Rust-v\*.zip** to any directory (minimum version 1.3.0).
 
    ```shell
     sudo apt install libxdo3
@@ -47,10 +47,11 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
    ```shell
     sudo chmod +x *.sh && ./install.sh
    ```
+   > If GLIBC version does not match, you can download compatible version or compile it yourself
 
 #### Windows
 
-1. Unzip **WindSend-S-XX-x86_64-windows.zip** to any directory (Take Windows).
+1. Unzip **WindSend-windows-x64-S-Rust-v\*.zip** to any directory (Take Windows).
 
 2. Double-click the exe file to run:
    Please click to allow windows firewall, **Note** check the public network (bold check, all content is encrypted).
