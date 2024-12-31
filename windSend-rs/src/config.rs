@@ -76,6 +76,16 @@ pub struct Config {
     pub trusted_remote_hosts: Option<Vec<String>>,
 }
 
+#[cfg(not(feature = "disable-systray-support"))]
+fn default_allow_to_be_searched_once() -> bool {
+    false
+}
+
+#[cfg(feature = "disable-systray-support")]
+fn default_allow_to_be_searched_once() -> bool {
+    true
+}
+
 impl Config {
     pub fn empty_check(&self) -> Result<(), String> {
         if self.server_port.is_empty() {
@@ -132,7 +142,7 @@ impl Config {
             }),
             language: lang.unwrap_or_default(),
             log_level: "INFO".to_string(),
-            allow_to_be_searched_once: false,
+            allow_to_be_searched_once: default_allow_to_be_searched_once(),
             external_ips: None,
             trusted_remote_hosts: Some(vec![
                 "127.0.0.1".to_string(),
@@ -156,15 +166,13 @@ fn init_global_config() -> Config {
     if let Err(err) = cnf {
         panic!("deserialize config file error: {}", err);
     }
-    let mut cnf: Config = cnf.unwrap();
+    let cnf: Config = cnf.unwrap();
     if let Err(err) = cnf.set() {
         panic!("init_global_config error: {}", err);
     }
 
     if cnf.allow_to_be_searched_once {
         *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = true;
-        cnf.allow_to_be_searched_once = false;
-        cnf.save().expect("save config file error");
     }
 
     dbg!(&cnf);

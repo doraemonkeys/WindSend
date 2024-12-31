@@ -349,12 +349,12 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         return Ok(head);
     }
 
-        {
-            let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
+    {
+        let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
         if external_ips.is_some() && external_ips.as_ref().unwrap().contains(&rah.to_string()) {
-                return Ok(head);
-            }
+            return Ok(head);
         }
+    }
     {
         let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
         // dbg!(trh);
@@ -369,9 +369,9 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         }
     }
     let msg = format!("ip not match: {} != {}", remote_access_host, myip);
-        error!(msg);
-        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-        return Err(());
+    error!(msg);
+    let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
+    return Err(());
 }
 
 async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
@@ -405,9 +405,23 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
                 .try_send(())
                 .map_err(|e| error!("send close allow to be search failed, err: {}", e));
             *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = false;
+            cancel_allow_to_be_searched_in_config();
             info!("turn off the switch of allowing to be searched");
             Ok(())
         }
         Err(e) => Err(e),
     }
+}
+
+fn cancel_allow_to_be_searched_in_config() {
+    if !crate::config::GLOBAL_CONFIG
+        .read()
+        .unwrap()
+        .allow_to_be_searched_once
+    {
+        return;
+    }
+    let mut cnf = crate::config::GLOBAL_CONFIG.write().unwrap();
+    cnf.allow_to_be_searched_once = false;
+    cnf.save().expect("save config file error");
 }
