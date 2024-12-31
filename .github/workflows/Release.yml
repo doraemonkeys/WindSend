@@ -132,11 +132,23 @@ jobs:
         #   zip -r ./bin/test.zip ./bin/test.txt
         #   echo "Hello, World!" > ./bin/test.apk
 
-      - name: Archive artifacts
+      - name: Archive artifacts on Ubuntu latest
+        if: matrix.os == 'ubuntu-latest'
         id: build_archive
         uses: actions/upload-artifact@v4
         with:
-          name: WindSend-Archives-linux
+          name: WindSend-Archives-ubuntu-latest
+          path: |
+            ./bin/*.zip
+            ./bin/*.apk
+          if-no-files-found: error
+
+      - name: Archive artifacts on Ubuntu 22.04
+        if: matrix.os == 'ubuntu-22.04'
+        id: build_archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindSend-Archives-ubuntu-22.04
           path: |
             ./bin/*.zip
             ./bin/*.apk
