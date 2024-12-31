@@ -27,7 +27,7 @@ rustBinName="wind_send"
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
-cargo build --release
+RUSTFLAGS='-C target-feature=-crt-static' cargo build --release
 mkdir -p ../bin/$WindSendRustBin_X86_64LinuxDirName
 cp -r target/release/$rustBinName ../bin/$WindSendRustBin_X86_64LinuxDirName
 mv ../bin/$WindSendRustBin_X86_64LinuxDirName/$rustBinName ../bin/$WindSendRustBin_X86_64LinuxDirName/$WINDSEND_RUST_SERVER_BIN_NAME
