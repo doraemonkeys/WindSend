@@ -25,7 +25,7 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     } else {
         crate::utils::inform(&body, &head.device_name, None);
     }
-    send_msg(conn, &"粘贴成功".to_string()).await.ok();
+    send_msg(conn, &"Paste success".to_string()).await.ok();
 }
 
 pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
@@ -51,7 +51,7 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         }
     };
     if let Some(body) = body {
-        // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+        // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
         if cur_clipboard_text != body {
             if let Err(e) = crate::config::CLIPBOARD.write_text(body) {
                 let msg = format!("set clipboard text failed, err: {}", e);
@@ -78,7 +78,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         return paste_file_operation_handler(conn, head).await;
     }
 
-    // head.End == 0 && head.Start == 0 表示文件为空
+    // head.End == 0 && head.Start == 0 means the file is empty
     if head.end <= head.start && !(head.end == 0 && head.start == 0) {
         let err_msg = &format!("invalid file part, start:{}, end:{}", head.start, head.end);
         error!("{}", err_msg);
