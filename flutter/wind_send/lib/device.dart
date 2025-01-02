@@ -698,8 +698,11 @@ class Device {
 
       final stream = Directory(itemPath2).list(recursive: true);
       List<dynamic> dirListError = [];
-      var doneStream = StreamController(sync: true);
-      stream.listen((entity) async {
+      await stream.handleError((error) {
+        // Handle stream errors, such as permission denied, folder deletion, etc.
+        dirListError.add(error);
+      }).asyncMap((entity) async {
+        try {
         if (entity is File) {
           allFilePath.add(entity.path);
           var itemSize = await entity.length();
@@ -727,13 +730,11 @@ class Device {
             ));
           }
         }
-      }, onError: (error) {
-        dirListError.add(error);
-      }, onDone: () {
-        doneStream.add(null);
-      });
-      await doneStream.stream.first;
-      doneStream.close();
+        } catch (e) {
+          dirListError.add(e);
+        }
+      }).forEach((_) {});
+
       if (dirListError.isNotEmpty) {
         bool isCancel = false;
         var ctx = appWidgetKey.currentContext;

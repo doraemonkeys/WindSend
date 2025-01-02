@@ -504,15 +504,21 @@ class _MainBodyState extends State<MainBody> {
       });
     }
 
-    ShareDataModel().sharedStream.listen(
+    ShareDataModel()
+        .sharedStream
+        .handleError(handleOnError)
+        .asyncMap(
           handleSharedMediaFile,
-          onError: handleOnError,
-        );
+        )
+        .listen((_) {}, onError: handleOnError);
 
-    ShareDataModel().shared.then(
+    ShareDataModel()
+        .shared
+        .then(
           handleSharedMediaFile,
           onError: handleOnError,
-        );
+        )
+        .catchError(handleOnError);
     // -------------------------------- share --------------------------------
   }
 
