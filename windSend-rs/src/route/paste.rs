@@ -45,9 +45,9 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         Ok(text) => text,
         Err(e) => {
             let msg = format!("read clipboard text failed, err: {}", e);
-            error!("{}", msg);
-            let _ = resp_common_error_msg(conn, &msg).await;
-            return;
+            info!("{}", msg);
+            // let _ = resp_common_error_msg(conn, &msg).await;
+            String::new()
         }
     };
     if let Some(body) = body {
