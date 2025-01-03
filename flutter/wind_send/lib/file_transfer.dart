@@ -476,14 +476,7 @@ class ConnectionManager {
 
   Future<(SecureSocket, Stream<Uint8List>)> getConnection() async {
     if (conns.isEmpty) {
-      var conn = await SecureSocket.connect(
-        device.iP,
-        device.port,
-        onBadCertificate: (X509Certificate certificate) {
-          return true;
-        },
-        timeout: timeout,
-      );
+      var conn = await device.connect(timeout: timeout);
       var stream = conn.asBroadcastStream();
       totalConnNum++;
       return (conn, stream);
