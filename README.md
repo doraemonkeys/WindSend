@@ -51,7 +51,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Windows
 
-1. 解压 **WindSend-S-XX-x86_64-windows.zip** 到任意目录(以Windows为例)。
+1. 解压 **WindSend-windows-x64-S-Rust-v\*.zip** 到任意目录(以Windows为例)。
 
 2. 双击exe文件运行：
 
