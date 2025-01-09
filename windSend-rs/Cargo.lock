@@ -4669,6 +4669,7 @@ dependencies = [
  "cipher",
  "clipboard-rs",
  "crossbeam-channel",
+ "dirs",
  "encoding",
  "hex",
  "home",

@@ -63,6 +63,7 @@ hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.5" }
 clipboard-rs = "0.2.2"
+dirs = "5.0"
 
 # rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 # rustls = { path = "Downloads/rustls-main/rustls/rustls", features = [
