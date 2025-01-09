@@ -114,16 +114,13 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         LANGUAGE_MANAGER.read().unwrap().get_language() == Language::EN,
         None,
     );
-    #[cfg(not(target_os = "linux"))]
     let auto_start = config::GLOBAL_CONFIG.read().unwrap().auto_start;
-    #[cfg(target_os = "linux")]
-    let auto_start = cfg!(target_os = "linux");
     let auto_start_i = CheckMenuItem::new(
         LANGUAGE_MANAGER
             .read()
             .unwrap()
             .translate(LanguageKey::AutoStart),
-        !cfg!(target_os = "linux"),
+        true,
         auto_start,
         None,
     );

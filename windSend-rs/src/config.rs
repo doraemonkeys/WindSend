@@ -18,7 +18,8 @@ pub static APP_ICON_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new
 
 lazy_static! {
     static ref START_HELPER: utils::StartHelper =
-        utils::StartHelper::new(crate::PROGRAM_NAME.to_string());
+        utils::StartHelper::new(crate::PROGRAM_NAME.to_string())
+            .set_icon_relative_path(APP_ICON_NAME.to_string());
 }
 lazy_static! {
     pub static ref GLOBAL_CONFIG: RwLock<Config> = RwLock::new(init_global_config());
@@ -111,7 +112,6 @@ impl Config {
     }
     pub fn set(&self) -> Result<(), String> {
         self.empty_check()?;
-        #[cfg(not(target_os = "linux"))]
         if self.auto_start {
             if let Err(e) = START_HELPER.set_auto_start() {
                 return Err(format!("set_auto_start error: {}", e));
@@ -175,7 +175,7 @@ fn init_global_config() -> Config {
         *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = true;
     }
 
-    dbg!(&cnf);
+    // dbg!(&cnf);
 
     cnf
 }

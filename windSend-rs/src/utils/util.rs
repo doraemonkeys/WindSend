@@ -2,15 +2,22 @@ use std::borrow::Cow;
 use tracing::error;
 
 pub struct StartHelper {
-    #[allow(dead_code)] // linux下未使用
     exe_name: String,
+    icon_relative_path: Option<String>,
 }
 
 impl StartHelper {
     pub fn new(exe_name: String) -> Self {
-        Self { exe_name }
+        Self {
+            exe_name,
+            icon_relative_path: None,
+        }
     }
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    pub fn set_icon_relative_path(mut self, icon_relative_path: String) -> Self {
+        self.icon_relative_path = Some(icon_relative_path);
+        self
+    }
+
     pub fn set_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(target_os = "windows")]
         {
@@ -20,7 +27,26 @@ impl StartHelper {
         {
             self.set_mac_auto_start()
         }
+        #[cfg(target_os = "linux")]
+        {
+            self.set_linux_auto_start()
+        }
         //  #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    }
+
+    pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        #[cfg(target_os = "windows")]
+        {
+            self.unset_win_auto_start()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.unset_mac_auto_start()
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.unset_linux_auto_start()
+        }
     }
 
     #[cfg(target_os = "windows")]
@@ -119,18 +145,6 @@ impl StartHelper {
         Ok(())
     }
 
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        #[cfg(target_os = "windows")]
-        {
-            self.unset_win_auto_start()
-        }
-        #[cfg(target_os = "macos")]
-        {
-            self.unset_mac_auto_start()
-        }
-    }
-
     #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
@@ -161,6 +175,54 @@ impl StartHelper {
             return Ok(());
         }
         std::fs::remove_file(&start_file)?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn set_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        use std::{fs, path::Path};
+
+        let autostart_dir = dirs::config_dir()
+            .ok_or("Could not find config directory")?
+            .join("autostart");
+
+        fs::create_dir_all(&autostart_dir)?;
+
+        let desktop_file_path = autostart_dir.join(format!("{}.desktop", self.exe_name));
+
+        let executable_path = std::env::current_exe()?;
+
+        let icon_path = self.icon_relative_path.as_ref().map(|relative_path| {
+            let exe_dir = executable_path.parent().unwrap_or_else(|| Path::new(""));
+            exe_dir.join(relative_path).display().to_string()
+        });
+
+        let mut desktop_file_content = String::new();
+        desktop_file_content.push_str("[Desktop Entry]\n");
+        desktop_file_content.push_str("Version=1.0\n");
+        desktop_file_content.push_str("Type=Application\n");
+        desktop_file_content.push_str(&format!("Name={}\n", self.exe_name));
+        desktop_file_content.push_str(&format!("Comment={}\n", self.exe_name));
+        desktop_file_content.push_str(&format!("Exec={}\n", executable_path.display()));
+        desktop_file_content.push_str(&format!("Icon={}\n", icon_path.unwrap_or_default()));
+        desktop_file_content.push_str("Terminal=false\n");
+        desktop_file_content.push_str("StartupNotify=false\n");
+
+        fs::write(desktop_file_path, desktop_file_content)?;
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn unset_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let autostart_dir = dirs::config_dir()
+            .ok_or("Could not find config directory")?
+            .join("autostart");
+        let desktop_file_path = autostart_dir.join(format!("{}.desktop", self.exe_name));
+        if !desktop_file_path.exists() {
+            return Ok(());
+        }
+        std::fs::remove_file(desktop_file_path)?;
         Ok(())
     }
 }
