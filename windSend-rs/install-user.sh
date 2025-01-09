@@ -1,8 +1,7 @@
 #!/bin/bash
 
-INSTALL_DIR="/usr/local/WindSend-RS"
+INSTALL_DIR="$HOME/.local/WindSend-RS"
 SERVICE_NAME="windsend"
-# EXECUTABLE_PATH="./run.sh"
 EXECUTABLE_PATH="./WindSend-S-Rust"
 DESCRIPTION="WindSend Rust Server"
 
@@ -17,15 +16,15 @@ if [ -d "$INSTALL_DIR" ]; then
     sleep 6
 fi
 
-sudo mkdir -p "$INSTALL_DIR"
-sudo chown -R "$(whoami)" "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
 
-# echo "安装目录：$INSTALL_DIR"
 echo -e "Install directory: ${RED}$INSTALL_DIR${NC}"
 
 cp -r ./* "$INSTALL_DIR"
 
-sudo tee "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
+mkdir -p "$HOME/.config/systemd/user"
+
+cat >"$HOME/.config/systemd/user/$SERVICE_NAME.service" <<EOF
 [Unit]
 Description=$DESCRIPTION
 After=network.target
@@ -37,32 +36,32 @@ Restart=on-failure
 RestartSec=5s
 StartLimitIntervalSec=600s
 StartLimitBurst=100
-User=$(whoami)
-
+StandardError=syslog
+SyslogIdentifier=$SERVICE_NAME
+Environment=DISPLAY=$DISPLAY
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
 
-sudo chmod +x "$INSTALL_DIR/$(basename $EXECUTABLE_PATH)"
-sudo chmod +x $INSTALL_DIR/*.sh
+chmod +x "$INSTALL_DIR/$(basename $EXECUTABLE_PATH)"
+chmod +x "$INSTALL_DIR"/*.sh
 
-sudo systemctl daemon-reload
-# sudo systemctl start $SERVICE_NAME
-sudo systemctl enable $SERVICE_NAME
+systemctl --user daemon-reload
+systemctl --user enable $SERVICE_NAME
 
 # 启用服务
-if ! sudo systemctl start $SERVICE_NAME; then
+if ! systemctl --user start $SERVICE_NAME; then
     echo -e "${RED}Failed to start the service${NC}"
     exit 1
 fi
 
 # 检查服务状态
 sleep 3
-if [ "$(sudo systemctl is-active $SERVICE_NAME)" == "active" ]; then
+if [ "$(systemctl --user is-active $SERVICE_NAME)" == "active" ]; then
     echo -e "${GREEN}Service started successfully${NC}"
 else
-    echo -e "${RED}Failed to start the service, use 'journalctl -u $SERVICE_NAME -e' to view the log${NC}"
+    echo -e "${RED}Failed to start the service, use 'journalctl --user -u $SERVICE_NAME -e' to view the log${NC}"
     exit 1
 fi
 
