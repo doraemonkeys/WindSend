@@ -37,6 +37,7 @@ Restart=on-failure
 RestartSec=5s
 StartLimitIntervalSec=600s
 StartLimitBurst=100
+Environment=DISPLAY=$DISPLAY # \$Display may change 
 User=$(whoami)
 
 
