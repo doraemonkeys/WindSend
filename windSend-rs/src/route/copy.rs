@@ -231,7 +231,7 @@ async fn send_clipboard_text(conn: &mut TlsStream<TcpStream>) -> Result<(), Stri
     Ok(())
 }
 
-/// 返回是否应该继续循环(比如没有遇到Socket Error)
+/// This function returns whether to continue the loop (for example, not encountering a Socket Error)
 pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
     // 检查文件是否存在
     if !std::path::Path::new(&head.path).exists() {

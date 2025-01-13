@@ -45,6 +45,8 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               SettingsSection.defaultDivider(context),
               secretKeyTile(context),
               SettingsSection.defaultDivider(context),
+              certificateAuthorityTile(context),
+              SettingsSection.defaultDivider(context),
               ListTile(
                 enabled: widget.device.iP != Device.webIP,
                 title: Text(context.formatString(AppLocale.autoSelectIp, [])),
@@ -151,26 +153,6 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                 }
               : null,
         ),
-        // SettingsSection.defaultDivider(context),
-        // SwitchListTile(
-        //   title: Text('${context.formatString(AppLocale.copy, [])}[Web]'),
-        //   value: widget.device.actionWebCopy,
-        //   onChanged: (value) {
-        //     setState(() {
-        //       widget.device.actionWebCopy = value;
-        //     });
-        //   },
-        // ),
-        // SettingsSection.defaultDivider(context),
-        // SwitchListTile(
-        //   title: Text('${context.formatString(AppLocale.pasteText, [])}[Web]'),
-        //   value: widget.device.actionWebPaste,
-        //   onChanged: (value) {
-        //     setState(() {
-        //       widget.device.actionWebPaste = value;
-        //     });
-        //   },
-        // ),
       ],
     );
   }
@@ -255,6 +237,56 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
     );
   }
 
+  ListTile certificateAuthorityTile(BuildContext context) {
+    String trustedCertificateSubtitle = widget.device.trustedCertificate;
+    if (widget.device.trustedCertificate.isNotEmpty) {
+      var lines = widget.device.trustedCertificate.split('\n');
+      if (lines.length > 2) {
+        lines = lines.sublist(0, 2);
+      }
+      trustedCertificateSubtitle = lines.join('\n');
+    } else {
+      trustedCertificateSubtitle =
+          context.formatString(AppLocale.trustedCertificateHint, []);
+    }
+    return ListTile(
+      title: Text(context.formatString(AppLocale.trustedCertificate, [])),
+      subtitle: Text(trustedCertificateSubtitle),
+      onTap: () {
+        final certificateAuthorityController =
+            TextEditingController(text: widget.device.trustedCertificate);
+        alertDialogFunc(
+          context,
+          Text(context.formatString(AppLocale.trustedCertificate, [])),
+          content: Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: certificateAuthorityController,
+              autofocus: true,
+              maxLines: 10,
+              minLines: 3,
+              decoration: InputDecoration(
+                hintText:
+                    context.formatString(AppLocale.trustedCertificateHint, []),
+                border: const OutlineInputBorder(),
+              ),
+              validator: Device.certificateAuthorityValidator(context),
+            ),
+          ),
+          canConfirm: () {
+            return _formKey.currentState?.validate() ?? false;
+          },
+          onConfirmed: () {
+            setState(() {
+              widget.device.trustedCertificate =
+                  certificateAuthorityController.text.trim();
+            });
+          },
+        );
+      },
+    );
+  }
+
   ListTile secretKeyTile(BuildContext context) {
     return ListTile(
       title: const Text('SecretKey'),
@@ -326,20 +358,20 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
 
   ListTile ipTile(BuildContext context) {
     return ListTile(
-      title: const Text('IP'),
+      title: const Text('Host'),
       subtitle: Text(widget.device.iP),
       onTap: () {
         final ipController = TextEditingController(text: widget.device.iP);
         alertDialogFunc(
           context,
-          Text(context.formatString('IP', [])),
+          Text(context.formatString('Host', [])),
           content: Form(
             key: _formKey,
             child: TextFormField(
               controller: ipController,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: context.formatString('IP', []),
+                hintText: context.formatString('Target host or ip', []),
               ),
               validator: Device.ipValidator(context, false),
             ),

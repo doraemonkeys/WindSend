@@ -454,24 +454,6 @@ class ShareDataModel {
   }
 }
 
-class MatchActionResp {
-  String deviceName;
-  String secretKeyHex;
-
-  MatchActionResp(this.deviceName, this.secretKeyHex);
-
-  MatchActionResp.fromJson(Map<String, dynamic> json)
-      : deviceName = json['deviceName'],
-        secretKeyHex = json['secretKeyHex'];
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['deviceName'] = deviceName;
-    data['secretKeyHex'] = secretKeyHex;
-    return data;
-  }
-}
-
 Future<void> showFirstTimeLocationPermissionDialog(
     BuildContext context, Device device) async {
   if (AppSharedCnfService.isLocationPermissionDialogShown) {

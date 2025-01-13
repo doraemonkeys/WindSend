@@ -31,6 +31,7 @@ class Device {
   // late String subtitle;
   late String secretKey;
   late String iP;
+  String trustedCertificate = '';
   // use third party file picker
   String filePickerPackageName = '';
 
@@ -56,6 +57,7 @@ class Device {
     // required this.subtitle,
     required this.iP,
     required this.secretKey,
+    this.trustedCertificate = '',
     this.filePickerPackageName = '',
     this.port = defaultPort,
     this.autoSelect = true,
@@ -75,6 +77,7 @@ class Device {
     iP = device.iP;
     port = device.port;
     secretKey = device.secretKey;
+    trustedCertificate = device.trustedCertificate;
     filePickerPackageName = device.filePickerPackageName;
     autoSelect = device.autoSelect;
     downloadThread = device.downloadThread;
@@ -97,6 +100,7 @@ class Device {
     iP = json['IP'] ?? '';
     port = json['port'] ?? defaultPort;
     secretKey = json['SecretKey'] ?? '';
+    trustedCertificate = json['TrustedCertificate'] ?? '';
     filePickerPackageName = json['FilePickerPackageName'] ?? '';
     autoSelect = json['AutoSelect'] ?? autoSelect;
     downloadThread = json['DownloadThread'] ?? downloadThread;
@@ -119,6 +123,7 @@ class Device {
     data['port'] = port;
     data['AutoSelect'] = autoSelect;
     data['SecretKey'] = secretKey;
+    data['TrustedCertificate'] = trustedCertificate;
     data['DownloadThread'] = downloadThread;
     data['UploadThread'] = uploadThread;
     data['UnFold'] = unFold;
@@ -152,14 +157,23 @@ class Device {
     } else {
       socketFutureTimeout = const Duration(seconds: 5);
     }
-    return SecureSocket.connect(
+    SecurityContext context = SecurityContext();
+    context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
+
+    // Workaround: We cannot set the SNI directly when using SecureSocket.connect.
+    // instead, we connect using a regular socket and then secure it. This allows
+    // us to set the SNI to whatever we want.
+    final sock = await Socket.connect(
       iP,
       port,
-      onBadCertificate: (X509Certificate certificate) {
-        return true;
-      },
       timeout: timeout,
     ).timeout(socketFutureTimeout);
+
+    return SecureSocket.secure(
+      sock,
+      context: context,
+      host: 'fake.windsend.com',
+    );
   }
 
   static String? Function(String?) deviceNameValidator(
@@ -218,6 +232,16 @@ class Device {
   static String? Function(String?) filePickerPackageNameValidator(
       BuildContext context) {
     return (String? value) {
+      return null;
+    };
+  }
+
+  static String? Function(String?) certificateAuthorityValidator(
+      BuildContext context) {
+    return (String? value) {
+      if (value == null || value.isEmpty) {
+        return context.formatString(AppLocale.cannotBeEmpty, ['Certificate']);
+      }
       return null;
     };
   }
@@ -442,6 +466,7 @@ class Device {
     var resp = MatchActionResp.fromJson(jsonDecode(respHead.msg!));
     device.secretKey = resp.secretKeyHex;
     device.targetDeviceName = resp.deviceName;
+    device.trustedCertificate = resp.caCertificate;
     msgController.add(device);
   }
 
@@ -703,33 +728,33 @@ class Device {
         dirListError.add(error);
       }).asyncMap((entity) async {
         try {
-        if (entity is File) {
-          allFilePath.add(entity.path);
-          var itemSize = await entity.length();
-          totalSize += itemSize;
-          // safe check(should not happen,remove later)
-          if (!entity.path.startsWith(itemPath2)) {
-            throw Exception('unexpected file path: ${entity.path}');
-          }
-          String relativePath =
-              filepath.dirname(entity.path.substring(itemPath2.length + 1));
-          fileRelativeSavePath![entity.path] = filepath.join(
-            filepath.basename(itemPath2),
-            relativePath == '.' ? '' : relativePath,
-          );
-        } else if (entity is Directory) {
-          // safe check(should not happen,remove later)
-          if (!entity.path.startsWith(itemPath2)) {
-            throw Exception('unexpected file path: ${entity.path}');
-          }
-          if (await directoryIsEmpty(entity.path)) {
-            String relativePath = entity.path.substring(itemPath2.length + 1);
-            emptyDirs.add(filepath.join(
+          if (entity is File) {
+            allFilePath.add(entity.path);
+            var itemSize = await entity.length();
+            totalSize += itemSize;
+            // safe check(should not happen,remove later)
+            if (!entity.path.startsWith(itemPath2)) {
+              throw Exception('unexpected file path: ${entity.path}');
+            }
+            String relativePath =
+                filepath.dirname(entity.path.substring(itemPath2.length + 1));
+            fileRelativeSavePath![entity.path] = filepath.join(
               filepath.basename(itemPath2),
               relativePath == '.' ? '' : relativePath,
-            ));
+            );
+          } else if (entity is Directory) {
+            // safe check(should not happen,remove later)
+            if (!entity.path.startsWith(itemPath2)) {
+              throw Exception('unexpected file path: ${entity.path}');
+            }
+            if (await directoryIsEmpty(entity.path)) {
+              String relativePath = entity.path.substring(itemPath2.length + 1);
+              emptyDirs.add(filepath.join(
+                filepath.basename(itemPath2),
+                relativePath == '.' ? '' : relativePath,
+              ));
+            }
           }
-        }
         } catch (e) {
           dirListError.add(e);
         }

@@ -58,6 +58,8 @@ mixin AppLocale {
   static const String autoSelectShareSyncDeviceTip = 'selectShareSyncDeviceTip';
   static const String getWIFIBSSIDTitle = 'getWIFIBSSIDTitle';
   static const String getWIFIBSSIDTip = 'getWIFIBSSIDTip';
+  static const String trustedCertificate = 'trustedCertificate';
+  static const String trustedCertificateHint = 'trustedCertificateHint';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -120,6 +122,8 @@ mixin AppLocale {
     getWIFIBSSIDTitle: '授予精确定位权限',
     getWIFIBSSIDTip:
         'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择分享与同步的设备，此功能授予精确定位权限才能使用',
+    trustedCertificate: '证书',
+    trustedCertificateHint: '证书内容可以从 tls/ca_cert.pem 文件中复制',
   };
 
   static const Map<String, dynamic> en = {
@@ -184,6 +188,9 @@ mixin AppLocale {
     getWIFIBSSIDTitle: 'Grant precise location permission',
     getWIFIBSSIDTip:
         'WindSend requires access to WIFI BSSID information to automatically select devices for sharing and syncing based on the network environment. This feature requires granting precise location permissions to function.',
+    trustedCertificate: 'Certificate Authority',
+    trustedCertificateHint:
+        'The certificate content can be copied from tls/ca_cert.pem file',
   };
 
   static List<String> getSupportLanguageCode() {

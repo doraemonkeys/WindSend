@@ -362,3 +362,24 @@ class DownloadInfo {
     return type == PathType.dir;
   }
 }
+
+class MatchActionResp {
+  String deviceName;
+  String secretKeyHex;
+  String caCertificate;
+
+  MatchActionResp(this.deviceName, this.secretKeyHex, this.caCertificate);
+
+  MatchActionResp.fromJson(Map<String, dynamic> json)
+      : deviceName = json['deviceName'],
+        secretKeyHex = json['secretKeyHex'],
+        caCertificate = json['caCertificate'];
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['deviceName'] = deviceName;
+    data['secretKeyHex'] = secretKeyHex;
+    data['caCertificate'] = caCertificate;
+    return data;
+  }
+}

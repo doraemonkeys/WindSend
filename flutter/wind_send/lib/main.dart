@@ -271,6 +271,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
   // final deviceNameController = TextEditingController();
   final ipController = TextEditingController();
   final secretKeyHexController = TextEditingController();
+  final trustedCertificateController = TextEditingController();
   // check name
   String deviceName = '';
   bool autoSelect = true;
@@ -320,6 +321,8 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
                 deviceName = newDevice!.targetDeviceName;
                 ipController.text = newDevice.iP;
                 secretKeyHexController.text = newDevice.secretKey;
+                trustedCertificateController.text =
+                    newDevice.trustedCertificate;
               });
             },
             icon: switch (status) {
@@ -363,7 +366,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
                 controller: ipController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  labelText: 'IP',
+                  labelText: 'Host',
                 ),
                 validator: Device.ipValidator(context, autoSelect),
               )
@@ -376,6 +379,17 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
                 labelText: 'SecretKey',
               ),
               validator: Device.secretKeyValidator(context),
+            ),
+            const Divider(color: Colors.transparent),
+            TextFormField(
+              controller: trustedCertificateController,
+              maxLines: 3,
+              minLines: 1,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Certificate',
+              ),
+              validator: Device.certificateAuthorityValidator(context),
             ),
           ],
         ),
@@ -391,6 +405,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           iP: ipController.text.isEmpty ? '192.168.1.1' : ipController.text,
           secretKey: secretKeyHexController.text,
           autoSelect: autoSelect,
+          trustedCertificate: trustedCertificateController.text,
         );
         if (device.iP.toLowerCase() == Device.webIP) {
           device.iP = Device.webIP;

@@ -1,4 +1,3 @@
-use crate::config::GLOBAL_CONFIG;
 use crate::route::resp::resp_error_msg;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -156,6 +155,8 @@ struct MatchActionRespBody {
     device_name: String,
     #[serde(rename = "secretKeyHex")]
     secret_key_hex: String,
+    #[serde(rename = "caCertificate")]
+    ca_certificate: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -170,9 +171,9 @@ pub enum RouteDataType {
     Binary,
 }
 
-static TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+// static TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 static EXAMINE_TIME_STR: &str = "2023-10-10 01:45:32";
-static MAX_TIME_DIFF: i64 = 300;
+// static MAX_TIME_DIFF: i64 = 300;
 
 pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::TcpStream>) {
     loop {
@@ -316,59 +317,60 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         time_str,
         remote_access_host
     );
-    let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
-        .map_err(|e| error!("parse time failed, err: {}", e))?;
-    let now = chrono::Utc::now();
-    // Replay attack, if the time difference is greater than MAX_TIME_DIFF seconds, it is considered that the time has expired
-    if now.signed_duration_since(t.and_utc()).num_seconds() > MAX_TIME_DIFF {
-        // The problem that cannot be solved: the clock synchronization problem of timestamp verification
-        let msg = format!("time expired! recv time: {}, local time: {}", t, now);
-        debug!(msg);
-        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-        return Err(());
-    }
-    let myip = conn
-        .get_ref()
-        .0
-        .local_addr()
-        .map_err(|e| error!("get local addr failed, err: {}", e))?
-        .ip()
-        .to_string();
-    let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
-    let remote_ip = remote_addr.ip().to_string();
-    let remote_ip = remote_ip
-        .strip_prefix("::ffff:")
-        .unwrap_or(remote_ip.as_str());
-    debug!(
-        "remote access host: {}, remote ip: {}, my ip: {}",
-        remote_access_host, remote_ip, myip
-    );
-    let mut rah = remote_access_host;
-    if rah.contains('%') {
-        rah = &rah[..rah.find('%').unwrap()];
-    }
-    if rah == myip {
-        return Ok(head);
-    }
+    return Ok(head);
+    // let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
+    //     .map_err(|e| error!("parse time failed, err: {}", e))?;
+    // let now = chrono::Utc::now();
+    // // Replay attack, if the time difference is greater than MAX_TIME_DIFF seconds, it is considered that the time has expired
+    // if now.signed_duration_since(t.and_utc()).num_seconds() > MAX_TIME_DIFF {
+    //     // The problem that cannot be solved: the clock synchronization problem of timestamp verification
+    //     let msg = format!("time expired! recv time: {}, local time: {}", t, now);
+    //     debug!(msg);
+    //     let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
+    //     return Err(());
+    // }
+    // let myip = conn
+    //     .get_ref()
+    //     .0
+    //     .local_addr()
+    //     .map_err(|e| error!("get local addr failed, err: {}", e))?
+    //     .ip()
+    //     .to_string();
+    // let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
+    // let remote_ip = remote_addr.ip().to_string();
+    // let remote_ip = remote_ip
+    //     .strip_prefix("::ffff:")
+    //     .unwrap_or(remote_ip.as_str());
+    // debug!(
+    //     "remote access host: {}, remote ip: {}, my ip: {}",
+    //     remote_access_host, remote_ip, myip
+    // );
+    // let mut rah = remote_access_host;
+    // if rah.contains('%') {
+    //     rah = &rah[..rah.find('%').unwrap()];
+    // }
+    // if rah == myip {
+    //     return Ok(head);
+    // }
 
-    {
-        let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
-        if external_ips.is_some() && external_ips.as_ref().unwrap().contains(&rah.to_string()) {
-            return Ok(head);
-        }
-    }
-    {
-        let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
-        // dbg!(trh);
-        // dbg!(remote_ip.to_string());
-        if trh.is_some() && trh.as_ref().unwrap().contains(&remote_ip.to_string()) {
-            return Ok(head);
-        }
-    }
-    let msg = format!("ip not match: {} != {}", remote_access_host, myip);
-    error!(msg);
-    let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-    Err(())
+    // {
+    //     let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
+    //     if external_ips.is_some() && external_ips.as_ref().unwrap().contains(&rah.to_string()) {
+    //         return Ok(head);
+    //     }
+    // }
+    // {
+    //     let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
+    //     // dbg!(trh);
+    //     // dbg!(remote_ip.to_string());
+    //     if trh.is_some() && trh.as_ref().unwrap().contains(&remote_ip.to_string()) {
+    //         return Ok(head);
+    //     }
+    // }
+    // let msg = format!("ip not match: {} != {}", remote_access_host, myip);
+    // error!(msg);
+    // let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
+    // Err(())
 }
 
 async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
@@ -376,6 +378,14 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
         .map_err(|e| error!("get hostname failed, err: {}", e))
         .unwrap_or_default();
     let hostname: String = hostname.to_string_lossy().to_string();
+    let ca_certificate = match crate::config::read_ca_certificate_pem() {
+        Ok(ca_certificate) => ca_certificate,
+        Err(e) => {
+            error!("read ca certificate failed, err: {}", e);
+            let _ = crate::route::resp::resp_common_error_msg(conn, &e.to_string()).await;
+            return Err(());
+        }
+    };
     let action_resp = MatchActionRespBody {
         device_name: hostname,
         secret_key_hex: crate::config::GLOBAL_CONFIG
@@ -383,6 +393,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
             .unwrap()
             .secret_key_hex
             .clone(),
+        ca_certificate,
     };
     let action_resp = serde_json::to_vec(&action_resp);
     if let Err(e) = &action_resp {
@@ -396,11 +407,9 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     match r {
         Ok(_) => {
             #[cfg(not(feature = "disable-systray-support"))]
-            let _ = crate::TX_CLOSE_QUICK_PAIR
-                .get()
-                .unwrap()
-                .try_send(())
-                .map_err(|e| error!("send close allow to be search failed, err: {}", e));
+            if let Err(e) = crate::TX_CLOSE_QUICK_PAIR.get().unwrap().try_send(()) {
+                error!("send close allow to be search failed, err: {}", e);
+            }
             *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = false;
             cancel_allow_to_be_searched_in_config();
             info!("turn off the switch of allowing to be searched");

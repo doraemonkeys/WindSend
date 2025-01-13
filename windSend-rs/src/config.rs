@@ -11,6 +11,8 @@ static CONFIG_FILE_PATH: &str = "config.yaml";
 static TLS_DIR: &str = "./tls";
 static TLS_CERT_FILE: &str = "cert.pem";
 static TLS_KEY_FILE: &str = "key.pem";
+static TLS_CA_CERT_FILE: &str = "ca_cert.pem";
+static TLS_CA_KEY_FILE: &str = "ca_key.pem";
 static APP_ICON_NAME: &str = "icon-192.png";
 pub const DEFAULT_LOG_DIR: &str = "./logs";
 
@@ -112,6 +114,7 @@ impl Config {
     }
     pub fn set(&self) -> Result<(), String> {
         self.empty_check()?;
+        #[cfg(not(all(target_os = "linux", feature = "disable-systray-support")))]
         if self.auto_start {
             if let Err(e) = START_HELPER.set_auto_start() {
                 return Err(format!("set_auto_start error: {}", e));
@@ -262,19 +265,28 @@ fn init_tls_config() {
     }
     let cert_path = Path::new(TLS_DIR).join(TLS_CERT_FILE);
     let key_path = Path::new(TLS_DIR).join(TLS_KEY_FILE);
-    // 删除他们，方便调试
+    let ca_cert_path = Path::new(TLS_DIR).join(TLS_CA_CERT_FILE);
+    let ca_key_path = Path::new(TLS_DIR).join(TLS_CA_KEY_FILE);
+    // Remove them, for easy debugging
     // std::fs::remove_file(&cert_path).ok();
     // std::fs::remove_file(&key_path).ok();
     // check file
-    if !cert_path.exists() || !key_path.exists() {
-        let result = utils::tls::generate_self_signed_cert_with_privkey();
+    if !cert_path.exists() || !key_path.exists() || !ca_cert_path.exists() || !ca_key_path.exists()
+    {
+        let result = utils::tls::generate_ca_and_signed_certificate_pair();
         if let Err(err) = result {
             panic!("init_tls_config error: {}", err);
         }
-        let (cert_pem, priv_pem) = result.unwrap();
+        let ([cert_pem, priv_pem], [ca_cert_pem, ca_key_pem]) = result.unwrap();
         std::fs::write(cert_path, cert_pem).unwrap();
         std::fs::write(key_path, priv_pem).unwrap();
+        std::fs::write(ca_cert_path, ca_cert_pem).unwrap();
+        std::fs::write(ca_key_path, ca_key_pem).unwrap();
     }
+}
+
+pub fn read_ca_certificate_pem() -> std::io::Result<String> {
+    std::fs::read_to_string(Path::new(TLS_DIR).join(TLS_CA_CERT_FILE))
 }
 
 pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::error::Error>> {
