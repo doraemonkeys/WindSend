@@ -67,6 +67,8 @@ pub enum LanguageKey {
     CopySuccessfully,
     EffectiveAfterRestart,
     DirCreatedSuccessfully,
+    RelayConnected,
+    RelayServerNotConnected,
 }
 
 impl LanguageKey {
@@ -146,6 +148,14 @@ lazy_static! {
         (
             LanguageKey::DirCreatedSuccessfully,
             String::from("Directory created successfully")
+        ),
+        (
+            LanguageKey::RelayConnected,
+            String::from("Server Connected")
+        ),
+        (
+            LanguageKey::RelayServerNotConnected,
+            String::from("Server Disconnected")
         )
     ]
     .into_iter()
@@ -202,6 +212,11 @@ lazy_static! {
         (
             LanguageKey::DirCreatedSuccessfully,
             String::from("文件夹创建成功")
+        ),
+        (LanguageKey::RelayConnected, String::from("中转已连接")),
+        (
+            LanguageKey::RelayServerNotConnected,
+            String::from("中转未连接")
         )
     ]
     .into_iter()

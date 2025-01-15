@@ -10,10 +10,10 @@ use tray_icon::TrayIconBuilder;
 
 use crate::config;
 use crate::language::{Language, LanguageKey, LANGUAGE_MANAGER};
+use crate::status::SELECTED_FILES;
 use crate::utils;
 use crate::web;
 use crate::PROGRAM_NAME;
-use crate::SELECTED_FILES;
 
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{
@@ -33,6 +33,7 @@ pub struct MenuReceiver {
     pub rx_reset_files_item: crossbeam_channel::Receiver<()>,
     // pub rx_close_allow_to_be_searched: crossbeam_channel::Receiver<()>,
     pub rx_close_quick_pair: crossbeam_channel::Receiver<()>,
+    pub rx_update_relay_server_connected: crossbeam_channel::Receiver<()>,
 }
 
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
@@ -133,6 +134,24 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         *config::ALLOW_TO_BE_SEARCHED.lock().unwrap(),
         None,
     );
+    let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
+    let relay_server_connected_str = if relay_server_connected {
+        LANGUAGE_MANAGER
+            .read()
+            .unwrap()
+            .translate(LanguageKey::RelayConnected)
+    } else {
+        LANGUAGE_MANAGER
+            .read()
+            .unwrap()
+            .translate(LanguageKey::RelayServerNotConnected)
+    };
+    let relay_server_connected_i = CheckMenuItem::new(
+        relay_server_connected_str,
+        false,
+        relay_server_connected,
+        None,
+    );
     let copy_from_web_i = MenuItem::new(
         LANGUAGE_MANAGER
             .read()
@@ -214,11 +233,13 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         true,
         None,
     );
+
     let items: &[&dyn IsMenuItem] = &[
         &add_files_i,
         &clear_files_i,
         // &copy_from_web_i,
         // &paste_to_web_i,
+        &relay_server_connected_i,
         &PredefinedMenuItem::separator(),
         &save_path_i,
         &sub_menu_hide,
@@ -260,6 +281,21 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 .unwrap()
                 .translate(LanguageKey::ClearFiles)
                 .clone()
+        }),
+        (&relay_server_connected_i, &|| {
+            if *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap() {
+                LANGUAGE_MANAGER
+                    .read()
+                    .unwrap()
+                    .translate(LanguageKey::RelayConnected)
+                    .clone()
+            } else {
+                LANGUAGE_MANAGER
+                    .read()
+                    .unwrap()
+                    .translate(LanguageKey::RelayServerNotConnected)
+                    .to_owned()
+            }
         }),
         (&sub_menu_hide, &|| {
             LANGUAGE_MANAGER
@@ -367,7 +403,11 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
             allow_to_be_search_i.set_checked(false);
             should_poll = false;
         }
-        // 不能一直阻塞在这里，否则右键点击托盘图标会没有反应
+        if mr.rx_update_relay_server_connected.try_recv().is_ok() {
+            handle_menu_event_update_relay_server_connected(&relay_server_connected_i);
+        }
+        // cannot remain blocked here indefinitely,
+        // otherwise right-clicking on the tray icon will not respond.
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
                 id if id == sub_hide_once_i.id() => {
@@ -506,6 +546,22 @@ async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem)
             .translate(LanguageKey::AddFiles),
         selected_files.len()
     ));
+}
+
+fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &CheckMenuItem) {
+    let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
+    relay_server_connected_i.set_checked(relay_server_connected);
+    relay_server_connected_i.set_text(if relay_server_connected {
+        LANGUAGE_MANAGER
+            .read()
+            .unwrap()
+            .translate(LanguageKey::RelayConnected)
+    } else {
+        LANGUAGE_MANAGER
+            .read()
+            .unwrap()
+            .translate(LanguageKey::RelayServerNotConnected)
+    });
 }
 
 async fn handle_menu_event_save_path() {

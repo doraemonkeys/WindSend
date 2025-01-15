@@ -317,7 +317,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         time_str,
         remote_access_host
     );
-    return Ok(head);
+    Ok(head)
     // let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
     //     .map_err(|e| error!("parse time failed, err: {}", e))?;
     // let now = chrono::Utc::now();
@@ -407,7 +407,11 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     match r {
         Ok(_) => {
             #[cfg(not(feature = "disable-systray-support"))]
-            if let Err(e) = crate::TX_CLOSE_QUICK_PAIR.get().unwrap().try_send(()) {
+            if let Err(e) = crate::status::TX_CLOSE_QUICK_PAIR
+                .get()
+                .unwrap()
+                .try_send(())
+            {
                 error!("send close allow to be search failed, err: {}", e);
             }
             *crate::config::ALLOW_TO_BE_SEARCHED.lock().unwrap() = false;

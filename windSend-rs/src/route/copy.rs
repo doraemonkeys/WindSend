@@ -1,6 +1,7 @@
 use crate::language::{LanguageKey, LANGUAGE_MANAGER};
 use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
 use crate::route::{RouteDataType, RouteRecvHead, RouteRespHead, RouteTransferInfo};
+use crate::status;
 use std::path::PathBuf;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -8,7 +9,7 @@ use tracing::{debug, error, info, warn};
 
 pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
     // 用户选择的文件
-    let selected_files = crate::SELECTED_FILES.get();
+    let selected_files = status::SELECTED_FILES.get();
     let files = match selected_files {
         Some(selected) => {
             let selected = selected.lock().unwrap();
@@ -23,9 +24,9 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
         let r = send_files(conn, files).await;
         if r.is_ok() {
             #[cfg(not(feature = "disable-systray-support"))]
-            crate::TX_RESET_FILES.get().unwrap().try_send(()).unwrap();
+            status::TX_RESET_FILES.get().unwrap().try_send(()).unwrap();
         }
-        *crate::SELECTED_FILES.get().unwrap().lock().unwrap() = std::collections::HashSet::new();
+        *status::SELECTED_FILES.get().unwrap().lock().unwrap() = std::collections::HashSet::new();
         return;
     }
 

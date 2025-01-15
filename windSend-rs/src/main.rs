@@ -7,7 +7,10 @@ mod config;
 mod file;
 mod language;
 mod route;
+mod status;
 mod utils;
+
+use std::{collections::HashSet, sync::Mutex};
 
 // #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[cfg(not(feature = "disable-systray-support"))]
@@ -16,14 +19,6 @@ mod icon_bytes;
 mod systray;
 #[cfg(not(feature = "disable-systray-support"))]
 mod web;
-#[cfg(not(feature = "disable-systray-support"))]
-pub static TX_RESET_FILES: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
-#[cfg(not(feature = "disable-systray-support"))]
-pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
-// pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
-
-use std::{collections::HashSet, sync::Mutex};
-pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 #[allow(dead_code)]
 static PROGRAM_NAME: &str = "WindSend-S-Rust";
@@ -41,7 +36,9 @@ fn init() {
         .build()
         .unwrap();
     RUNTIME.set(r).unwrap();
-    SELECTED_FILES.set(Mutex::new(HashSet::new())).unwrap();
+    status::SELECTED_FILES
+        .set(Mutex::new(HashSet::new()))
+        .unwrap();
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         default_panic(panic_info);
@@ -80,11 +77,14 @@ fn main() {
 
         let (tx1, rx1) = crossbeam_channel::bounded(1);
         let (tx2, rx2) = crossbeam_channel::bounded(1);
-        TX_RESET_FILES.set(tx1).unwrap();
-        TX_CLOSE_QUICK_PAIR.set(tx2).unwrap();
+        let (tx3, rx3) = crossbeam_channel::bounded(1);
+        status::TX_RESET_FILES.set(tx1).unwrap();
+        status::TX_CLOSE_QUICK_PAIR.set(tx2).unwrap();
+        status::TX_UPDATE_RELAY_SERVER_CONNECTED.set(tx3).unwrap();
         let rm = systray::MenuReceiver {
             rx_reset_files_item: rx1,
             rx_close_quick_pair: rx2,
+            rx_update_relay_server_connected: rx3,
         };
 
         let return_code = systray::show_systray(rm);
