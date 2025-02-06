@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::borrow::Cow;
 use tracing::error;
 
@@ -19,37 +21,32 @@ impl StartHelper {
     }
 
     pub fn set_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        #[cfg(target_os = "windows")]
-        {
-            self.set_win_auto_start()
-        }
-        #[cfg(target_os = "macos")]
-        {
-            self.set_mac_auto_start()
-        }
-        #[cfg(target_os = "linux")]
-        {
-            self.set_linux_auto_start()
-        }
+        // #[cfg(target_os = "windows")]
+        // {
+        //     self.set_win_auto_start()
+        // }
         //  #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+        match std::env::consts::OS {
+            "windows" => self.set_win_auto_start(),
+            "macos" => self.set_mac_auto_start(),
+            "linux" => self.set_linux_auto_start(),
+            _ => Err(format!("unsupported os: {}", std::env::consts::OS).into()),
+        }
     }
 
     pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        #[cfg(target_os = "windows")]
-        {
-            self.unset_win_auto_start()
-        }
-        #[cfg(target_os = "macos")]
-        {
-            self.unset_mac_auto_start()
-        }
-        #[cfg(target_os = "linux")]
-        {
-            self.unset_linux_auto_start()
+        // #[cfg(target_os = "windows")]
+        // {
+        //     self.unset_win_auto_start()
+        // }
+        match std::env::consts::OS {
+            "windows" => self.unset_win_auto_start(),
+            "macos" => self.unset_mac_auto_start(),
+            "linux" => self.unset_linux_auto_start(),
+            _ => Err(format!("unsupported os: {}", std::env::consts::OS).into()),
         }
     }
 
-    #[cfg(target_os = "windows")]
     fn set_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
@@ -90,7 +87,7 @@ impl StartHelper {
         file.write_all(&content_bytes)?;
         Ok(())
     }
-    #[cfg(target_os = "macos")]
+
     fn set_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let home_dir = home::home_dir().ok_or("failed to get current user home dir")?;
         let start_file = format!(
@@ -145,7 +142,6 @@ impl StartHelper {
         Ok(())
     }
 
-    #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
             home::home_dir().ok_or("failed to get current windows user home dir")?;
@@ -163,7 +159,6 @@ impl StartHelper {
         Ok(())
     }
 
-    #[cfg(target_os = "macos")]
     fn unset_mac_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let home_dir = home::home_dir().ok_or("failed to get current user home dir")?;
         let start_file = format!(
@@ -178,8 +173,7 @@ impl StartHelper {
         Ok(())
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn set_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn set_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         use std::{fs, path::Path};
 
         let autostart_dir = dirs::config_dir()
@@ -213,8 +207,7 @@ impl StartHelper {
         Ok(())
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn unset_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn unset_linux_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let autostart_dir = dirs::config_dir()
             .ok_or("Could not find config directory")?
             .join("autostart");
