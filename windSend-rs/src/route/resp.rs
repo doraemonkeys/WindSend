@@ -9,9 +9,9 @@ use tracing::{error, trace};
 pub static SUCCESS_STATUS_CODE: i32 = 200;
 pub static ERROR_STATUS_CODE: i32 = 400;
 
-pub async fn send_msg_with_body<'a>(
+pub async fn send_msg_with_body(
     conn: &mut TlsStream<TcpStream>,
-    msg: &'a String,
+    msg: &String,
     datatype: crate::route::RouteDataType,
     body: &[u8],
 ) -> Result<(), ()> {
@@ -66,7 +66,7 @@ where
     Ok(())
 }
 
-pub async fn send_msg<'a, W>(writer: &mut W, msg: &'a String) -> Result<(), ()>
+pub async fn send_msg<W>(writer: &mut W, msg: &String) -> Result<(), ()>
 where
     W: AsyncWrite + Unpin + ?Sized,
 {
