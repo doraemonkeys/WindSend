@@ -87,8 +87,8 @@ openssl = { version = "*", features = ["vendored"] }
 tao = "0.31"
 tray-icon = "0.19.2"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
-# rfd 0.14.0 在ubuntu上编译失败
-rfd = "0.15"
+# rfd 0.14.0 0.15.2 在ubuntu上编译失败
+rfd = "0.15.1"
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
