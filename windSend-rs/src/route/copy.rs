@@ -37,6 +37,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
                 if let Err(e) = crate::config::CLIPBOARD.clear() {
                     error!("clear clipboard failed, err: {}", e);
                 }
+                return;
             }
         }
         Err(e) => debug!("get clipboard files failed, err: {}", e),
