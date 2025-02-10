@@ -1,6 +1,6 @@
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 // use anyhow::Ok;
-use rand::thread_rng;
+use rand::rng;
 // use rand::CryptoRng;
 // use rand::Rng;
 use rand::RngCore;
@@ -14,12 +14,12 @@ pub fn rand_n_bytes(rng: &mut rand::rngs::ThreadRng, n: usize) -> Vec<u8> {
 
 pub fn rand_n_bytes2(n: usize) -> Vec<u8> {
     let mut bytes = vec![0u8; n];
-    thread_rng().fill_bytes(&mut bytes);
+    rng().fill_bytes(&mut bytes);
     bytes
 }
 
 pub fn generate_secret_key_hex(byte_len: usize) -> String {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let bytes = rand_n_bytes(&mut rng, byte_len);
     hex::encode(bytes)
 }
