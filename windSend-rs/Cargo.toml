@@ -15,7 +15,7 @@ disable-systray-support = []
 log = "0.4"
 aes = "0.8.3"
 hex = "0.4.3"
-tokio = { version = "1.43", features = ["full"] }
+tokio = { version = "1.42", features = ["full"] }
 rand = "0.9"
 image = "0.25"
 crossbeam-channel = "0.5"
@@ -87,8 +87,8 @@ openssl = { version = "*", features = ["vendored"] }
 tao = "0.31"
 tray-icon = "0.19.2"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
-# rfd 0.14.0 0.15.2 在ubuntu上编译失败
-rfd = "0.15.1"
+# rfd 0.14.0 在ubuntu上编译失败
+rfd = "0.15"
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
