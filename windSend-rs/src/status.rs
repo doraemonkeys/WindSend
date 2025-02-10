@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use std::sync::OnceLock;
 use std::{collections::HashSet, sync::Mutex};
 
