@@ -45,7 +45,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
     sudo apt install libxdo3
    ```
    ```shell
-    sudo chmod +x *.sh && ./install.sh
+    nohup ./WindSend-S-Rust &
    ```
    > If GLIBC version does not match, you can download compatible version or compile it yourself
 
