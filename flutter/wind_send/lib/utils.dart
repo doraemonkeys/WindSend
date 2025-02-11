@@ -29,16 +29,19 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   bool itemAdded = true;
   if (await file.length() < 30 * 1024 * 1024) {
     switch (file.path.split('.').last) {
-      case 'txt':
+      case 'txt' || 'html':
         if (await file.length() < 1 * 1024 * 1024) {
           item.add(Formats.plainTextFile(await file.readAsBytes()));
+          if (file.path.split('.').last == 'html') {
+            item.add(Formats.htmlFile(await file.readAsBytes()));
+          }
         } else {
           itemAdded = false;
         }
         break;
-      case 'html':
-        item.add(Formats.htmlFile(await file.readAsBytes()));
-        break;
+      // case 'html':
+      //   item.add(Formats.htmlFile(await file.readAsBytes()));
+      //   break;
       case 'jpg':
         item.add(Formats.jpeg(await file.readAsBytes()));
         break;
