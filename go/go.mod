@@ -11,9 +11,9 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/wumansgy/goEncrypt v1.1.0
 	golang.design/x/clipboard v0.7.0
-	golang.org/x/net v0.27.0
-	golang.org/x/sys v0.22.0
-	golang.org/x/text v0.16.0
+	golang.org/x/net v0.33.0
+	golang.org/x/sys v0.28.0
+	golang.org/x/text v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
