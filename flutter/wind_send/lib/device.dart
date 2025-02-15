@@ -663,7 +663,11 @@ class Device {
     if (targetItems.length == 1) {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null && lastRealSavePath.length == 1) {
-        await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
+        try {
+          await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
+        } catch (e) {
+          SharedLogger().logger.e('writeFileToClipboard error: $e');
+        }
       }
     }
     if (Platform.isAndroid) {
