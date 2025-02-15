@@ -465,7 +465,12 @@ class _MainBodyState extends State<MainBody> {
       if (defaultDevice == null) {
         return;
       }
-      var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
+      var defaultDeviceIndex = widget.devices.indexWhere(
+        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
+      );
+      if (defaultDeviceIndex == -1) {
+        throw 'unexpect error, default device not found';
+      }
       await DeviceCard.commonActionFuncWithToastr(
         mainBodyKey.currentContext!,
         defaultDevice,
