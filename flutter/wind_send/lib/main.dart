@@ -466,57 +466,61 @@ class _MainBodyState extends State<MainBody> {
         return;
       }
       var defaultDeviceIndex = widget.devices.indexOf(defaultDevice);
-      DeviceCard.commonActionFuncWithToastr(
-          mainBodyKey.currentContext!, defaultDevice, (Device d) {
-        widget.devices[defaultDeviceIndex] = d;
-        AppSharedCnfService.devices = widget.devices;
-        widget.devicesRebuild();
-      }, () async {
-        List<String> fileList = [];
-        String? text;
-        for (var element in shared) {
-          if (element.type == SharedMediaType.file ||
-              element.type == SharedMediaType.image ||
-              element.type == SharedMediaType.video) {
-            fileList.add(element.path);
-            continue;
-          }
-          if (element.mimeType == 'text/html') {
-            if (await File(element.path).exists()) {
+      await DeviceCard.commonActionFuncWithToastr(
+        mainBodyKey.currentContext!,
+        defaultDevice,
+        (Device d) {
+          widget.devices[defaultDeviceIndex] = d;
+          AppSharedCnfService.devices = widget.devices;
+          widget.devicesRebuild();
+        },
+        () async {
+          List<String> fileList = [];
+          String? text;
+          for (var element in shared) {
+            if (element.type == SharedMediaType.file ||
+                element.type == SharedMediaType.image ||
+                element.type == SharedMediaType.video) {
               fileList.add(element.path);
-            } else {
-              text = element.path;
+              continue;
             }
-            continue;
+            if (element.mimeType == 'text/html') {
+              if (await File(element.path).exists()) {
+                fileList.add(element.path);
+              } else {
+                text = element.path;
+              }
+              continue;
+            }
+            if (Platform.isAndroid &&
+                element.path.startsWith('/') &&
+                element.path.contains(androidAppPackageName) &&
+                await File(element.path).exists()) {
+              fileList.add(element.path);
+              continue;
+            }
+            text = element.path;
           }
-          if (Platform.isAndroid &&
-              element.path.startsWith('/') &&
-              element.path.contains(androidAppPackageName) &&
-              await File(element.path).exists()) {
-            fileList.add(element.path);
-            continue;
+          if (defaultDevice.iP == Device.webIP && text == null) {
+            throw 'Unsupported operation, web device only support text';
           }
-          text = element.path;
-        }
-        if (defaultDevice.iP == Device.webIP && text == null) {
-          throw 'Unsupported operation, web device only support text';
-        }
-        if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-          await defaultDevice.doSendAction(fileList);
-        }
-        if (text != null) {
-          if (defaultDevice.iP == Device.webIP) {
-            await defaultDevice.doPasteTextActionWeb(text: text);
-          } else {
-            await defaultDevice.doPasteTextAction(text: text);
+          if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
+            await defaultDevice.doSendAction(fileList);
           }
-        }
-        return ToastResult(
-          message: appWidgetKey.currentContext?.formatString(
-                  AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
-              'share success',
-        );
-      });
+          if (text != null) {
+            if (defaultDevice.iP == Device.webIP) {
+              await defaultDevice.doPasteTextActionWeb(text: text);
+            } else {
+              await defaultDevice.doPasteTextAction(text: text);
+            }
+          }
+          return ToastResult(
+            message: appWidgetKey.currentContext?.formatString(
+                    AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
+                'share success',
+          );
+        },
+      );
     }
 
     ShareDataModel()
