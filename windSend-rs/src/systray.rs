@@ -464,8 +464,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     lang_en_i.set_checked(true);
                 }
                 id if id == add_files_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.block_on(handle_menu_event_add_files(&add_files_i, &clear_files_i));
+                    handle_menu_event_add_files(&add_files_i, &clear_files_i);
                     if clear_files_i.is_enabled() {
                         should_poll = true;
                     }
@@ -497,7 +496,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 }
                 id if id == save_path_i.id() => {
                     let r = crate::RUNTIME.get().unwrap();
-                    r.block_on(handle_menu_event_save_path());
+                    r.spawn(handle_menu_event_save_path());
                 }
                 id if id == open_url_i.id() => {
                     if let Err(err) = crate::utils::open_url(crate::PROGRAM_URL) {
@@ -523,9 +522,9 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     exit_code
 }
 
-async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
-    let pick_task = rfd::AsyncFileDialog::new().pick_files();
-    let files = match pick_task.await {
+fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
+    let pick_task = rfd::FileDialog::new().pick_files();
+    let files = match pick_task {
         Some(files) => files,
         None => {
             warn!("pick_files failed or canceled");
@@ -535,7 +534,7 @@ async fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem)
     let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
     for file in files {
         debug!("selected file: {:?}", file);
-        selected_files.insert(file.path().to_str().unwrap().to_string());
+        selected_files.insert(file.as_path().to_str().unwrap().to_string());
     }
     clear_item.set_enabled(true);
     add_item.set_text(format!(
