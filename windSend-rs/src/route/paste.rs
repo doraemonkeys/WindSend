@@ -15,17 +15,21 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     }
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
-    {
-        if let Err(e) = crate::config::CLIPBOARD.write_text(Cow::clone(&body)) {
-            error!("set clipboard text failed, err: {}", e);
-        }
+
+    if let Err(e) = crate::config::CLIPBOARD.write_text(Cow::clone(&body)) {
+        error!("set clipboard text failed, err: {}", e);
+        resp_common_error_msg(conn, &format!("set clipboard failed, err: {}", e))
+            .await
+            .ok();
+        return;
     }
-    if body.trim().starts_with("http") || body.trim().starts_with("https") {
+    send_msg(conn, &"Paste success".to_string()).await.ok();
+
+    if body.trim().starts_with("http") {
         crate::utils::inform(&body, &head.device_name, Some(&body));
     } else {
         crate::utils::inform(&body, &head.device_name, None);
     }
-    send_msg(conn, &"Paste success".to_string()).await.ok();
 }
 
 pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
