@@ -420,12 +420,12 @@ pub fn inform<T: AsRef<str>>(
     #[cfg(not(target_os = "windows"))]
     {
         use notify_rust::Notification;
-        Notification::new()
-            .summary(title)
-            .appname(crate::PROGRAM_NAME)
-            .body(&body)
-            .icon(crate::config::APP_ICON_PATH.get().unwrap())
-            .show()
+        let mut n = Notification::new();
+        n.summary(title).body(&body).appname(crate::PROGRAM_NAME);
+        #[cfg(not(target_os = "macos"))]
+        n.icon(crate::config::APP_ICON_PATH.get().unwrap());
+
+        n.show()
             .map_err(|err| error!("show notification error: {}", err))
             .ok();
     }

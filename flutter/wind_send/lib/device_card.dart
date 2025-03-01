@@ -70,9 +70,7 @@ class DeviceCard extends StatefulWidget {
         if (tempErr is UserCancelPickException) {
           return ToastResult(message: 'canceled');
         }
-        if (tempErr is FilePickerException) {
-          throw tempErr;
-        }
+        throw tempErr;
       }
       if (i >= 1) {
         throw tempErr;

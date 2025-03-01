@@ -20,25 +20,29 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   if (clipboard == null) {
     return;
   }
+  final fileSize = await file.length();
   if (Platform.isIOS) {
-    if (await file.length() > 30 * 1024 * 1024) {
+    if (fileSize > 30 * 1024 * 1024) {
       return;
     }
   }
   final item = DataWriterItem();
   bool itemAdded = true;
-  if (await file.length() < 30 * 1024 * 1024) {
+  if (fileSize < 30 * 1024 * 1024) {
     switch (file.path.split('.').last) {
-      case 'txt':
-        if (await file.length() < 1 * 1024 * 1024) {
+      case 'txt' || 'html':
+        if (fileSize < 1 * 1024 * 1024) {
           item.add(Formats.plainTextFile(await file.readAsBytes()));
+          if (file.path.split('.').last == 'html') {
+            item.add(Formats.htmlFile(await file.readAsBytes()));
+          }
         } else {
           itemAdded = false;
         }
         break;
-      case 'html':
-        item.add(Formats.htmlFile(await file.readAsBytes()));
-        break;
+      // case 'html':
+      //   item.add(Formats.htmlFile(await file.readAsBytes()));
+      //   break;
       case 'jpg':
         item.add(Formats.jpeg(await file.readAsBytes()));
         break;
@@ -195,9 +199,11 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
       default:
         itemAdded = false;
     }
+  } else {
+    itemAdded = false;
   }
 
-  Future<void> writeFileUri(DataWriterItem item) async {
+  Future<void> addFileUri(DataWriterItem item) async {
     item.add(Formats.fileUri(Uri.file(file.path, windows: Platform.isWindows)));
   }
 
@@ -205,7 +211,7 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
     try {
       await ClipboardService.writeFilePath(file.path);
     } catch (e) {
-      SharedLogger().logger.e('writeFileToClipboard error: $e');
+      SharedLogger().logger.e('writeFileChannel error: $e');
     }
   }
 
@@ -213,15 +219,15 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt < 24) {
-        await writeFileUri(item);
+        await addFileUri(item);
       } else {
         await writeFileChannel(item);
         return;
       }
     } else if (Platform.isIOS) {
-      await writeFileUri(item);
+      await addFileUri(item);
     } else {
-      await writeFileUri(item);
+      await addFileUri(item);
     }
   }
   await clipboard.write([item]);

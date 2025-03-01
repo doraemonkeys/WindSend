@@ -163,17 +163,17 @@ class Device {
     // Workaround: We cannot set the SNI directly when using SecureSocket.connect.
     // instead, we connect using a regular socket and then secure it. This allows
     // us to set the SNI to whatever we want.
-    final sock = await Socket.connect(
+    return Socket.connect(
       iP,
       port,
       timeout: timeout,
-    ).timeout(socketFutureTimeout);
-
-    return SecureSocket.secure(
-      sock,
-      context: context,
-      host: 'fake.windsend.com',
-    );
+    ).then((sock) {
+      return SecureSocket.secure(
+        sock,
+        context: context,
+        host: 'fake.windsend.com',
+      );
+    }).timeout(socketFutureTimeout);
   }
 
   static String? Function(String?) deviceNameValidator(
@@ -663,7 +663,11 @@ class Device {
     if (targetItems.length == 1) {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null && lastRealSavePath.length == 1) {
-        await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
+        try {
+          await writeFileToClipboard(clipboard, File(lastRealSavePath[0]));
+        } catch (e) {
+          SharedLogger().logger.e('writeFileToClipboard error: $e');
+        }
       }
     }
     if (Platform.isAndroid) {
