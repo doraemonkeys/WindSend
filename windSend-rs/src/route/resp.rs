@@ -1,4 +1,4 @@
-use crate::language::{LanguageKey, LANGUAGE_MANAGER};
+use crate::language::{LANGUAGE_MANAGER, LanguageKey};
 use crate::route::RouteRecvHead;
 use crate::route::{RouteDataType, RouteRespHead};
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};

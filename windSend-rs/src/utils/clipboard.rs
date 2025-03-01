@@ -1,4 +1,4 @@
-use clipboard_rs::{common::RustImage, Clipboard};
+use clipboard_rs::{Clipboard, common::RustImage};
 use tracing::debug;
 
 pub struct ClipboardManager {

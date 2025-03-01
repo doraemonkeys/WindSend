@@ -1,4 +1,4 @@
-use crate::language::{LanguageKey, LANGUAGE_MANAGER};
+use crate::language::{LANGUAGE_MANAGER, LanguageKey};
 use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
 use crate::route::{RouteDataType, RouteRecvHead, RouteRespHead, RouteTransferInfo};
 use crate::status;

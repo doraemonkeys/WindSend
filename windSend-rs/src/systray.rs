@@ -2,18 +2,18 @@ use tracing::{debug, error, info, warn};
 
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::platform::run_return::EventLoopExtRunReturn;
+use tray_icon::TrayIconBuilder;
 use tray_icon::menu::{
     AboutMetadata, CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
     Submenu, SubmenuBuilder,
 };
-use tray_icon::TrayIconBuilder;
 
+use crate::PROGRAM_NAME;
 use crate::config;
-use crate::language::{Language, LanguageKey, LANGUAGE_MANAGER};
+use crate::language::{LANGUAGE_MANAGER, Language, LanguageKey};
 use crate::status::SELECTED_FILES;
 use crate::utils;
 use crate::web;
-use crate::PROGRAM_NAME;
 
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{

@@ -7,7 +7,7 @@ use std::{
     io::{Error, ErrorKind},
     str::FromStr,
 };
-use time::{ext::NumericalDuration, OffsetDateTime};
+use time::{OffsetDateTime, ext::NumericalDuration};
 
 pub fn generate_signed_certificate(
     issuer: &Certificate,
@@ -53,8 +53,8 @@ pub fn generate_signed_certificate(
     Ok((params.signed_by(&key_pair, issuer, issuer_key)?, key_pair))
 }
 
-pub fn generate_self_signed_ca_certificate(
-) -> Result<(Certificate, KeyPair), Box<dyn std::error::Error>> {
+pub fn generate_self_signed_ca_certificate()
+-> Result<(Certificate, KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, "Doraemon CA");
@@ -89,8 +89,8 @@ pub fn generate_self_signed_ca_certificate(
     Ok((cert, key_pair))
 }
 
-pub fn generate_ca_and_signed_certificate_pair(
-) -> Result<([String; 2], [String; 2]), Box<dyn std::error::Error>> {
+pub fn generate_ca_and_signed_certificate_pair()
+-> Result<([String; 2], [String; 2]), Box<dyn std::error::Error>> {
     let (ca_cert, ca_key) = generate_self_signed_ca_certificate()?;
     let (cert, key_pair) = generate_signed_certificate(&ca_cert, &ca_key)?;
     Ok((
