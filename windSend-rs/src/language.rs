@@ -254,3 +254,7 @@ impl LanguageManager {
         }
     }
 }
+
+pub fn translate(key: LanguageKey) -> &'static String {
+    LANGUAGE_MANAGER.read().unwrap().translate(key)
+}

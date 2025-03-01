@@ -1,5 +1,5 @@
 // hide console window on Windows in release
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::OnceLock;
 use tracing::{debug, error, info, trace, warn};
@@ -114,6 +114,11 @@ async fn async_main() {
         if let Err(e) = socket_ref.set_only_v6(false) {
             warn!("set_only_v6 error: {}", e);
         }
+        // Enable SO_REUSEADDR
+        // if let Err(e) = socket_ref.set_reuse_address(true) {
+        //     error!("Failed to set SO_REUSEADDR: {}", e);
+        //     return;
+        // }
     }
     socket
         .bind((std::net::Ipv6Addr::UNSPECIFIED, server_port).into())
