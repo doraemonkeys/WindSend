@@ -115,7 +115,7 @@ mixin AppLocale {
     syncTextSuccess: '同步文本成功',
     sendSuccess: '发送成功',
     useThirdPartyFilePicker: '使用第三方文件选择器',
-    filePickerPackageNameHint: '请输入文件管理应用的包名',
+    filePickerPackageNameHint: '文件管理应用的包名',
     autoSelectShareSyncDevice: '根据WIFI自动选择设备',
     continueWithError: '出现错误还要继续吗',
     autoSelectShareSyncDeviceTip: '此功能需要授予位置权限',
@@ -180,8 +180,7 @@ mixin AppLocale {
     syncTextSuccess: 'Sync text success',
     sendSuccess: 'Send successfully',
     useThirdPartyFilePicker: 'Use third party file picker',
-    filePickerPackageNameHint:
-        'Please enter the package name of the file manager app',
+    filePickerPackageNameHint: 'The package name of the file manager app',
     autoSelectShareSyncDevice: 'Auto select device by wifi info',
     continueWithError: 'Continue with error?',
     autoSelectShareSyncDeviceTip: 'This feature requires location permission',
