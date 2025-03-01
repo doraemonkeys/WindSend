@@ -314,8 +314,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     let remote_access_host = &time_and_ip_str[time_len + 1..];
     trace!(
         "time_str: {}, remote access host: {}",
-        time_str,
-        remote_access_host
+        time_str, remote_access_host
     );
     Ok(head)
     // let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
