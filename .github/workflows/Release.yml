@@ -303,6 +303,7 @@ jobs:
           name: WindSend-Archives-macos
           path: |
             ./bin/*.zip
+            ./bin/*.dmg
           if-no-files-found: error
 
   release:

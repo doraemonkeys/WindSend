@@ -15,6 +15,9 @@ use crate::status::SELECTED_FILES;
 use crate::utils;
 use crate::web;
 
+#[cfg(target_os = "macos")]
+  use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
+
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{
 //     hotkey::{Code, HotKey},
@@ -65,6 +68,8 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
 
     // before Menu::new()
     let mut event_loop = EventLoopBuilder::new().build();
+    #[cfg(target_os = "macos")]
+    event_loop.set_activation_policy(ActivationPolicy::Accessory);
 
     let icon = load_icon();
     let tray_menu = Menu::new();
@@ -394,7 +399,6 @@ fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
         selected_files.len()
     ));
 }
-
 fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &CheckMenuItem) {
     let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
     relay_server_connected_i.set_checked(relay_server_connected);
@@ -406,21 +410,20 @@ fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &Ch
 }
 
 async fn handle_menu_event_save_path() {
-    let pick_task = rfd::AsyncFileDialog::new().pick_folder();
-    let path = match pick_task.await {
-        Some(path) => path,
-        None => {
-            warn!("pick folder error");
-            return;
+    debug!("Opening folder dialog for save path...");
+    let folder = rfd::FileDialog::new().pick_folder();
+    if let Some(path) = folder {
+        let mut config = config::GLOBAL_CONFIG.write().unwrap();
+        config.save_path = path.as_path().to_str().unwrap().to_string();
+        debug!("Save path updated to: {}", config.save_path);
+        if let Err(err) = config.save_and_set() {
+            error!("Failed to save config: {}", err);
         }
-    };
-    let mut config = config::GLOBAL_CONFIG.write().unwrap();
-    config.save_path = path.path().to_str().unwrap().to_string();
-    debug!("change save path to: {}", config.save_path);
-    if let Err(err) = config.save_and_set() {
-        error!("save config error: {}", err);
+    } else {
+        warn!("Folder selection canceled");
     }
 }
+
 
 async fn handle_menu_event_paste_to_web() {
     let clipboard_text = config::CLIPBOARD.read_text();

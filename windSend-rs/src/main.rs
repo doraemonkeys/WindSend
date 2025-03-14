@@ -53,7 +53,7 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
-        .open(std::path::Path::new(config::DEFAULT_LOG_DIR).join("panic.log"))
+        .open(std::path::Path::new(&*config::DEFAULT_LOG_DIR).join("panic.log"))
     {
         use std::io::Write;
         let _ = writeln!(f, "{}", panic_message);
