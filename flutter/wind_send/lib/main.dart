@@ -616,7 +616,16 @@ class _MainBodyState extends State<MainBody> {
         return DeviceCard.commonActionFuncWithToastr(
           context,
           defaultDevice,
-          (_) => widget.devicesRebuild(),
+          (newDevice) {
+            for (var i = 0; i < widget.devices.length; i++) {
+              if (widget.devices[i].targetDeviceName ==
+                  newDevice.targetDeviceName) {
+                widget.devices[i] = newDevice;
+                break;
+              }
+            }
+            widget.devicesRebuild();
+          },
           () async {
             var (respText, sentText) = await defaultDevice.doSyncTextAction();
             if (respText.isNotEmpty && sentText.isEmpty) {
