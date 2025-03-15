@@ -76,7 +76,6 @@ zip -r "$WindSendRustBin_DirName".zip "$WindSendRustBin_DirName"
 
 # Enter the bin directory
 cd "$WINDSEND_PROJECT_PATH" || exit
-cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 cd "./bin" || exit
 
 ICONS_PATH="${WINDSEND_PROJECT_PATH}/app_icon/macos/AppIcon.icns"
