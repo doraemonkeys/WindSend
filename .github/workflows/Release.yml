@@ -344,4 +344,5 @@ jobs:
           files: |
             ./Downloaded-Archives/*.zip
             ./Downloaded-Archives/*.apk
+            ./Downloaded-Archives/*.dmg
           draft: true
