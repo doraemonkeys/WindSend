@@ -255,6 +255,7 @@ impl LanguageManager {
     }
 }
 
+#[warn(dead_code)]
 pub fn translate(key: LanguageKey) -> &'static String {
     LANGUAGE_MANAGER.read().unwrap().translate(key)
 }
