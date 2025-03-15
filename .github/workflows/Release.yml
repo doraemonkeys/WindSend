@@ -304,6 +304,7 @@ jobs:
           path: |
             ./bin/*.zip
             ./bin/*.dmg
+            ./bin/*.zip.temp
           if-no-files-found: error
 
   release:
