@@ -31,7 +31,7 @@ rustBinName="wind_send"
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
-cargo build --release
+cargo build --release || exit 1
 mkdir -p ../bin/"$WindSendRustBin_X86_64LinuxDirName"
 cp -r target/release/$rustBinName ../bin/"$WindSendRustBin_X86_64LinuxDirName"
 mv ../bin/"$WindSendRustBin_X86_64LinuxDirName"/$rustBinName ../bin/"$WindSendRustBin_X86_64LinuxDirName"/$WINDSEND_RUST_SERVER_BIN_NAME
@@ -59,7 +59,7 @@ cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_RUST_PROJECT_PATH" || exit
 
 rustup target add $Rust_Target
-cargo build --release --target $Rust_Target
+cargo build --release --target $Rust_Target || exit 1
 mkdir -p ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
 cp -r target/$Rust_Target/release/$rustBinName ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"
 mv ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"/$rustBinName ../bin/"$WindSend_Rust_Bin_X86_64_LinuxMusl_DirName"/$WINDSEND_RUST_SERVER_BIN_NAME
