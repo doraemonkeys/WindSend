@@ -74,24 +74,30 @@ zip -r "$WindSendRustBin_DirName".zip "$WindSendRustBin_DirName"
 
 # .dmg 打包逻辑
 
-# Enter the bin directory
-cd "$WINDSEND_PROJECT_PATH" || exit
-cd "./bin" || exit
+package_dmg() {
 
-ICONS_PATH="${WINDSEND_PROJECT_PATH}/app_icon/macos/AppIcon.icns"
-APP_NAME="WindSend"
-APP_BUNDLE="${APP_NAME}.app"
+    # Enter the bin directory
+    cd "$WINDSEND_PROJECT_PATH" || exit
+    cd "./bin" || exit
 
-# for executable files
-mkdir -p "${APP_BUNDLE}/Contents/MacOS"
-# for resources like icons
-mkdir -p "${APP_BUNDLE}/Contents/Resources"
+    ICONS_PATH="${WINDSEND_PROJECT_PATH}/app_icon/macos/AppIcon.icns"
+    APP_NAME="WindSend"
+    APP_BUNDLE="${APP_NAME}.app"
+    rust_project_path="${WINDSEND_RUST_PROJECT_PATH#/./}"
+    rust_bin_dir="$1"
 
-cp "${WindSendRustBin_X86_64DirName}/${WINDSEND_RUST_SERVER_BIN_NAME}" "${APP_BUNDLE}/Contents/MacOS/"
-cp "$ICONS_PATH" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
-cp "../$SERVER_PROGRAM_ICON_NAME" "${APP_BUNDLE}/Contents/Resources/icon-192.png"
+    # for executable files
+    mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+    # for resources like icons
+    mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
-cat <<EOF >"${APP_BUNDLE}/Contents/Info.plist"
+    cp "${rust_bin_dir}/${WINDSEND_RUST_SERVER_BIN_NAME}" "${APP_BUNDLE}/Contents/MacOS/"
+    cp "$ICONS_PATH" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
+    cp "../$rust_project_path/$SERVER_PROGRAM_ICON_NAME" "${APP_BUNDLE}/Contents/Resources/icon-192.png"
+
+    chmod +x "${APP_BUNDLE}/Contents/MacOS/${WINDSEND_RUST_SERVER_BIN_NAME}"
+
+    cat <<EOF >"${APP_BUNDLE}/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -99,7 +105,7 @@ cat <<EOF >"${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundleExecutable</key>
     <string>${WINDSEND_RUST_SERVER_BIN_NAME}</string>
     <key>CFBundleIdentifier</key>
-    <string>com.doraemon.windsend</string>
+    <string>com.doraemon.windsend.rs</string>
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleVersion</key>
@@ -118,22 +124,27 @@ cat <<EOF >"${APP_BUNDLE}/Contents/Info.plist"
 </plist>
 EOF
 
-RW_DMG="${APP_NAME}_temp.dmg"
-hdiutil create -volname "${APP_NAME}" \
-    -srcfolder "${APP_BUNDLE}" \
-    -ov \
-    -format UDRW \
-    "${RW_DMG}"
+    RW_DMG="${APP_NAME}_temp.dmg"
+    hdiutil create -volname "${APP_NAME}" \
+        -srcfolder "${APP_BUNDLE}" \
+        -ov \
+        -format UDRW \
+        "${RW_DMG}" || exit 1
 
-MOUNT_POINT="/Volumes/${APP_NAME}"
-hdiutil attach "${RW_DMG}" -mountpoint "${MOUNT_POINT}"
+    MOUNT_POINT="/Volumes/${APP_NAME}"
+    hdiutil attach "${RW_DMG}" -mountpoint "${MOUNT_POINT}"
 
-ln -s /Applications "${MOUNT_POINT}/Applications"
+    ln -s /Applications "${MOUNT_POINT}/Applications"
 
-hdiutil detach "${MOUNT_POINT}"
-hdiutil convert "${RW_DMG}" -format UDZO -o "${WindSendRustBin_X86_64DirName}.dmg"
-rm -f "${RW_DMG}"
-rm -rf "${APP_BUNDLE}"
+    hdiutil detach "${MOUNT_POINT}"
+    hdiutil convert "${RW_DMG}" -format UDZO -o "${rust_bin_dir}.dmg"
+    rm -f "${RW_DMG}"
+    rm -rf "${APP_BUNDLE}"
+
+}
+
+package_dmg "$WindSendRustBin_X86_64DirName"
+package_dmg "$WindSendRustBin_DirName"
 
 ######################################################################################
 # Press Enter to continue building WindSend Flutter for x86_64

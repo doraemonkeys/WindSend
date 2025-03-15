@@ -8,32 +8,22 @@ use tokio_rustls::server::TlsStream;
 use tracing::{debug, error, info, warn};
 
 pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
-    // 用户选择的文件
-    let selected_files = status::SELECTED_FILES.get();
-    let files = match selected_files {
-        Some(selected) => {
-            let selected = selected.lock().unwrap();
-            match selected.is_empty() {
-                true => None,
-                false => Some(selected.clone()),
-            }
-        }
-        None => None,
-    };
-    if let Some(files) = files {
-        let r = send_files(conn, files).await;
+    // Selected files
+    let selected_files = status::SELECTED_FILES.lock().unwrap().clone();
+    if !selected_files.is_empty() {
+        let r = send_files(conn, selected_files.iter()).await;
         if r.is_ok() {
             #[cfg(not(feature = "disable-systray-support"))]
             status::TX_RESET_FILES.get().unwrap().try_send(()).unwrap();
         }
-        *status::SELECTED_FILES.get().unwrap().lock().unwrap() = std::collections::HashSet::new();
+        *status::SELECTED_FILES.lock().unwrap() = std::collections::HashSet::new();
         return;
     }
 
-    // 文件剪切板(在读文本剪切板之前查看，文件地址可能会被当做文本读取到)
+    // File clipboard (check before reading text clipboard, file address may be read as text)
     match crate::config::CLIPBOARD.get_files() {
         Ok(files) => {
-            if !files.is_empty() && send_files(conn, files).await.is_ok() {
+            if !files.is_empty() && send_files(conn, files.iter()).await.is_ok() {
                 if let Err(e) = crate::config::CLIPBOARD.clear() {
                     error!("clear clipboard failed, err: {}", e);
                 }
@@ -62,7 +52,7 @@ pub async fn copy_handler(conn: &mut TlsStream<TcpStream>) {
 }
 
 #[allow(dead_code)]
-async fn send_files<T: IntoIterator<Item = String> + std::fmt::Debug>(
+async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
     conn: &mut TlsStream<TcpStream>,
     paths: T,
 ) -> Result<(), ()> {
@@ -235,7 +225,6 @@ async fn send_clipboard_text(conn: &mut TlsStream<TcpStream>) -> Result<(), Stri
 
 /// This function returns whether to continue the loop (for example, not encountering a Socket Error)
 pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
-    // 检查文件是否存在
     if !std::path::Path::new(&head.path).exists() {
         error!("file not exists: {}", head.path);
         let r = resp_common_error_msg(conn, &format!("file not exists: {}", head.path)).await;

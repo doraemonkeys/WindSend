@@ -384,7 +384,7 @@ fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
             return;
         }
     };
-    let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
+    let mut selected_files = SELECTED_FILES.lock().unwrap();
     for file in files {
         debug!("selected file: {:?}", file);
         selected_files.insert(file.as_path().to_str().unwrap().to_string());
@@ -474,7 +474,7 @@ async fn handle_menu_event_copy_from_web() {
 
 fn handle_menu_event_clear_files(add_item: &MenuItem, clear_item: &MenuItem) {
     {
-        let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
+        let mut selected_files = SELECTED_FILES.lock().unwrap();
         selected_files.clear();
         selected_files.shrink_to_fit();
     }

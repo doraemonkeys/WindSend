@@ -9,7 +9,6 @@ mod route;
 mod status;
 mod utils;
 use std::sync::LazyLock;
-use std::{collections::HashSet, sync::Mutex};
 
 // #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[cfg(not(feature = "disable-systray-support"))]
@@ -35,9 +34,6 @@ pub static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 
 fn init() {
     config::init();
-    status::SELECTED_FILES
-        .set(Mutex::new(HashSet::new()))
-        .unwrap();
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         default_panic(panic_info);
@@ -95,7 +91,7 @@ fn main() {
     }
     #[cfg(feature = "disable-systray-support")]
     {
-        RUNTIME.get().unwrap().block_on(async_main());
+        RUNTIME.block_on(async_main());
     }
 }
 

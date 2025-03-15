@@ -8,7 +8,9 @@ function backToProjectRoot() {
 
 TheVariableIsTrue() {
     local var="$1"
-    if [[ "${var,,}" == "true" ]]; then
+    local lowercase_var
+    lowercase_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
+    if [ "$lowercase_var" = "true" ]; then
         return 0
     else
         return 1

@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::sync::OnceLock;
 use std::{collections::HashSet, sync::Mutex};
 
@@ -7,7 +8,8 @@ pub static TX_RESET_FILES: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::n
 pub static TX_CLOSE_QUICK_PAIR: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 // pub static TX_CLOSE_ALLOW_TO_BE_SEARCHED: OnceLock<crossbeam_channel::Sender<()>> = OnceLock::new();
 
-pub static SELECTED_FILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+pub static SELECTED_FILES: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 #[allow(unused)]
 #[allow(dead_code)]
