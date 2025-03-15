@@ -7,14 +7,90 @@ use std::{path::Path, str::FromStr};
 use tracing::{debug, error, warn};
 use utils::clipboard::ClipboardManager;
 
-static CONFIG_FILE_PATH: &str = "config.yaml";
-static TLS_DIR: &str = "./tls";
-static TLS_CERT_FILE: &str = "cert.pem";
-static TLS_KEY_FILE: &str = "key.pem";
-static TLS_CA_CERT_FILE: &str = "ca_cert.pem";
-static TLS_CA_KEY_FILE: &str = "ca_key.pem";
-static APP_ICON_NAME: &str = "icon-192.png";
-pub const DEFAULT_LOG_DIR: &str = "./logs";
+use std::path::PathBuf;
+use dirs;
+
+// 配置文件路径
+lazy_static! {
+    pub static ref CONFIG_FILE_PATH: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::data_local_dir().unwrap()
+                .join("Windsend/config.yaml")
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("config.yaml")
+        }
+    };
+}
+
+// TLS目录
+lazy_static! {
+    pub static ref TLS_DIR: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::data_local_dir().unwrap()
+                .join("Windsend/tls")
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("./tls")
+        }
+    };
+}
+
+// TLS证书文件路径
+pub static TLS_CERT_FILE: &str = "cert.pem";
+pub static TLS_KEY_FILE: &str = "key.pem";
+pub static TLS_CA_CERT_FILE: &str = "ca_cert.pem";
+pub static TLS_CA_KEY_FILE: &str = "ca_key.pem";
+
+// 图标路径处理
+pub static APP_ICON_NAME :&str ="icon-192.png";
+
+mod mac_utils {
+    pub fn get_resource_dir() -> String {
+        #[cfg(target_os = "macos")]
+    {
+        // 获取当前可执行文件的路径
+        let exe_path = std::env::current_exe().unwrap();
+        // 获取应用程序包的根目录
+        let bundle_path = exe_path
+            .parent()  // 可执行文件所在目录
+            .and_then(|p| p.parent())  // Contents 目录
+            .and_then(|p| p.parent())  // .app 目录
+            .unwrap_or_else(||std::path::Path::new("./"));
+        // 构建资源目录路径
+        let resource_dir = bundle_path.join("Contents/Resources");
+        resource_dir.display().to_string()
+    }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // 获取当前程序的工作目录
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("./")).display().to_string()
+        }
+    }
+}
+
+ 
+    
+
+// 日志目录
+lazy_static! {
+    pub static ref DEFAULT_LOG_DIR: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::home_dir().unwrap().join("Library/Logs/Windsend/logs")
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("./logs")
+        }
+    };
+}
+
+///////////
 
 pub static APP_ICON_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
@@ -101,7 +177,7 @@ impl Config {
     }
     pub fn save(&self) -> Result<(), String> {
         self.empty_check()?;
-        let file = std::fs::File::create(CONFIG_FILE_PATH)
+        let file = std::fs::File::create(&*CONFIG_FILE_PATH)
             .map_err(|err| format!("create config file error: {}", err))?;
         serde_yaml::to_writer(file, self)
             .map_err(|err| format!("write config file error: {}", err))?;
@@ -157,14 +233,25 @@ impl Config {
 }
 
 fn init_global_config() -> Config {
-    if !std::path::Path::new(CONFIG_FILE_PATH).exists() {
+     // 确保配置目录存在
+     print!("Ensuring config directory exists: {:?}", &*CONFIG_FILE_PATH);
+     if let Some(parent_dir) = CONFIG_FILE_PATH.parent() {
+        if !parent_dir.exists() {
+            if let Err(err) = std::fs::create_dir_all(parent_dir) {
+                panic!("Failed to create config directory: {}", err);
+            }
+        }
+    }
+
+
+    if !CONFIG_FILE_PATH.exists() {
         let cnf = Config::generate_default();
         if let Err(err) = cnf.save_and_set() {
             panic!("init_global_config error: {}", err);
         }
         return cnf;
     }
-    let file = std::fs::File::open(CONFIG_FILE_PATH).unwrap();
+    let file = std::fs::File::open(&*CONFIG_FILE_PATH).unwrap();
     let cnf = serde_yaml::from_reader(file);
     if let Err(err) = cnf {
         panic!("deserialize config file error: {}", err);
@@ -211,17 +298,17 @@ impl std::io::Write for LogWriter {
 pub fn init() {
     init_global_logger(*LOG_LEVEL);
 
-    let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
-    let icon_path = current_dir.join(APP_ICON_NAME);
+    let _current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
+    let icon_path = format!("{}/{}", mac_utils::get_resource_dir(), APP_ICON_NAME);
     debug!("icon_path: {:?}", icon_path);
-    APP_ICON_PATH.set(icon_path.display().to_string()).unwrap();
+    APP_ICON_PATH.set(icon_path).unwrap();
 
     init_tls_config();
 }
 
 fn init_global_logger(log_level: tracing::Level) {
     let file_appender =
-        tracing_appender::rolling::never(DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
+        tracing_appender::rolling::never(&*DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
     let log_writer = LogWriter::new(file_appender);
     let (non_blocking_appender, writer_guard) = tracing_appender::non_blocking(log_writer);
     // let subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -260,13 +347,13 @@ fn init_global_logger(log_level: tracing::Level) {
 
 fn init_tls_config() {
     // mkdir tls
-    if !Path::new(TLS_DIR).exists() {
-        std::fs::create_dir(TLS_DIR).unwrap();
+    if !Path::new(&*TLS_DIR).exists() {
+        std::fs::create_dir(&*TLS_DIR).unwrap();
     }
-    let cert_path = Path::new(TLS_DIR).join(TLS_CERT_FILE);
-    let key_path = Path::new(TLS_DIR).join(TLS_KEY_FILE);
-    let ca_cert_path = Path::new(TLS_DIR).join(TLS_CA_CERT_FILE);
-    let ca_key_path = Path::new(TLS_DIR).join(TLS_CA_KEY_FILE);
+    let cert_path = Path::new(&*TLS_DIR).join(TLS_CERT_FILE);
+    let key_path = Path::new(&*TLS_DIR).join(TLS_KEY_FILE);
+    let ca_cert_path = Path::new(&*TLS_DIR).join(TLS_CA_CERT_FILE);
+    let ca_key_path = Path::new(&*TLS_DIR).join(TLS_CA_KEY_FILE);
     // Remove them, for easy debugging
     // std::fs::remove_file(&cert_path).ok();
     // std::fs::remove_file(&key_path).ok();
@@ -286,13 +373,13 @@ fn init_tls_config() {
 }
 
 pub fn read_ca_certificate_pem() -> std::io::Result<String> {
-    std::fs::read_to_string(Path::new(TLS_DIR).join(TLS_CA_CERT_FILE))
+    std::fs::read_to_string(Path::new(&*TLS_DIR).join(TLS_CA_CERT_FILE))
 }
 
 pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::error::Error>> {
     use tokio_rustls::rustls;
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
-    let private_key_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_KEY_FILE))?;
+    let private_key_bytes = std::fs::read(Path::new(&*TLS_DIR).join(TLS_KEY_FILE))?;
     let mut private_key: Option<PrivateKeyDer<'static>> = None;
 
     let pkcs8_private_key =
@@ -308,7 +395,7 @@ pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::erro
     }
     let private_key = private_key.unwrap();
 
-    let ca_cert_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
+    let ca_cert_bytes = std::fs::read(Path::new(&*TLS_DIR).join(TLS_CERT_FILE))?;
     let ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())
         .next()
         .ok_or("ca_cert is none")??;
