@@ -1,5 +1,5 @@
 // hide console window on Windows in release
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::OnceLock;
 use tracing::{debug, error, info, trace, warn};

@@ -16,7 +16,7 @@ use crate::utils;
 use crate::web;
 
 #[cfg(target_os = "macos")]
-  use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
+use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
 
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{
@@ -410,20 +410,21 @@ fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &Ch
 }
 
 async fn handle_menu_event_save_path() {
-    debug!("Opening folder dialog for save path...");
-    let folder = rfd::FileDialog::new().pick_folder();
-    if let Some(path) = folder {
-        let mut config = config::GLOBAL_CONFIG.write().unwrap();
-        config.save_path = path.as_path().to_str().unwrap().to_string();
-        debug!("Save path updated to: {}", config.save_path);
-        if let Err(err) = config.save_and_set() {
-            error!("Failed to save config: {}", err);
+    let pick_task = rfd::AsyncFileDialog::new().pick_folder();
+    let path = match pick_task.await {
+        Some(path) => path,
+        None => {
+            warn!("Folder selection canceled or error");
+            return;
         }
-    } else {
-        warn!("Folder selection canceled");
+    };
+    let mut config = config::GLOBAL_CONFIG.write().unwrap();
+    config.save_path = path.path().to_str().unwrap().to_string();
+    debug!("change save path to: {}", config.save_path);
+    if let Err(err) = config.save_and_set() {
+        error!("save config error: {}", err);
     }
 }
-
 
 async fn handle_menu_event_paste_to_web() {
     let clipboard_text = config::CLIPBOARD.read_text();

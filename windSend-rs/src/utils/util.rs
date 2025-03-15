@@ -434,10 +434,7 @@ pub fn inform<T: AsRef<str>>(
         use win_toast_notify::{CropCircle, Duration, WinToastNotify};
         let mut notify = WinToastNotify::new()
             // .set_app_id(crate::PROGRAM_NAME)
-            .set_logo(
-                crate::config::APP_ICON_PATH.get().unwrap(),
-                CropCircle::False,
-            )
+            .set_logo(&crate::config::APP_ICON_PATH, CropCircle::False)
             .set_title(title)
             .set_messages(vec![&body])
             .set_duration(Duration::Short);
@@ -461,10 +458,7 @@ pub fn inform_with_progress(click_open: Option<&str>, progress: win_toast_notify
         .clone();
     let mut notify = WinToastNotify::new()
         // .set_app_id(crate::PROGRAM_NAME)
-        .set_logo(
-            crate::config::APP_ICON_PATH.get().unwrap(),
-            CropCircle::False,
-        )
+        .set_logo(&crate::config::APP_ICON_PATH, CropCircle::False)
         .set_title(crate::PROGRAM_NAME)
         .set_messages(vec![&format!(
             "{}: {}",

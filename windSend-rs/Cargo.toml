@@ -12,8 +12,6 @@ disable-systray-support = []
 
 [dependencies]
 # tray-item = "0.8.0"
-notify-rust = "4.0"
-objc = "0.2.7"
 log = "0.4"
 aes = "0.8.3"
 hex = "0.4.3"
@@ -100,13 +98,14 @@ win-toast-notify = "0.1.6"
 # notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
 notify-rust = "4.11"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.23"
+winit = "0.30.0"
+objc = "0.2.7"
+
 [build-dependencies]
 windres = "*"
 
 
 [dev-dependencies]
-tao = "0.31"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.23"
-winit = "0.30.0"
+tao = "0.32"
