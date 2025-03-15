@@ -3,7 +3,7 @@ use image::EncodableLayout;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use std::sync::{LazyLock, Mutex, RwLock};
+use std::sync::{Mutex, RwLock};
 use tracing::{debug, error, warn};
 use utils::clipboard::ClipboardManager;
 
@@ -88,7 +88,7 @@ lazy_static! {
 }
 
 #[cfg(not(target_os = "macos"))]
-pub static APP_ICON_PATH: LazyLock<String> = LazyLock::new(app_icon_path);
+pub static APP_ICON_PATH: std::sync::LazyLock<String> = std::sync::LazyLock::new(app_icon_path);
 
 #[cfg(not(target_os = "macos"))]
 fn app_icon_path() -> String {
@@ -131,6 +131,8 @@ pub struct Config {
     /// Trusted remote host
     #[serde(rename = "trustedRemoteHosts", default)]
     pub trusted_remote_hosts: Option<Vec<String>>,
+    #[serde(rename = "relayServerAddress", default)]
+    pub relay_server_address: Option<String>,
 }
 
 #[cfg(not(feature = "disable-systray-support"))]
@@ -206,6 +208,7 @@ impl Config {
                 "localhost".to_string(),
                 "::1".to_string(),
             ]),
+            relay_server_address: None,
         }
     }
 }
