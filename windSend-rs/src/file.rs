@@ -241,7 +241,7 @@ impl FileReceiveSessionManager {
 
         let manager = Arc::clone(self);
         let op_id = head.op_id;
-        crate::RUNTIME.get().unwrap().spawn(async move {
+        crate::RUNTIME.spawn(async move {
             manager
                 .monitor_single_file_reception(file_id, op_id, actual_save_path, rx)
                 .await
@@ -317,7 +317,7 @@ impl FileReceiveSessionManager {
                 },
             );
             let notify_lock = Arc::clone(&self.notify_lock);
-            RUNTIME.get().unwrap().spawn(async move {
+            RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
                 let total = op_info.total_expectation;
                 let mut useless_times = 0;
@@ -526,7 +526,7 @@ impl FileReceiveSessionManager {
             if let Err(e) = image {
                 error!("write to clipboard failed:{}", e);
             } else {
-                RUNTIME.get().unwrap().spawn(async move {
+                RUNTIME.spawn(async move {
                     let _ = crate::config::CLIPBOARD.write_image_from_bytes(&image.unwrap());
                 });
             }

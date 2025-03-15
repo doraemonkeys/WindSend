@@ -1,7 +1,6 @@
 // hide console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::OnceLock;
 use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
@@ -9,7 +8,7 @@ mod language;
 mod route;
 mod status;
 mod utils;
-
+use std::sync::LazyLock;
 use std::{collections::HashSet, sync::Mutex};
 
 // #[cfg(not(all(target_os = "linux", target_env = "musl")))]
@@ -27,15 +26,15 @@ static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
 #[allow(dead_code)]
 static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+pub static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+});
 
 fn init() {
     config::init();
-    let r = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    RUNTIME.set(r).unwrap();
     status::SELECTED_FILES
         .set(Mutex::new(HashSet::new()))
         .unwrap();
@@ -68,11 +67,11 @@ fn main() {
     {
         let show_systray_icon = config::GLOBAL_CONFIG.read().unwrap().show_systray_icon;
         if !show_systray_icon {
-            return RUNTIME.get().unwrap().block_on(async_main());
+            return RUNTIME.block_on(async_main());
         }
 
         let main_handle = std::thread::spawn(|| {
-            RUNTIME.get().unwrap().block_on(async_main());
+            RUNTIME.block_on(async_main());
         });
 
         let (tx1, rx1) = crossbeam_channel::bounded(1);
@@ -145,9 +144,6 @@ async fn async_main() {
             }
         };
         debug!("tls accept success");
-        RUNTIME
-            .get()
-            .unwrap()
-            .spawn(route::main_process(tls_stream));
+        RUNTIME.spawn(route::main_process(tls_stream));
     }
 }

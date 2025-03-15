@@ -329,12 +329,10 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     handle_menu_event_clear_files(&add_files_i, &clear_files_i);
                 }
                 id if id == paste_to_web_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_paste_to_web());
+                    crate::RUNTIME.spawn(handle_menu_event_paste_to_web());
                 }
                 id if id == copy_from_web_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_copy_from_web());
+                    crate::RUNTIME.spawn(handle_menu_event_copy_from_web());
                 }
                 id if id == auto_start_i.id() => {
                     let mut config = config::GLOBAL_CONFIG.write().unwrap();
@@ -351,8 +349,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     should_poll = true;
                 }
                 id if id == save_path_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_save_path());
+                    crate::RUNTIME.spawn(handle_menu_event_save_path());
                 }
                 id if id == open_url_i.id() => {
                     if let Err(err) = crate::utils::open_url(crate::PROGRAM_URL) {
