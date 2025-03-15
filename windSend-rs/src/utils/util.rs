@@ -101,6 +101,14 @@ impl StartHelper {
                 err.to_string().replace('\\', "\\\\")
             )
         })?;
+
+        /*
+        TODO: 验证自启是否成功
+
+         <key>WorkingDirectory</key>
+         <string>/path/to/your/program/directory</string>
+
+        */
         let mac_list_file = format!(
             r#"
             <?xml version="1.0" encoding="UTF-8"?>
@@ -108,15 +116,15 @@ impl StartHelper {
             <plist version="1.0">
             <dict>
                 <key>Label</key>
-                <string>{0}_start</string>
+                <string>{0}</string>
                 <key>ProgramArguments</key>
                     <array>
-                        <string>{1}/{0}</string>
+                        <string>{1}</string>
                     </array>
                 <key>RunAtLoad</key>
                 <true/>
                 <key>WorkingDirectory</key>
-                <string>/Applications/DownTip.app/Contents/MacOS</string>
+                <string>{2}</string>
                 <key>StandardErrorPath</key>
                 <string>/tmp/{0}_start.err</string>
                 <key>StandardOutPath</key>
@@ -124,7 +132,11 @@ impl StartHelper {
             </dict>
             </plist>
             "#,
-            self.exe_name,
+            crate::MAC_APP_LABEL,
+            cur_path
+                .join(std::path::Path::new(&self.exe_name))
+                .to_str()
+                .unwrap(),
             cur_path.to_str().unwrap()
         );
         let old_content = std::fs::read(&start_file).unwrap_or_default();
@@ -397,6 +409,9 @@ pub fn open_url(uri: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+static INFORM_INIT_ONCE: std::sync::Once = std::sync::Once::new();
+
 pub fn inform<T: AsRef<str>>(
     content: T,
     title: &str,
@@ -419,9 +434,17 @@ pub fn inform<T: AsRef<str>>(
     let body = content_runes.into_iter().collect::<String>();
     #[cfg(not(target_os = "windows"))]
     {
+        #[cfg(target_os = "macos")]
+        INFORM_INIT_ONCE.call_once(|| {
+            use notify_rust::{get_bundle_identifier_or_default, set_application};
+            let id = get_bundle_identifier_or_default("WindSend");
+            if let Err(e) = set_application(&id) {
+                tracing::error!("set_application id err:{}", e);
+            }
+        });
         use notify_rust::Notification;
         let mut n = Notification::new();
-        n.summary(title).body(&body).appname(crate::PROGRAM_NAME);
+        n.summary(title).body(&body).appname("WindSend");
         #[cfg(not(target_os = "macos"))]
         n.icon(&crate::config::APP_ICON_PATH);
 

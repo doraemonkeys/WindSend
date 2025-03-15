@@ -24,6 +24,7 @@ static PROGRAM_NAME: &str = "WindSend-S-Rust";
 static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
 #[allow(dead_code)]
 static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
+static MAC_APP_LABEL: &str = "com.doraemon.windsend.rs";
 
 pub static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()

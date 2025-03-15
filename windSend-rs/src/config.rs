@@ -20,7 +20,7 @@ lazy_static! {
         #[cfg(target_os = "macos")]
         {
             dirs::data_local_dir()
-                .and_then(|path| Some(path.join("WindSend/config.yaml")))
+                .map(|path| path.join("WindSend/config.yaml"))
                 .unwrap_or_else(|| PathBuf::from("config.yaml"))
         }
         #[cfg(not(target_os = "macos"))]
@@ -35,7 +35,7 @@ lazy_static! {
         #[cfg(target_os = "macos")]
         {
             dirs::data_local_dir()
-                .and_then(|path| Some(path.join("WindSend/tls")))
+                .map(|path| path.join("WindSend/tls"))
                 .unwrap_or_else(|| PathBuf::from("./tls"))
         }
         #[cfg(not(target_os = "macos"))]
@@ -50,7 +50,7 @@ lazy_static! {
         #[cfg(target_os = "macos")]
         {
             dirs::home_dir()
-                .and_then(|path| Some(path.join("Library/Logs/WindSend/logs")))
+                .map(|path| path.join("Library/Logs/WindSend/logs"))
                 .unwrap_or_else(|| PathBuf::from("./logs"))
         }
         #[cfg(not(target_os = "macos"))]
