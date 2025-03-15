@@ -42,7 +42,7 @@ cp README.md ./bin/"$WindSendRustBin_X86_64DirName"
 cp README-EN.md ./bin/"$WindSendRustBin_X86_64DirName"
 cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSendRustBin_X86_64DirName"
 cd ./bin || exit
-zip -r "$WindSendRustBin_X86_64DirName".zip "$WindSendRustBin_X86_64DirName"
+zip -r "$WindSendRustBin_X86_64DirName".zip.temp "$WindSendRustBin_X86_64DirName"
 
 ######################################################################################
 
@@ -68,7 +68,7 @@ cp README.md ./bin/"$WindSendRustBin_DirName"
 cp README-EN.md ./bin/"$WindSendRustBin_DirName"
 cp "$WINDSEND_RUST_PROJECT_PATH/$SERVER_PROGRAM_ICON_NAME" ./bin/"$WindSendRustBin_DirName"
 cd ./bin || exit
-zip -r "$WindSendRustBin_DirName".zip "$WindSendRustBin_DirName"
+zip -r "$WindSendRustBin_DirName".zip.temp "$WindSendRustBin_DirName"
 
 ######################################################################################
 
