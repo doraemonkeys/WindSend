@@ -671,11 +671,15 @@ class Device {
       }
     }
     if (Platform.isAndroid) {
-      String lastImagePath = lastRealSavePath.lastWhere(
-          (element) => hasImageExtension(element) || hasVideoExtension(element),
-          orElse: () => '');
-      if (lastImagePath.isNotEmpty) {
-        MediaScanner.loadMedia(path: lastImagePath);
+      const maxLoadMediaCount = 20;
+      for (var i = 0; i < lastRealSavePath.length; i++) {
+        if (i >= maxLoadMediaCount) {
+          break;
+        }
+        var path = lastRealSavePath[i];
+        if (hasImageExtension(path) || hasVideoExtension(path)) {
+          MediaScanner.loadMedia(path: path);
+        }
       }
     }
     return lastRealSavePath;
