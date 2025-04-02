@@ -290,23 +290,26 @@ class Device {
   }
 
   Future<String> pingDeviceLoop(String myIp) async {
-    final msgController = StreamController<String>();
-    StreamSubscription<String>? subscription;
-    Stream<String> tryStream = _ipRanges(myIp);
     const rangeNum = 254;
+    StreamSubscription<String>? subscription;
+    final msgController = StreamController<String>();
+    // add a listener immediately
+    final ipFuture = msgController.stream
+        .take(rangeNum)
+        .firstWhere((element) => element != '', orElse: () => '')
+        .whenComplete(() => subscription?.cancel());
+
+    Stream<String> tryStream = _ipRanges(myIp);
+
     subscription = tryStream.listen((ip) {
       var device = Device.copy(this);
       device.iP = ip;
-      pingDevice2(msgController, device, timeout: const Duration(seconds: 3));
+      _pingDevice2(msgController, device, timeout: const Duration(seconds: 3));
     });
-    final String ip = await msgController.stream
-        .take(rangeNum)
-        .firstWhere((element) => element != '', orElse: () => '');
-    subscription.cancel();
-    return ip;
+    return ipFuture;
   }
 
-  Future<void> pingDevice2(
+  Future<void> _pingDevice2(
       StreamController<String> msgController, Device device,
       {Duration timeout = const Duration(seconds: 2)}) async {
     // print('start pingDevice2: ${device.iP}');
@@ -315,6 +318,7 @@ class Device {
       await device.pingDevice(timeout: timeout);
       ok = true;
     } catch (e) {
+      // print('pingDevice2 error: ${device.iP} ${e}');
       ok = false;
     }
     // print('pingDevice2 result: ${device.iP} $ok');
@@ -322,7 +326,8 @@ class Device {
   }
 
   Future<void> pingDevice(
-      {Duration timeout = const Duration(seconds: 2)}) async {
+      {Duration timeout = const Duration(seconds: 2),
+      String? localDeviceName}) async {
     // print('checkServer: $ip:$port');
     var body = utf8.encode('ping');
     var bodyUint8List = Uint8List.fromList(body);
@@ -336,8 +341,13 @@ class Device {
     final headUint8List = Uint8List.fromList(timeIpHead);
     final headEncrypted = cryptor.encrypt(headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
+
+    localDeviceName ??= AppSharedCnfService.initialized
+        ? AppConfigModel().deviceName
+        : 'unknown';
+    // print('localDeviceName: $localDeviceName');
     var headInfo = HeadInfo(
-        AppConfigModel().deviceName, DeviceAction.ping, headEncryptedHex,
+        localDeviceName, DeviceAction.ping, headEncryptedHex,
         dataLen: encryptedBody.length);
     // print('headInfoJson: ${jsonEncode(headInfo)}');
 
@@ -366,18 +376,27 @@ class Device {
   }
 
   static Future<Device> _matchDeviceLoop(
-      StreamController<Device> msgController, String myIp) async {
-    StreamSubscription<String>? subscription;
-    Stream<String> tryStream = _ipRanges(myIp);
+    StreamController<Device> msgController,
+    String myIp,
+  ) async {
     const rangeNum = 254;
+    StreamSubscription<String>? subscription;
+
+    // add a listener immediately
+    var resultFuture = msgController.stream
+        .take(rangeNum)
+        .firstWhere(
+          (element) => element.secretKey != '',
+          orElse: () => throw Exception('no device found'),
+        )
+        .whenComplete(() => subscription?.cancel());
+
+    Stream<String> tryStream = _ipRanges(myIp);
     subscription = tryStream.listen((ip) {
       _matchDevice(msgController, ip, timeout: const Duration(seconds: 3));
     });
-    var result = await msgController.stream.take(rangeNum).firstWhere(
-        (element) => element.secretKey != '',
-        orElse: () => throw Exception('no device found'));
-    subscription.cancel();
-    return result;
+
+    return resultFuture;
   }
 
   /// Generates a stream of IP ranges based on the given IP address.
