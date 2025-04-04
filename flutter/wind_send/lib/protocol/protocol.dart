@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+import 'package:wind_send/crypto/aes.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -16,7 +16,9 @@ enum DeviceAction {
   syncText("syncText"),
   ping("ping"),
   matchDevice("match"),
-  unKnown("unKnown");
+  unKnown("unKnown"),
+  setRelayServer("setRelayServer"),
+  endConnection("endConnection");
 
   const DeviceAction(this.name);
   final String name;
@@ -66,10 +68,16 @@ enum DeviceUploadType {
   }
 }
 
-class HeadInfo {
+class HeadInfo with HeadWriter {
   String deviceName;
   DeviceAction action;
+
+  /// AES-GCM Additional data
   String timeIp;
+
+  /// encrypted timeIp
+  // String timeIpAuth;
+
   int fileID;
   int fileSize;
   DeviceUploadType uploadType;
@@ -108,6 +116,7 @@ class HeadInfo {
         dataLen = json['dataLen'],
         opID = json['opID'];
 
+  @override
   Map<String, dynamic> toJson() => {
         'deviceName': deviceName,
         'action': action,
@@ -133,13 +142,14 @@ class HeadInfo {
     conn.add(headInfoUint8LenUint8);
     conn.add(headInfoUint8);
     // await conn.flush();
+    // print('writeToConn all write length: ${4 + headInfoUint8.length}');
   }
 
   Future<void> writeToConnWithBody(SecureSocket conn, List<int> body) async {
-    // dataLen = body.length;
-    if (body.length != dataLen) {
-      throw Exception('body.length != dataLen');
-    }
+    dataLen = body.length;
+    // if (body.length != dataLen) {
+    //   throw Exception('body.length != dataLen');
+    // }
     var headInfojson = jsonEncode(toJson());
     var headInfoUint8 = utf8.encode(headInfojson);
     var headInfoUint8Len = headInfoUint8.length;
@@ -159,6 +169,8 @@ class RespHead {
   String dataType;
   String? timeIp;
   String? msg;
+  // only for dataTypeFiles
+  int? totalFileSize;
   // List<TargetPaths>? paths;
   int dataLen = 0;
 
@@ -173,6 +185,7 @@ class RespHead {
         timeIp = json['timeIp'],
         msg = json['msg'],
         // paths = json['paths']?.cast<String>(),
+        totalFileSize = json['totalFileSize'],
         dataLen = json['dataLen'],
         dataType = json['dataType'];
 
@@ -180,6 +193,7 @@ class RespHead {
         'code': code,
         'timeIp': timeIp,
         'msg': msg,
+        if (totalFileSize != null) 'totalFileSize': totalFileSize,
         'dataLen': dataLen,
         'dataType': dataType
       };
@@ -234,6 +248,72 @@ class RespHead {
           '$errMsg, respHeadInfo: ${respHeadInfo.toJson().toString()},bodyLen: $bodyLen, bufferLen: ${respContentList.length}';
     }
     throw Exception(errMsg);
+  }
+}
+
+class MsgReader<T> {
+  final T Function(Map<String, dynamic> json) fromJson;
+
+  MsgReader(this.fromJson);
+
+  static Stream<int> toBytesStream(Stream<Uint8List> conn) async* {
+    await for (final chunk in conn) {
+      for (final byte in chunk) {
+        yield byte;
+      }
+    }
+  }
+
+  Future<T> readReqHeadOnly(Stream<Uint8List> conn, {AesGcm? cipher}) async {
+    final connBytes = toBytesStream(conn).asBroadcastStream();
+    final headLenBytes = Uint8List.fromList(await connBytes.take(4).toList());
+    final headLen = headLenBytes.buffer.asByteData().getInt32(0, Endian.little);
+    var headBytes = await connBytes.take(headLen).toList();
+    if (cipher != null) {
+      headBytes = cipher.decrypt(Uint8List.fromList(headBytes));
+    }
+    var head = fromJson(jsonDecode(utf8.decode(Uint8List.fromList(headBytes))));
+    return head;
+  }
+}
+
+mixin HeadWriter {
+  // final Map<String, dynamic> Function(T) toJson;
+
+  Map<String, dynamic> toJson();
+
+  void updateDataLen(int dataLen) {
+    throw UnimplementedError();
+  }
+
+  Future<void> writeHead(Socket conn, {AesGcm? cipher}) async {
+    var headInfojson = jsonEncode(toJson());
+    var headInfoUint8 = utf8.encode(headInfojson);
+    if (cipher != null) {
+      headInfoUint8 = cipher.encrypt(headInfoUint8);
+    }
+    var headInfoUint8Len = headInfoUint8.length;
+    var headInfoUint8LenUint8 = Uint8List(4);
+    headInfoUint8LenUint8.buffer
+        .asByteData()
+        .setUint32(0, headInfoUint8Len, Endian.little);
+    conn.add(headInfoUint8LenUint8);
+    conn.add(headInfoUint8);
+  }
+
+  Future<void> writeHeadOnly(Socket conn, {AesGcm? cipher}) async {
+    updateDataLen(0);
+    await writeHead(conn, cipher: cipher);
+  }
+
+  Future<void> writeWithBody(Socket conn, Uint8List body,
+      {AesGcm? cipher}) async {
+    if (cipher != null) {
+      body = cipher.encrypt(body);
+    }
+    updateDataLen(body.length);
+    await writeHead(conn, cipher: cipher);
+    conn.add(body);
   }
 }
 
@@ -380,6 +460,28 @@ class MatchActionResp {
     data['deviceName'] = deviceName;
     data['secretKeyHex'] = secretKeyHex;
     data['caCertificate'] = caCertificate;
+    return data;
+  }
+}
+
+class SetRelayServerReq {
+  String relayServerAddress;
+  String? relaySecretKey;
+  bool enableRelay;
+
+  SetRelayServerReq(
+      this.relayServerAddress, this.relaySecretKey, this.enableRelay);
+
+  SetRelayServerReq.fromJson(Map<String, dynamic> json)
+      : relayServerAddress = json['relayServerAddress'],
+        relaySecretKey = json['relaySecretKey'],
+        enableRelay = json['enableRelay'];
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['relayServerAddress'] = relayServerAddress;
+    data['relaySecretKey'] = relaySecretKey;
+    data['enableRelay'] = enableRelay;
     return data;
   }
 }

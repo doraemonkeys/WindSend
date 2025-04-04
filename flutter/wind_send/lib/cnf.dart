@@ -12,6 +12,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+// import 'package:path/path.dart' as filepath;
 
 import 'theme.dart';
 import 'language.dart';
@@ -30,6 +31,8 @@ class AppSharedCnfService {
   static late final SharedPreferences _sp;
   static late final AppSharedCnfService? _instance;
 
+  static bool initialized = false;
+
   AppSharedCnfService._internal();
 
   //单例公开访问点
@@ -41,6 +44,10 @@ class AppSharedCnfService {
   //初始化方法，只需要调用一次。
   static Future<void> initInstance() async {
     // print('AppSharedCnfService initInstance');
+    if (initialized) {
+      return;
+    }
+    initialized = true;
     _sp = await SharedPreferences.getInstance();
     final deviceInfoPlugin = DeviceInfoPlugin();
     if (deviceName == null) {
@@ -237,23 +244,23 @@ class AppSharedCnfService {
       ? _sp.remove(_defaultShareDeviceKey)
       : _sp.setString(_defaultShareDeviceKey, value);
 
-  /// 文件保存路径
+  /// File save path
   static String get fileSavePath => _sp.getString(_fileSavePathKey)!;
   static set fileSavePath(String? value) =>
       _sp.setString('FileSavePath', value!);
 
-  /// 图片保存路径
+  /// Image save path
   static String get imageSavePath => _sp.getString(_imageSavePathKey)!;
   static set imageSavePath(String? value) =>
       _sp.setString('ImageSavePath', value!);
 
-  /// 亮度
+  /// Brightness
   static Brightness get brightness =>
       _sp.getString('Theme') == 'dark' ? Brightness.dark : Brightness.light;
   static set brightness(Brightness value) =>
       _sp.setString('Theme', value == Brightness.dark ? 'dark' : 'light');
 
-  /// 主题颜色
+  /// Theme color
   static AppColorSeed get themeColor {
     final String? colorLable = _sp.getString('ThemeColor');
     if (colorLable == null) {
@@ -265,7 +272,7 @@ class AppSharedCnfService {
   static set themeColor(AppColorSeed value) =>
       _sp.setString('ThemeColor', value.label);
 
-  /// 跟随系统主题
+  /// Follow system theme
   static bool get followSystemTheme => _sp.getBool('FollowSystemTheme') ?? true;
   static set followSystemTheme(bool value) =>
       _sp.setBool('FollowSystemTheme', value);
@@ -371,7 +378,7 @@ class AppSharedCnfService {
 //   ];
 // }
 
-// class AppConfigModel with ChangeNotifier
+// todo: remove this class, refactor to use AppSharedCnfService directly
 class AppConfigModel {
   // static const String webIP = 'web';
   String _deviceName = AppSharedCnfService.deviceName!;

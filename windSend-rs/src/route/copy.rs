@@ -1,6 +1,6 @@
 use crate::language::{LANGUAGE_MANAGER, LanguageKey};
-use crate::route::resp::{resp_common_error_msg, send_head, send_msg_with_body};
-use crate::route::{RouteDataType, RouteRecvHead, RouteRespHead, RouteTransferInfo};
+use crate::route::protocol::{RouteDataType, RouteRecvHead, RouteRespHead, RouteTransferInfo};
+use crate::route::transfer::{resp_common_error_msg, send_head, send_msg_with_body};
 use crate::status;
 use std::path::PathBuf;
 use tokio::net::TcpStream;
@@ -58,6 +58,7 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
 ) -> Result<(), ()> {
     debug!("send_files: {:?}", &paths);
     let mut resp_paths = Vec::<RouteTransferInfo>::new();
+    let mut total_file_size = 0;
     for path1 in paths {
         let path_attr = tokio::fs::metadata(&path1).await;
         let path_attr = match path_attr {
@@ -72,12 +73,13 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
             ..Default::default()
         };
         if path_attr.is_file() {
-            rpi.type_ = crate::route::PathType::File;
+            rpi.type_ = crate::route::protocol::PathType::File;
             rpi.size = path_attr.len();
+            total_file_size += rpi.size;
             resp_paths.push(rpi);
             continue;
         } else {
-            rpi.type_ = crate::route::PathType::Dir;
+            rpi.type_ = crate::route::protocol::PathType::Dir;
         }
         resp_paths.push(rpi);
 
@@ -111,9 +113,9 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
             let mut rpi = RouteTransferInfo {
                 remote_path: path2.clone(),
                 type_: if entry.file_type().is_dir() {
-                    crate::route::PathType::Dir
+                    crate::route::protocol::PathType::Dir
                 } else {
-                    crate::route::PathType::File
+                    crate::route::protocol::PathType::File
                 },
                 ..Default::default()
             };
@@ -128,7 +130,7 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
                 .join(relative_path)
                 .to_string_lossy()
                 .to_string();
-            if let crate::route::PathType::File = rpi.type_ {
+            if let crate::route::protocol::PathType::File = rpi.type_ {
                 rpi.size = entry.metadata().unwrap().len();
                 rpi.save_path = PathBuf::from(rpi.save_path)
                     .parent()
@@ -137,6 +139,7 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
                     .to_string();
             }
             // println!("{:?}", &rpi.save_path);
+            total_file_size += rpi.size;
             resp_paths.push(rpi);
         }
     }
@@ -157,10 +160,12 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
             return Err(());
         }
     };
-    send_msg_with_body(
+    use crate::route::transfer::send_msg_with_body2;
+    send_msg_with_body2(
         conn,
         LanguageKey::CopySuccessfully.translate(),
         RouteDataType::Files,
+        Some(total_file_size),
         &body,
     )
     .await
@@ -241,8 +246,9 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHe
         return r.is_ok();
     }
     let resp = RouteRespHead {
-        code: crate::route::resp::SUCCESS_STATUS_CODE,
+        code: crate::route::transfer::SUCCESS_STATUS_CODE,
         msg: &"start download".to_string(),
+        total_file_size: None,
         data_type: RouteDataType::Binary,
         data_len: head.end - head.start,
     };

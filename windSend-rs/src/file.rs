@@ -174,7 +174,7 @@ impl FileReceiveSessionManager {
 
     pub async fn setup_file_reception(
         self: &Arc<Self>,
-        head: &crate::route::RouteRecvHead,
+        head: &crate::route::protocol::RouteRecvHead,
     ) -> std::io::Result<tokio::fs::File> {
         let file_id = head.file_id;
         let file_size = head.file_size;
@@ -251,8 +251,8 @@ impl FileReceiveSessionManager {
 
     pub async fn create_op_info(
         &self,
-        head: &crate::route::RouteRecvHead,
-        upload_info: &crate::route::UploadOperationInfo,
+        head: &crate::route::protocol::RouteRecvHead,
+        upload_info: &crate::route::protocol::UploadOperationInfo,
     ) -> Result<(), String> {
         let ops_map = self.operation_sessions.lock().await;
         self.create_op_info_inner(head, upload_info, ops_map)
@@ -260,8 +260,8 @@ impl FileReceiveSessionManager {
 
     fn create_op_info_inner(
         &self,
-        head: &crate::route::RouteRecvHead,
-        upload_info: &crate::route::UploadOperationInfo,
+        head: &crate::route::protocol::RouteRecvHead,
+        upload_info: &crate::route::protocol::UploadOperationInfo,
         mut ops_map: tokio::sync::MutexGuard<HashMap<u32, OpInfo>>,
     ) -> Result<(), String> {
         // create new opertion

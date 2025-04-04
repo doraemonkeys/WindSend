@@ -5,6 +5,7 @@ use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
 mod language;
+mod relay;
 mod route;
 mod status;
 mod utils;
@@ -60,6 +61,16 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
 fn main() {
     init();
 
+    //TODO: Remove this code after a long time
+    #[cfg(target_os = "linux")]
+    {
+        let desktop_file_path =
+            dirs::config_dir().map(|dir| dir.join("autostart").join("windsend.desktop"));
+        if let Some(desktop_file_path) = desktop_file_path {
+            std::fs::remove_file(desktop_file_path).ok();
+        }
+    }
+
     #[cfg(not(feature = "disable-systray-support"))]
     {
         let show_systray_icon = config::GLOBAL_CONFIG.read().unwrap().show_systray_icon;
@@ -98,6 +109,9 @@ fn main() {
 
 async fn async_main() {
     trace!("async_main");
+
+    RUNTIME.spawn(run_relay_server());
+
     let server_port = config::GLOBAL_CONFIG
         .read()
         .unwrap()
@@ -121,8 +135,7 @@ async fn async_main() {
         .expect("bind error");
     let listener = socket.listen(1024).expect("listen error");
     info!("program listening on {}", listener.local_addr().unwrap());
-    let tls_acceptor = config::get_tls_acceptor()
-        .expect("get tls acceptor error, please check your tls config file");
+    let tls_acceptor = config::TLS_ACCEPTOR.clone();
     loop {
         let result = listener.accept().await;
         if let Err(e) = result {
@@ -143,4 +156,43 @@ async fn async_main() {
         debug!("tls accept success");
         RUNTIME.spawn(route::main_process(tls_stream));
     }
+}
+
+async fn run_relay_server() {
+    use crate::relay::relay::relay_main;
+
+    info!(
+        "run relay server, address: {}",
+        config::read_config().relay_server_address,
+    );
+
+    let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3));
+    let mut try_count = 0;
+
+    const MAX_TRY_COUNT: u32 = 30;
+
+    loop {
+        ticker.tick().await; // The first tick completes immediately
+        {
+            let config = config::read_config();
+            if config.relay_server_address.is_empty() || !config.enable_relay {
+                info!("relay server not configured, skip relay");
+                return;
+            }
+        }
+        try_count += 1;
+        let connected = relay_main().await;
+        if connected {
+            if try_count >= MAX_TRY_COUNT {
+                ticker = tokio::time::interval(std::time::Duration::from_secs(3));
+            }
+            try_count = 0;
+        }
+
+        if try_count == MAX_TRY_COUNT {
+            ticker = tokio::time::interval(std::time::Duration::from_secs(60));
+        }
+    }
+
+    // let (tx, rx) = tokio::sync::mpsc::channel::<(tokio::net::TcpStream, std::net::SocketAddr)>(1);
 }

@@ -1,6 +1,5 @@
 use crate::language::{LANGUAGE_MANAGER, LanguageKey};
-use crate::route::RouteRecvHead;
-use crate::route::{RouteDataType, RouteRespHead};
+use crate::route::protocol::{RouteDataType, RouteRecvHead, RouteRespHead};
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -12,20 +11,41 @@ pub static ERROR_STATUS_CODE: i32 = 400;
 pub async fn send_msg_with_body(
     conn: &mut TlsStream<TcpStream>,
     msg: &String,
-    datatype: crate::route::RouteDataType,
+    datatype: crate::route::protocol::RouteDataType,
     body: &[u8],
 ) -> Result<(), ()> {
-    let resp = crate::route::RouteRespHead {
+    _send_msg_with_body(conn, msg, datatype, None, body).await
+}
+
+pub async fn send_msg_with_body2(
+    conn: &mut TlsStream<TcpStream>,
+    msg: &String,
+    datatype: crate::route::protocol::RouteDataType,
+    total_file_size: Option<u64>,
+    body: &[u8],
+) -> Result<(), ()> {
+    _send_msg_with_body(conn, msg, datatype, total_file_size, body).await
+}
+
+async fn _send_msg_with_body(
+    conn: &mut TlsStream<TcpStream>,
+    msg: &String,
+    datatype: crate::route::protocol::RouteDataType,
+    total_file_size: Option<u64>,
+    body: &[u8],
+) -> Result<(), ()> {
+    let resp = crate::route::protocol::RouteRespHead {
         code: SUCCESS_STATUS_CODE,
         msg,
         data_type: datatype,
         data_len: body.len() as i64,
+        total_file_size,
     };
     let resp_buf =
         serde_json::to_vec(&resp).map_err(|e| error!("json marshal failed, err: {}", e))?;
     let head_len = resp_buf.len();
     trace!(
-        "head_len: {}, head: {:?},body_len: {}",
+        "send resp, head_len: {}, head: {:?},body_len: {}",
         head_len,
         resp,
         body.len()
@@ -45,7 +65,7 @@ pub async fn send_msg_with_body(
 
 pub async fn send_head<'a, W>(
     writer: &'a mut W,
-    head: &crate::route::RouteRespHead<'a>,
+    head: &crate::route::protocol::RouteRespHead<'a>,
 ) -> Result<(), ()>
 where
     W: AsyncWrite + Unpin + ?Sized,
@@ -75,6 +95,7 @@ where
         msg,
         data_type: RouteDataType::Text,
         data_len: 0,
+        total_file_size: None,
     };
     send_head(writer, &resp).await
 }
@@ -88,6 +109,7 @@ where
         msg,
         data_type: RouteDataType::Text,
         data_len: 0,
+        total_file_size: None,
     };
     send_head(writer, &resp).await
 }

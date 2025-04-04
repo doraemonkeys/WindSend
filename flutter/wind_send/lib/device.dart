@@ -13,6 +13,13 @@ import 'dart:async';
 import 'dart:io';
 import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
 import 'package:super_clipboard/super_clipboard.dart';
+import 'package:wind_send/crypto/aes.dart';
+import 'package:wind_send/crypto/aes.dart';
+import 'package:convert/convert.dart';
+import 'package:crypto/crypto.dart';
+import 'package:media_scanner/media_scanner.dart';
+import 'package:wind_send/protocol/relay/model.dart' as relay_model;
+import 'dart:developer' as dev;
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
@@ -23,7 +30,9 @@ import 'cnf.dart';
 import 'protocol/protocol.dart';
 import 'file_picker_service.dart';
 import 'main.dart';
-import 'package:media_scanner/media_scanner.dart';
+import 'protocol/relay/handshake.dart';
+import 'socket.dart';
+
 // import 'package:flutter/services.dart' show rootBundle;
 
 class Device {
@@ -34,6 +43,17 @@ class Device {
   String trustedCertificate = '';
   // use third party file picker
   String filePickerPackageName = '';
+
+  bool enableRelay = false;
+  String relayServerAddress = '';
+  String? relaySecretKey;
+
+  // Future<dynamic>? _tryDirectConnectErr;
+  // DateTime? _lastTryDirectConnectTime;
+  // Future<dynamic>? _tryRelayErr;
+  // DateTime? _lastTryRelayTime;
+
+  // Future<bool>? _findingServerResult;
 
   int port = defaultPort;
   bool autoSelect = true;
@@ -88,6 +108,13 @@ class Device {
     actionPasteFile = device.actionPasteFile;
     actionWebCopy = device.actionWebCopy;
     actionWebPaste = device.actionWebPaste;
+    relayServerAddress = device.relayServerAddress;
+    relaySecretKey = device.relaySecretKey;
+    // _tryDirectConnectErr = device._tryDirectConnectErr;
+    // _lastTryDirectConnectTime = device._lastTryDirectConnectTime;
+    // _tryRelayErr = device._tryRelayErr;
+    // _lastTryRelayTime = device._lastTryRelayTime;
+    enableRelay = device.enableRelay;
   }
 
   Device clone() {
@@ -111,6 +138,9 @@ class Device {
     actionPasteFile = json['ActionPasteFile'] ?? actionPasteFile;
     actionWebCopy = json['ActionWebCopy'] ?? actionWebCopy;
     actionWebPaste = json['ActionWebPaste'] ?? actionWebPaste;
+    relayServerAddress = json['RelayServerAddress'] ?? relayServerAddress;
+    relaySecretKey = json['RelaySecretKey'] ?? relaySecretKey;
+    enableRelay = json['EnableRelay'] ?? enableRelay;
   }
 
   Map<String, dynamic> toJson() {
@@ -132,10 +162,16 @@ class Device {
     data['ActionPasteFile'] = actionPasteFile;
     data['ActionWebCopy'] = actionWebCopy;
     data['ActionWebPaste'] = actionWebPaste;
+    data['RelayServerAddress'] = relayServerAddress;
+    data['RelaySecretKey'] = relaySecretKey;
+    data['EnableRelay'] = enableRelay;
     return data;
   }
 
   CbcAESCrypt get cryptor => CbcAESCrypt.fromHex(secretKey);
+  AesGcm? get relayCipher =>
+      relaySecretAuthKey() != null ? AesGcm(relaySecretAuthKey()!) : null;
+  AesGcm get cipher => AesGcm.fromHex(secretKey);
 
   String generateTimeipHeadHex() {
     // 2006-01-02 15:04:05 192.168.1.1
@@ -148,6 +184,21 @@ class Device {
     final headEncryptedHex = hex.encode(headEncrypted);
     return headEncryptedHex;
   }
+
+  // Future<dynamic>? get tryDirectConnectErr => _tryDirectConnectErr;
+  // Future<dynamic>? get tryRelayErr => _tryRelayErr;
+  // DateTime? get lastTryDirectConnectTime => _lastTryDirectConnectTime;
+  // DateTime? get lastTryRelayTime => _lastTryRelayTime;
+
+  // set tryDirectConnectErr(Future<dynamic>? value) {
+  //   _tryDirectConnectErr = value;
+  //   _lastTryDirectConnectTime = DateTime.now();
+  // }
+
+  // set tryRelayErr(Future<dynamic>? value) {
+  //   _tryRelayErr = value;
+  //   _lastTryRelayTime = DateTime.now();
+  // }
 
   Future<SecureSocket> connect({Duration? timeout}) async {
     // See commit https://github.com/doraemonkeys/WindSend/commit/063c311fd58c62d68e13d9ae6364ac8700471cc9
@@ -174,6 +225,201 @@ class Device {
         host: 'fake.windsend.com',
       );
     }).timeout(socketFutureTimeout);
+  }
+
+  Future<(BroadcastSocket, AesGcm)> handshakeInner({Duration? timeout}) async {
+    Duration socketFutureTimeout = resolveSocketFutureTimeout(timeout);
+    final (relayServerHost, relayServerPort) =
+        parseHostAndPort(relayServerAddress);
+    final sock =
+        await Socket.connect(relayServerHost, relayServerPort, timeout: timeout)
+            .timeout(socketFutureTimeout);
+
+    final sock2 = BroadcastSocket(sock, sock.asBroadcastStream());
+    final sharedSecret = await handshake(this, sock2);
+    final cipher = AesGcm(sharedSecret);
+    return (sock2, cipher);
+  }
+
+  Duration resolveSocketFutureTimeout(Duration? timeout) {
+    if (timeout != null) {
+      return timeout + const Duration(seconds: 1);
+    } else {
+      return const Duration(seconds: 5);
+    }
+  }
+
+  Future<SecureSocket> connectToRelay({Duration? timeout}) async {
+    Duration socketFutureTimeout = resolveSocketFutureTimeout(timeout);
+    final (sock2, cipher) = await handshakeInner(timeout: timeout);
+    final reqHead = relay_model.ReqHead(action: relay_model.Action.relay);
+    final mainReq = relay_model.RelayReq(id: getDeviceId());
+    await reqHead.writeWithBody(
+      sock2,
+      utf8.encode(jsonEncode(mainReq.toJson())),
+      cipher: cipher,
+    );
+    final respHead = await relay_model.RespHead.fromConn(
+      sock2.stream,
+      cipher: cipher,
+    );
+    if (respHead.code != relay_model.StatusCode.success) {
+      throw Exception('connect to relay device failed: ${respHead.msg}');
+    }
+    dev.log('connect to relay success, device online');
+    SecurityContext context = SecurityContext();
+    context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
+    return SecureSocket.secure(
+      sock2.conn,
+      context: context,
+      host: 'fake.windsend.com',
+    ).timeout(socketFutureTimeout);
+  }
+
+  Future<(SecureSocket, bool)> _connectAutoRoutine({Duration? timeout}) async {
+    dynamic directErr;
+    final state = refState();
+    try {
+      if (state.findingServerRunning != null) {
+        await state.findingServerRunning!;
+      }
+      return (await connect(timeout: timeout), false);
+    } catch (e) {
+      directErr = e;
+    }
+    if (enableRelay) {
+      try {
+        return (await connectToRelay(timeout: timeout), true);
+      } catch (e) {
+        SharedLogger().logger.e('connect to relay server failed: $e');
+      }
+    }
+    throw directErr;
+  }
+
+  /// bool is true if connect to relay
+  Future<(SecureSocket, bool)> connectAuto({
+    Duration? timeout,
+    bool forceDirectFirst = false,
+    bool onlyDirect = false,
+    bool onlyRelay = false,
+  }) async {
+    dev.log('run connectAuto,timeout: $timeout');
+    // return _connectAutoRoutine(timeout: timeout);
+    if (onlyDirect) {
+      return (await connect(timeout: timeout), false);
+    }
+    if (onlyRelay) {
+      return (await connectToRelay(timeout: timeout), true);
+    }
+    final state = refState();
+    if (state.tryDirectConnectErr == null || forceDirectFirst) {
+      return _connectAutoRoutine(timeout: timeout);
+    }
+    // directConnect is executing or just finished
+    var directConnectErr = await state.tryDirectConnectErr;
+    var lastDirectConnectTime = state.lastTryDirectConnectTime!;
+    // Within 50ms
+    if (DateTime.now().difference(lastDirectConnectTime).inMilliseconds < 50) {
+      if (directConnectErr == null) {
+        return _connectAutoRoutine(timeout: timeout);
+      }
+      if (enableRelay) {
+        try {
+          return (await connectToRelay(timeout: timeout), true);
+        } catch (e) {
+          SharedLogger().logger.e('connect to relay server failed: $e');
+        }
+      }
+      if (state.findingServerRunning != null) {
+        if (await state.findingServerRunning! != null) {
+          return (await connect(timeout: timeout), false);
+        }
+      }
+      throw directConnectErr;
+    }
+
+    var relayFirst = false;
+    if (directConnectErr != null &&
+        enableRelay &&
+        await state.tryRelayErr == null) {
+      relayFirst = true;
+    }
+    if (relayFirst && enableRelay) {
+      try {
+        return (await connectToRelay(timeout: timeout), true);
+      } catch (e) {
+        SharedLogger().logger.e('connect to relay server failed: $e');
+        return (await connect(timeout: timeout), false);
+      }
+    }
+
+    return _connectAutoRoutine(timeout: timeout);
+  }
+
+  Future<void> pingRelay({Duration? timeout}) async {
+    final (sock2, cipher) = await handshakeInner(timeout: timeout);
+    final reqHead = relay_model.ReqHead(action: relay_model.Action.ping);
+    await reqHead.writeHeadOnly(sock2, cipher: cipher);
+    final respHead = await relay_model.RespHead.fromConn(
+      sock2.stream,
+      cipher: cipher,
+    );
+    if (respHead.code != relay_model.StatusCode.success) {
+      throw Exception('ping relay failed: ${respHead.msg}');
+    }
+    refState().tryRelayErr = Future.value(null);
+  }
+
+  Future<void> pingRelay2(String host, int port, String? secretKey,
+      {Duration? timeout}) async {
+    final d = clone();
+    d.relayServerAddress = '$host:$port';
+    d.relaySecretKey = secretKey;
+    d.enableRelay = true;
+    await d.pingRelay(timeout: timeout);
+  }
+
+  static Uint8List hashToAES192Key(String c) {
+    // if (c.isEmpty) {
+    //   throw Exception('unreachable: Invalid input string');
+    // }
+    final hash = sha256.convert(utf8.encode(c)).bytes;
+    return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
+  }
+
+  static Uint8List hashToAES192Key2(List<int> c) {
+    // if (c.isEmpty) {
+    //   throw Exception('unreachable: Invalid input string');
+    // }
+    final hash = sha256.convert(c).bytes;
+    return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
+  }
+
+  Uint8List? relaySecretAuthKey() {
+    if (relaySecretKey == null) {
+      return null;
+    }
+    return hashToAES192Key(relaySecretKey!);
+  }
+
+  String getDeviceId() {
+    final hash = sha256.convert(utf8.encode(secretKey)).bytes;
+    final hash2 = sha256.convert(hash).bytes;
+    return hex.encode(hash2).substring(0, 16);
+  }
+
+  /// return 4 bytes encoded in hex
+  static String _getAES192KeySelector(Uint8List key) {
+    final hash = sha256.convert(key).bytes;
+    return hex.encode(hash.sublist(0, 4));
+  }
+
+  String? relaySecretKeySelector() {
+    if (relaySecretKey == null) {
+      return null;
+    }
+    return _getAES192KeySelector(relaySecretAuthKey()!);
   }
 
   static String? Function(String?) deviceNameValidator(
@@ -246,24 +492,36 @@ class Device {
     };
   }
 
-  Future<bool> findServer() async {
+  /// Automatically scan and update ip
+  Future<String?> findServer() async {
+    final state = refState();
+    state.findingServerRunning ??= _findServerInner();
+    final found = await state.findingServerRunning!;
+    state.findingServerRunning = null;
+    if (found != null) {
+      refState().tryDirectConnectErr = Future.value(null);
+    }
+    return found;
+  }
+
+  Future<String?> _findServerInner() async {
     var myIp = await getDeviceIp();
     if (myIp == '') {
-      return false;
+      return null;
     }
     String mask;
     // always use 255.255.255.0
     mask = "255.255.255.0";
     if (mask != "255.255.255.0") {
-      return false;
+      return null;
     }
 
     String result = await pingDeviceLoop(myIp);
     if (result == '') {
-      return false;
+      return null;
     }
     iP = result;
-    return true;
+    return result;
   }
 
   static Future<String> getDeviceIp() async {
@@ -373,6 +631,7 @@ class Device {
     if (decryptedBodyStr != 'pong') {
       throw Exception('pong error');
     }
+    refState().tryDirectConnectErr = Future.value(null);
   }
 
   static Future<Device> _matchDeviceLoop(
@@ -503,7 +762,7 @@ class Device {
   /// 3. The actual save path of the files(if too many files, return empty list)
   Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction(
       [Duration connectTimeout = const Duration(seconds: 2)]) async {
-    var conn = await connect(timeout: connectTimeout);
+    var (conn, isRelay) = await connectAuto(timeout: connectTimeout);
     var headInfo = HeadInfo(
       AppConfigModel().deviceName,
       DeviceAction.copy,
@@ -518,6 +777,11 @@ class Device {
     }
     if (respHead.code != respOkCode) {
       throw Exception('server error: ${respHead.msg}');
+    }
+    if (isRelay) {
+      refState().tryRelayErr = Future.value(null);
+    } else {
+      refState().tryDirectConnectErr = Future.value(null);
     }
     if (respHead.dataType == RespHead.dataTypeText) {
       final content = utf8.decode(respBody);
@@ -551,7 +815,8 @@ class Device {
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
       List<DownloadInfo> respPaths =
           respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();
-      var realSavePaths = await _downloadFiles(respPaths);
+      var realSavePaths =
+          await _downloadFiles(respPaths, respHead.totalFileSize!);
       return (null, respPaths, realSavePaths);
     }
     throw Exception('Unknown data type: ${respHead.dataType}');
@@ -576,7 +841,7 @@ class Device {
       // pasteText = await Pasteboard.text ?? '';
     }
 
-    var conn = await connect(timeout: timeout);
+    var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(pasteText);
     var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.syncText,
         generateTimeipHeadHex(),
@@ -590,6 +855,11 @@ class Device {
     }
     if (respHead.code != respOkCode) {
       throw Exception(respHead.msg);
+    }
+    if (isRelay) {
+      refState().tryRelayErr = Future.value(null);
+    } else {
+      refState().tryDirectConnectErr = Future.value(null);
     }
 
     final content = utf8.decode(respBody);
@@ -610,18 +880,88 @@ class Device {
     return (content, pasteText);
   }
 
-  Future<List<String>> _downloadFiles(List<DownloadInfo> targetItems) async {
+  Future<void> doSendRelayServerConfig() async {
+    var conn = await connect(timeout: const Duration(seconds: 2));
+    var headInfo = HeadInfo(
+      AppConfigModel().deviceName,
+      DeviceAction.setRelayServer,
+      generateTimeipHeadHex(),
+    );
+    final req = SetRelayServerReq(
+      relayServerAddress,
+      relaySecretKey,
+      enableRelay,
+    );
+    await headInfo.writeToConnWithBody(conn, utf8.encode(jsonEncode(req)));
+    var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+    conn.destroy();
+
+    if (respHead.code == UnauthorizedException.unauthorizedCode) {
+      throw UnauthorizedException(respHead.msg ?? '');
+    }
+    if (respHead.code != respOkCode) {
+      throw Exception(respHead.msg);
+    }
+  }
+
+  Future<void> doSendEndConnection(SecureSocket conn,
+      {String? localDeviceName}) async {
+    // await Future.delayed(const Duration(milliseconds: 1000));
+    var headInfo = HeadInfo(
+      localDeviceName ?? '',
+      DeviceAction.endConnection,
+      generateTimeipHeadHex(),
+    );
+    await headInfo.writeToConn(conn);
+  }
+
+  Future<List<String>> _downloadFiles(
+      List<DownloadInfo> targetItems, int totalFileSize) async {
+    var stateStatic = await getStateStatic();
+
+    const maxRelayBytes = 1024 * 1024 * 10;
+    var directFirst = false;
+    var forceDirect = false;
+    if (totalFileSize > maxRelayBytes &&
+        enableRelay &&
+        stateStatic.tryDirectConnectErr != null) {
+      directFirst = true;
+      var ctx = appWidgetKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await alertDialogFunc(
+          ctx,
+          Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
+          content: Text(
+            ctx.formatString(
+              AppLocale.fileTooLargeTip,
+              [
+                formatBytes(totalFileSize),
+              ],
+            ),
+          ),
+          onCanceled: () {
+            forceDirect = true;
+          },
+        );
+      } else {
+        throw Exception('Do not use this method in isolate');
+      }
+    }
+
     String imageSavePath = AppConfigModel().imageSavePath;
     String fileSavePath = AppConfigModel().fileSavePath;
     String localDeviceName = AppConfigModel().deviceName;
     Future<List<String>> startDownload(
-        (Device, List<DownloadInfo>) args) async {
-      var (device, targetItems) = args;
+        (Device, DeviceStateStatic, List<DownloadInfo>) args) async {
+      var (device, state, targetItems) = args;
+      device.setStateStatic(state);
       var futures = <Future>[];
       var downloader = FileDownloader(
         device,
         localDeviceName,
         threadNum: device.downloadThread,
+        forceDirectFirst: directFirst,
+        onlyDirectConn: forceDirect,
       );
       bool tooManyFiles = false;
       int tempFileCount = 0;
@@ -672,11 +1012,11 @@ class Device {
       return realSavePaths;
     }
 
-    // 开启一个isolate
-    // 不try, Exception 直接抛出
+    // Start a new isolate
+    // Do not catch Exception, it will be thrown directly
     final lastRealSavePath = await compute(
       startDownload,
-      (this, targetItems),
+      (this, stateStatic, targetItems),
     );
 
     if (targetItems.length == 1) {
@@ -697,7 +1037,9 @@ class Device {
         }
         var path = lastRealSavePath[i];
         if (hasImageExtension(path) || hasVideoExtension(path)) {
-          MediaScanner.loadMedia(path: path);
+          MediaScanner.loadMedia(path: path).then((_) {}).catchError((e) {
+            SharedLogger().logger.e('MediaScanner.loadMedia error: $e');
+          });
         }
       }
     }
@@ -805,15 +1147,60 @@ class Device {
     int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
     String localDeviceName = AppConfigModel().deviceName;
 
-    void uploadFiles(List<String> filePaths) async {
+    var stateStatic = await getStateStatic();
+
+    const maxRelayBytes = 1024 * 1024 * 10;
+    var directFirst = false;
+    var forceDirect = false;
+    if (totalSize > maxRelayBytes &&
+        enableRelay &&
+        stateStatic.tryDirectConnectErr != null) {
+      directFirst = true;
+      var ctx = appWidgetKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await alertDialogFunc(
+          ctx,
+          Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
+          content: Text(
+            ctx.formatString(
+              AppLocale.fileTooLargeTip,
+              [
+                formatBytes(totalSize),
+              ],
+            ),
+          ),
+          onCanceled: () {
+            forceDirect = true;
+          },
+        );
+      } else {
+        throw Exception('Do not use this method in isolate');
+      }
+    }
+
+    void uploadFiles((Device, DeviceStateStatic, List<String>) args) async {
+      var (device, state, filePaths) = args;
+      print('uploadFiles: $filePaths');
       UploadOperationInfo uploadOpInfo = UploadOperationInfo(
         totalSize,
         filePaths.length,
         uploadPaths: pathInfoMap,
         emptyDirs: emptyDirs,
       );
-      var fileUploader =
-          FileUploader(this, localDeviceName, threadNum: uploadThread);
+
+      device.setStateStatic(state);
+
+      var f1 = await refState().tryDirectConnectErr!;
+      var f2 = await refState().tryRelayErr!;
+      print('f1: $f1, f2: $f2');
+
+      var fileUploader = FileUploader(
+        device,
+        localDeviceName,
+        threadNum: uploadThread,
+        forceDirectFirst: directFirst,
+        onlyDirectConn: forceDirect,
+      );
 
       await fileUploader.sendOperationInfo(opID, uploadOpInfo);
 
@@ -828,7 +1215,7 @@ class Device {
       await fileUploader.close();
     }
 
-    await compute(uploadFiles, allFilePath);
+    await compute(uploadFiles, (this, stateStatic, allFilePath));
   }
 
   Future<List<String>> pickFiles() async {
@@ -961,7 +1348,7 @@ class Device {
     required String text,
     Duration timeout = const Duration(seconds: 2),
   }) async {
-    var conn = await connect(timeout: timeout);
+    var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(text);
     var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.pasteText,
         generateTimeipHeadHex(),
@@ -975,6 +1362,11 @@ class Device {
     }
     if (respHead.code != respOkCode) {
       throw Exception(respHead.msg);
+    }
+    if (isRelay) {
+      refState().tryRelayErr = Future.value(null);
+    } else {
+      refState().tryDirectConnectErr = Future.value(null);
     }
   }
 
@@ -1021,5 +1413,101 @@ class Device {
     } else {
       return content;
     }
+  }
+
+  DeviceState refState() {
+    return AllDevicesState().get(targetDeviceName);
+  }
+
+  Future<DeviceStateStatic> getStateStatic() async {
+    return await AllDevicesState().get(targetDeviceName).toStatic();
+  }
+
+  void setStateStatic(DeviceStateStatic state) {
+    AllDevicesState().setState(targetDeviceName, DeviceState.fromStatic(state));
+  }
+}
+
+class DeviceStateStatic {
+  dynamic tryDirectConnectErr;
+  DateTime? lastTryDirectConnectTime;
+  dynamic tryRelayErr;
+  DateTime? lastTryRelayTime;
+
+  DeviceStateStatic({
+    this.tryDirectConnectErr,
+    this.lastTryDirectConnectTime,
+    this.tryRelayErr,
+    this.lastTryRelayTime,
+  });
+}
+
+class DeviceState {
+  Future<dynamic>? _tryDirectConnectErr;
+  DateTime? _lastTryDirectConnectTime;
+  Future<dynamic>? _tryRelayErr;
+  DateTime? _lastTryRelayTime;
+
+  Future<String?>? findingServerRunning;
+
+  Future<dynamic>? get tryDirectConnectErr => _tryDirectConnectErr;
+  Future<dynamic>? get tryRelayErr => _tryRelayErr;
+  DateTime? get lastTryDirectConnectTime => _lastTryDirectConnectTime;
+  DateTime? get lastTryRelayTime => _lastTryRelayTime;
+
+  set tryDirectConnectErr(Future<dynamic>? value) {
+    _tryDirectConnectErr = value;
+    _lastTryDirectConnectTime = DateTime.now();
+  }
+
+  set tryRelayErr(Future<dynamic>? value) {
+    _tryRelayErr = value;
+    _lastTryRelayTime = DateTime.now();
+  }
+
+  Future<DeviceStateStatic> toStatic() async {
+    var s = DeviceStateStatic(
+      tryDirectConnectErr: await _tryDirectConnectErr,
+      lastTryDirectConnectTime: _lastTryDirectConnectTime,
+    );
+    _tryRelayErr?.then((e) {
+      s.tryRelayErr = e;
+      s.lastTryRelayTime = _lastTryRelayTime;
+    });
+    return s;
+  }
+
+  DeviceState.fromStatic(DeviceStateStatic s) {
+    _tryDirectConnectErr = Future.value(s.tryDirectConnectErr);
+    _lastTryDirectConnectTime = s.lastTryDirectConnectTime;
+    _tryRelayErr = Future.value(s.tryRelayErr);
+    _lastTryRelayTime = s.lastTryRelayTime;
+  }
+
+  DeviceState();
+}
+
+/// safe access in different isolate
+class AllDevicesState {
+  final Map<String, DeviceState> devices = {};
+  static AllDevicesState? _instance;
+
+  AllDevicesState._internal();
+
+  factory AllDevicesState() {
+    return _instance ??= AllDevicesState._internal();
+  }
+
+  DeviceState get(String name) {
+    var s = devices[name];
+    if (s == null) {
+      s = DeviceState();
+      devices[name] = s;
+    }
+    return s;
+  }
+
+  void setState(String name, DeviceState state) {
+    devices[name] = state;
   }
 }

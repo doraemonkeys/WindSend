@@ -60,7 +60,7 @@ class DeviceCard extends StatefulWidget {
 
       if (tempErr != null) {
         if (i == 0 && device.autoSelect && shouldAutoSelectError(tempErr)) {
-          if (!await device.findServer()) {
+          if (await device.findServer() == null) {
             // errorMsg = tempErr.toString();
             throw tempErr;
           }
@@ -125,6 +125,32 @@ class _DeviceCardState extends State<DeviceCard> {
   @override
   void initState() {
     super.initState();
+    _refreshDevice();
+  }
+
+  void _refreshDevice() {
+    final state = widget.device.refState();
+    try {
+      var f = widget.device.pingDevice(timeout: const Duration(seconds: 2));
+      state.tryDirectConnectErr = f.then((_) => null, onError: (e) => e);
+    } catch (e) {
+      state.tryDirectConnectErr = Future.value(e);
+    }
+
+    if (widget.device.enableRelay) {
+      state.tryDirectConnectErr!.then((err) {
+        if (err == null) {
+          // Don't need to ping relay
+          return;
+        }
+        try {
+          var f = widget.device.pingRelay(timeout: const Duration(seconds: 2));
+          state.tryRelayErr = f.then((_) => null, onError: (e) => e);
+        } catch (e) {
+          state.tryRelayErr = Future.value(e);
+        }
+      });
+    }
   }
 
   @override
@@ -210,7 +236,8 @@ class _DeviceCardState extends State<DeviceCard> {
                   MaterialPageRoute(
                     builder: (context) => DeviceSettingPage(
                       device: widget.device,
-                      devices: widget.devices,
+                      deviceNameValidator: (BuildContext context) =>
+                          Device.deviceNameValidator(context, widget.devices),
                     ),
                   ),
                 );

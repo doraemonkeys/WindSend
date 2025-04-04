@@ -5,6 +5,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -445,6 +447,42 @@ class _MainBodyState extends State<MainBody> {
   void initState() {
     super.initState();
 
+    // ping device to scan device ip
+    resolveTargetDevice(defaultShareDevice: true).then((value) {
+      if (widget.devices.isEmpty) {
+        return;
+      }
+      var defaultDevice = value ??= widget.devices.first;
+      var defaultDeviceIndex = widget.devices.indexWhere(
+        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
+      );
+      // Only ping when using relay, lazy load when not using relay
+      if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
+        // print('ping device: ${defaultDevice.targetDeviceName}');
+        defaultDevice.pingDevice().then((_) {}).catchError((e) async {
+          try {
+            final ip = await compute(
+              (Device d) async {
+                return await d.findServer();
+              },
+              defaultDevice,
+            );
+            // print('find ip: $ip');
+            if (ip != null) {
+              final d = widget.devices[defaultDeviceIndex];
+              d.iP = ip;
+              d.refState().tryDirectConnectErr = Future.value(null);
+              widget.devicesRebuild();
+            }
+          } catch (e) {
+            SharedLogger()
+                .logger
+                .e('unexpected error, find server failed', error: e);
+          }
+        });
+      }
+    });
+
     // -------------------------------- share --------------------------------
     if (!Platform.isAndroid && !Platform.isIOS) {
       // unsupported platform
@@ -475,7 +513,7 @@ class _MainBodyState extends State<MainBody> {
         mainBodyKey.currentContext!,
         defaultDevice,
         (Device d) {
-          widget.devices[defaultDeviceIndex] = d;
+          widget.devices[defaultDeviceIndex].iP = d.iP;
           AppSharedCnfService.devices = widget.devices;
           widget.devicesRebuild();
         },

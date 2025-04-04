@@ -7,24 +7,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:convert/convert.dart';
 import 'package:wind_send/main.dart';
+import 'package:wind_send/device.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  var d = Device(
+    targetDeviceName: 'test',
+    iP: '127.0.0.1',
+    secretKey: 'test',
+  );
+  test('test', () async {
+    expect(d.refState().tryDirectConnectErr, isNull);
+    d.refState().tryDirectConnectErr = Future.value(null);
+    expect(d.refState().tryDirectConnectErr, isNotNull);
+    d.refState().tryDirectConnectErr = Future.value("test");
+    expect(d.refState().tryDirectConnectErr, isNotNull);
+    final err = await d.refState().tryDirectConnectErr;
+    expect(err, "test");
   });
 }

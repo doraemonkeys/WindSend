@@ -1,6 +1,6 @@
 use crate::language::LanguageKey;
-use crate::route::resp::{resp_common_error_msg, send_msg, send_msg_with_body};
-use crate::route::{RouteDataType, RouteRecvHead};
+use crate::route::protocol::{RouteDataType, RouteRecvHead};
+use crate::route::transfer::{resp_common_error_msg, send_msg, send_msg_with_body};
 use std::borrow::Cow;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -78,7 +78,7 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
 
 /// return whether should continue loop(like no socket error)
 pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
-    if let crate::route::UploadType::UploadInfo = head.upload_type {
+    if let crate::route::protocol::UploadType::UploadInfo = head.upload_type {
         return paste_file_operation_handler(conn, head).await;
     }
 
@@ -233,13 +233,14 @@ async fn paste_file_operation_handler(
         error!("read body failed, err: {}", e);
         return false;
     }
-    let op_info: crate::route::UploadOperationInfo = match serde_json::from_slice(&data_buf) {
-        Ok(info) => info,
-        Err(e) => {
-            error!("parse upload operation info failed, err: {}", e);
-            return false;
-        }
-    };
+    let op_info: crate::route::protocol::UploadOperationInfo =
+        match serde_json::from_slice(&data_buf) {
+            Ok(info) => info,
+            Err(e) => {
+                error!("parse upload operation info failed, err: {}", e);
+                return false;
+            }
+        };
     info!(
         "paste file operation, total size: {}, total count: {}",
         op_info.files_size_in_this_op, op_info.files_count_in_this_op

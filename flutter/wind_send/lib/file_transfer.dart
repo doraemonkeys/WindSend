@@ -6,12 +6,17 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as filepathpkg;
 // import 'package:filesaverz/filesaverz.dart';
+import 'package:wind_send/protocol/protocol.dart';
 
+import 'socket.dart';
 import 'protocol/protocol.dart';
 import 'device.dart';
 import 'utils.dart';
+import 'spmc.dart';
+import 'main.dart';
 
 class FileUploader {
   final Device device;
@@ -21,32 +26,54 @@ class FileUploader {
   // final String savePath;
   static int maxBufferSize = 1024 * 1024 * 20;
 
-  /// 分片大小的最小值
+  /// The minimum size of the fragment
   final int minPartSize = maxBufferSize ~/ 2;
 
-  // final int opID;
-  // final int filesCountInThisOp;
+  bool forceDirectFirst = false;
+  bool onlyDirectConn = false;
 
-  // List<(SecureSocket, Stream<Uint8List>)> conns = [];
   late final ConnectionManager _connectionManager;
   final Duration timeout;
   List<Future<void>> smallFileTasks = [];
 
-  FileUploader(this.device, this.loaclDeviceName,
-      {this.threadNum = 10, this.timeout = const Duration(seconds: 4)}) {
+  FileUploader(
+    this.device,
+    this.loaclDeviceName, {
+    this.threadNum = 10,
+    this.timeout = const Duration(seconds: 4),
+    this.forceDirectFirst = false,
+    this.onlyDirectConn = false,
+  }) {
     _connectionManager = ConnectionManager(device, timeout: timeout);
     // print('fileID: $fileID');
   }
 
   Future<void> close() async {
     await Future.wait(smallFileTasks);
+    if (_connectionManager.connsContainRelay) {
+      for (var e in _connectionManager.conns) {
+        // print('close, send end connection1');
+        if (e.isRelay) {
+          await device.doSendEndConnection(e.conn,
+              localDeviceName: loaclDeviceName);
+          await e.stream
+              .drain()
+              .timeout(const Duration(milliseconds: 1))
+              .catchError((_) {});
+        }
+      }
+    }
     await _connectionManager.closeAllConn();
   }
 
   /// call this function before upload
   Future<void> sendOperationInfo(int opID, UploadOperationInfo info) async {
     // print('conns.length: ${_connectionManager.conns.length}');
-    var (conn, stream) = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection(
+      forceDirectFirst: forceDirectFirst,
+      onlyDirect: onlyDirectConn,
+    );
+    var (conn, stream) = (connStream.conn, connStream.stream);
 
     var infoJson = jsonEncode(info.toJson());
     Uint8List infoBytes = utf8.encode(infoJson);
@@ -71,7 +98,7 @@ class FileUploader {
       throw Exception(respHead.msg);
     }
 
-    _connectionManager.putConnection(conn, stream);
+    _connectionManager.putConnection(connStream);
   }
 
   Future<void> uploader(
@@ -84,7 +111,8 @@ class FileUploader {
     int fileID,
   ) async {
     // print('conns.length: ${_connectionManager.conns.length}');
-    var (conn, stream) = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection();
+    var (conn, stream) = (connStream.conn, connStream.stream);
 
     HeadInfo head = HeadInfo(
       loaclDeviceName,
@@ -139,7 +167,7 @@ class FileUploader {
       throw Exception(respHead.msg);
     }
 
-    _connectionManager.putConnection(conn, stream);
+    _connectionManager.putConnection(connStream);
   }
 
   // Future<String> calculateMD5(File file) async {
@@ -156,7 +184,6 @@ class FileUploader {
     int fileSize,
     int opID,
   ) async {
-    // 计算md5
     // print('filepath: $filePath');
     // var md5 = await calculateMD5(file);
     // print('md5: $md5');
@@ -176,7 +203,7 @@ class FileUploader {
     var partNum = 0;
     final futures = <Future>[];
     if (fileSize == 0) {
-      // 空文件
+      // Empty file
       var fileAccess = await file.open();
       futures.add(
           uploader(fileAccess, start, end, filePath, savePath, opID, fileID));
@@ -242,7 +269,8 @@ class FileUploader {
     );
     await sendOperationInfo(opID, opInfo);
 
-    var (conn, stream) = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection();
+    var (conn, stream) = (connStream.conn, connStream.stream);
 
     HeadInfo head = HeadInfo(
       loaclDeviceName,
@@ -269,7 +297,7 @@ class FileUploader {
     if (respHead.code != Device.respOkCode) {
       throw Exception(respHead.msg);
     }
-    _connectionManager.putConnection(conn, stream);
+    _connectionManager.putConnection(connStream);
   }
 }
 
@@ -286,6 +314,9 @@ class FileDownloader {
   final Duration connTimeout;
   List<Future<String>> smallFileTasks = [];
 
+  bool forceDirectFirst = false;
+  bool onlyDirectConn = false;
+
   FileDownloader(
     this.device,
     this.localDeviceName, {
@@ -293,12 +324,26 @@ class FileDownloader {
     this.maxChunkSize = 1024 * 1024 * 25,
     this.minPartSize = 1024 * 1024 * 3,
     this.connTimeout = const Duration(seconds: 4),
+    this.forceDirectFirst = false,
+    this.onlyDirectConn = false,
   }) {
     _connectionManager = ConnectionManager(device, timeout: connTimeout);
   }
 
   Future<void> close() async {
     await Future.wait(smallFileTasks);
+    if (_connectionManager.connsContainRelay) {
+      for (var e in _connectionManager.conns) {
+        if (e.isRelay) {
+          await device.doSendEndConnection(e.conn,
+              localDeviceName: localDeviceName);
+          await e.stream
+              .drain()
+              .timeout(const Duration(milliseconds: 1))
+              .catchError((_) {});
+        }
+      }
+    }
     await _connectionManager.closeAllConn();
   }
 
@@ -306,7 +351,12 @@ class FileDownloader {
       RandomAccessFile fileAccess, DownloadInfo paths) async {
     var chunkSize = min(maxChunkSize, end - start);
     // print('chunkSize: $chunkSize');
-    var (conn, stream) = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection(
+      forceDirectFirst: forceDirectFirst,
+      onlyDirect: onlyDirectConn,
+    );
+    var (conn, stream) = (connStream.conn, connStream.stream);
+
     // print('_writeRangeFile start: $start, end: $end');
     var head = HeadInfo(
       localDeviceName,
@@ -373,7 +423,7 @@ class FileDownloader {
         break;
       }
     }
-    _connectionManager.putConnection(conn, stream);
+    _connectionManager.putConnection(connStream);
     await fileAccess.close();
   }
 
@@ -443,6 +493,12 @@ class FileDownloader {
     DownloadInfo targetFile,
     String fileSaveDir,
   ) async {
+    if (_connectionManager.totalConnNum == 0) {
+      // Pre-create a connection to check if it is a relay connection (internal judgment)
+      final c = await _connectionManager.getConnection();
+      _connectionManager.putConnection(c);
+    }
+
     var smallFileThreadNum = min(threadNum * 2, 35);
     if (targetFile.size < minPartSize) {
       // print('''addTask, size: ${targetFile.size},
@@ -465,33 +521,89 @@ class FileDownloader {
   }
 }
 
+class ConnectionBox {
+  final SecureSocket conn;
+  final Stream<Uint8List> stream;
+  final bool isRelay;
+  ConnectionBox(this.conn, this.stream, this.isRelay);
+}
+
 class ConnectionManager {
   final Device device;
   Duration? timeout;
   int totalConnNum = 0;
   int get idleConnNum => conns.length;
-  List<(SecureSocket, Stream<Uint8List>)> conns = [];
+  List<ConnectionBox> conns = [];
+  bool connsContainRelay = false;
+  // StreamController<()> connNotifier = StreamController<()>.broadcast();
+  final connNotifier = SpmcChannel<()>();
+  final connCompleters = <Completer<()>>[];
 
   ConnectionManager(this.device, {this.timeout});
 
-  Future<(SecureSocket, Stream<Uint8List>)> getConnection() async {
+  Future<ConnectionBox> getConnection({
+    bool forceDirectFirst = false,
+    bool onlyDirect = false,
+    bool onlyRelay = false,
+  }) async {
+    if (connsContainRelay) {
+      // Only one relay connection is allowed,
+      // after connecting to a relay, no new connection is allowed
+      if (conns.isNotEmpty) {
+        return conns.removeLast();
+      }
+      await connNotifier.waitTask();
+      return conns.removeLast();
+    }
     if (conns.isEmpty) {
-      var conn = await device.connect(timeout: timeout);
+      SecureSocket conn;
+      bool isRelay;
+      var completer = Completer<()>();
+      try {
+        connCompleters.add(completer);
+        (conn, isRelay) = await device.connectAuto(
+          timeout: timeout,
+          forceDirectFirst: forceDirectFirst,
+          onlyDirect: onlyDirect,
+          onlyRelay: onlyRelay,
+        );
+      } catch (e) {
+        completer.complete(()); // complete self
+        // print('connectAuto failed: $e');
+        for (var completer in connCompleters) {
+          await completer.future;
+        }
+        if (!connsContainRelay) {
+          rethrow;
+        }
+        await connNotifier.waitTask();
+        return conns.removeLast();
+      }
+      if (isRelay && !connsContainRelay) {
+        // first relay connection
+        connsContainRelay = true;
+      }
       var stream = conn.asBroadcastStream();
       totalConnNum++;
-      return (conn, stream);
+      completer.complete(());
+      return ConnectionBox(conn, stream, isRelay);
     }
     return conns.removeLast();
   }
 
-  void putConnection(SecureSocket conn, Stream<Uint8List> stream) {
-    conns.add((conn, stream));
+  void putConnection(ConnectionBox conn) {
+    conns.add(conn);
+
+    if (connsContainRelay && connNotifier.waitingWorkerCount > 0) {
+      connNotifier.send(());
+    }
   }
 
   Future<void> closeAllConn() async {
-    await Future.wait(conns.map((e) => e.$1.flush()));
-    await Future.wait(conns.map((e) => e.$1.close()));
-    conns.map((e) => e.$1.destroy());
+    await Future.wait(conns.map((e) => e.conn.flush()));
+    await Future.wait(conns.map((e) => e.conn.close()));
+    conns.map((e) => e.conn.destroy());
+    conns.clear();
   }
 }
 

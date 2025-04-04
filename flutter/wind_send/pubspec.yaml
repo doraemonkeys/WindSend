@@ -73,8 +73,11 @@ dependencies:
       ref: master
   media_scanner:
     git:
-      url: https://github.com/mbfakourii/media_scanner
-      ref: support_gradle_8
+      url: https://github.com/Lzyct/media_scanner
+      ref: master
+  pointycastle: ^4.0.0
+  cryptography_plus: ^2.7.1
+  cryptography_flutter_plus: ^2.3.4
 
 dev_dependencies:
   flutter_test:

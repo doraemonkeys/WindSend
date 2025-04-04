@@ -99,12 +99,24 @@ fn app_icon_path() -> String {
     icon_path.display().to_string()
 }
 
+pub static TLS_ACCEPTOR: std::sync::LazyLock<tokio_rustls::TlsAcceptor> =
+    std::sync::LazyLock::new(|| get_tls_acceptor().expect("get_tls_acceptor error"));
+
 pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
     let cryptor = utils::encrypt::AESCbcFollowedCrypt::new(
         hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
     )?;
     Ok(cryptor)
 }
+
+pub fn read_config() -> std::sync::RwLockReadGuard<'static, Config> {
+    GLOBAL_CONFIG.read().unwrap()
+}
+
+pub fn write_config() -> std::sync::RwLockWriteGuard<'static, Config> {
+    GLOBAL_CONFIG.write().unwrap()
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     #[serde(rename = "serverPort")]
@@ -132,7 +144,11 @@ pub struct Config {
     #[serde(rename = "trustedRemoteHosts", default)]
     pub trusted_remote_hosts: Option<Vec<String>>,
     #[serde(rename = "relayServerAddress", default)]
-    pub relay_server_address: Option<String>,
+    pub relay_server_address: String,
+    #[serde(rename = "relaySecretKey", default)]
+    pub relay_secret_key: Option<String>,
+    #[serde(rename = "enableRelay", default)]
+    pub enable_relay: bool,
 }
 
 #[cfg(not(feature = "disable-systray-support"))]
@@ -187,12 +203,21 @@ impl Config {
         Ok(())
     }
 
+    pub fn get_device_id(&self) -> String {
+        let r_key = self.secret_key_hex.as_bytes();
+        let r_key = crate::utils::encrypt::compute_sha256(r_key);
+        let r_key = crate::utils::encrypt::compute_sha256(&r_key);
+        let mut r_key_hex = hex::encode(r_key);
+        r_key_hex.truncate(16);
+        r_key_hex
+    }
+
     fn generate_default() -> Self {
         let lang = crate::utils::get_system_lang();
         let lang = crate::language::Language::from_str(&lang);
         Self {
             server_port: "6779".to_string(),
-            secret_key_hex: utils::encrypt::generate_secret_key_hex(32),
+            secret_key_hex: utils::encrypt::generate_rand_bytes_hex(32),
             show_systray_icon: true,
             auto_start: false,
             save_path: utils::get_desktop_path().unwrap_or_else(|err| {
@@ -208,7 +233,9 @@ impl Config {
                 "localhost".to_string(),
                 "::1".to_string(),
             ]),
-            relay_server_address: None,
+            relay_server_address: "".to_string(),
+            relay_secret_key: Some("".to_string()),
+            enable_relay: false,
         }
     }
 }

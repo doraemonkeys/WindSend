@@ -1,4 +1,4 @@
-use crate::route::resp::resp_error_msg;
+use crate::route::transfer::resp_error_msg;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::io::AsyncReadExt;
@@ -7,179 +7,13 @@ use tokio_rustls::server::TlsStream;
 use tracing::info;
 use tracing::{debug, error, trace, warn};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum RouteAction {
-    #[serde(rename = "ping")]
-    Ping,
-    #[serde(rename = "pasteText")]
-    PasteText,
-    #[serde(rename = "pasteFile")]
-    PasteFile,
-    #[serde(rename = "copy")]
-    Copy,
-    #[serde(rename = "download")]
-    Download,
-    #[serde(rename = "match")]
-    Match,
-    #[serde(rename = "syncText")]
-    SyncText,
-    #[serde(untagged)]
-    Unknown(String),
-}
+use crate::route::protocol::*;
 
-impl std::default::Default for RouteAction {
-    fn default() -> Self {
-        RouteAction::Unknown("unknown".to_string())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct RouteRecvHead {
-    pub action: RouteAction,
-    #[serde(rename = "deviceName")]
-    pub device_name: String,
-    #[serde(rename = "timeIp")]
-    pub time_ip: String,
-    #[serde(rename = "fileID")]
-    pub file_id: u32,
-    #[serde(rename = "fileSize")]
-    pub file_size: i64,
-    #[serde(rename = "path")]
-    /// The file path for upload or download.
-    /// For uploads, this is the relative path to upload to.
-    /// For downloads, this is the path on the server to download from.
-    pub path: String,
-    #[serde(rename = "uploadType")]
-    /// Valid when uploading a file or folder
-    #[serde(default)]
-    pub upload_type: UploadType,
-    pub start: i64,
-    pub end: i64,
-    #[serde(rename = "dataLen")]
-    pub data_len: i64,
-    /// The ID of this upload operation
-    #[serde(rename = "opID")]
-    pub op_id: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UploadOperationInfo {
-    /// The total size of the file to upload for this operation
-    #[serde(rename = "filesSizeInThisOp")]
-    pub files_size_in_this_op: i64,
-
-    /// The number of files to upload for this operation
-    #[serde(rename = "filesCountInThisOp")]
-    pub files_count_in_this_op: i32,
-
-    /// files and dirs to upload for this operation
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "uploadPaths")]
-    pub upload_paths: Option<HashMap<String, PathInfo>>,
-
-    /// A collection of empty directories uploaded by this operation
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "emptyDirs")]
-    pub empty_dirs: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PathInfo {
-    pub path: String,
-    #[serde(default)]
-    pub r#type: PathType,
-    pub size: Option<i64>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RouteRespHead<'a> {
-    pub code: i32,
-    pub msg: &'a String,
-    /// 客户端copy时返回的数据类型(text, image, file)
-    #[serde(rename = "dataType")]
-    pub data_type: RouteDataType,
-    /// 如果body有数据，返回数据的长度
-    #[serde(rename = "dataLen")]
-    pub data_len: i64,
-    // pub paths: Vec<RoutePathInfo>,
-}
-
-#[derive(Debug, Serialize, Default)]
-pub struct RouteTransferInfo {
-    #[serde(rename = "path")]
-    pub remote_path: String,
-    pub size: u64,
-    #[serde(rename = "type")]
-    pub type_: PathType,
-    #[serde(rename = "savePath")]
-    pub save_path: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum PathType {
-    #[serde(rename = "dir")]
-    Dir,
-    #[serde(rename = "file")]
-    File,
-    #[serde(untagged)]
-    Unknown(String),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum UploadType {
-    #[serde(rename = "dir")]
-    Dir,
-    #[serde(rename = "file")]
-    File,
-    #[serde(rename = "uploadInfo")]
-    UploadInfo,
-    #[serde(untagged)]
-    Unknown(String),
-}
-
-impl std::default::Default for UploadType {
-    fn default() -> Self {
-        UploadType::Unknown("unknown".to_string())
-    }
-}
-
-impl std::default::Default for PathType {
-    fn default() -> Self {
-        PathType::Unknown("unknown".to_string())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct MatchActionRespBody {
-    #[serde(rename = "deviceName")]
-    device_name: String,
-    #[serde(rename = "secretKeyHex")]
-    secret_key_hex: String,
-    #[serde(rename = "caCertificate")]
-    ca_certificate: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum RouteDataType {
-    #[serde(rename = "text")]
-    Text,
-    #[serde(rename = "clip-image")]
-    ClipImage,
-    #[serde(rename = "files")]
-    Files,
-    #[serde(rename = "binary")]
-    Binary,
-}
-
-// static TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-static EXAMINE_TIME_STR: &str = "2023-10-10 01:45:32";
-// static MAX_TIME_DIFF: i64 = 300;
-
-pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::TcpStream>) {
+pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<TcpStream>> {
     loop {
         let head = common_auth(&mut conn).await;
         if head.is_err() {
-            return;
+            return None;
         }
         let head = head.unwrap();
         info!("recv head: {:?}", head);
@@ -187,7 +21,7 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
         let mut ok = false;
         match head.action {
             RouteAction::Ping => {
-                let _ = crate::route::resp::ping_handler(&mut conn, head).await;
+                let _ = crate::route::transfer::ping_handler(&mut conn, head).await;
             }
             RouteAction::PasteText => {
                 crate::route::paste::paste_text_handler(&mut conn, head).await;
@@ -197,6 +31,7 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
             }
             RouteAction::Copy => {
                 crate::route::copy::copy_handler(&mut conn).await;
+                println!("copy handler");
             }
             RouteAction::Download => {
                 ok = crate::route::copy::download_handler(&mut conn, head).await;
@@ -207,18 +42,25 @@ pub async fn main_process(mut conn: tokio_rustls::server::TlsStream<tokio::net::
             RouteAction::SyncText => {
                 crate::route::paste::sync_text_handler(&mut conn, head).await;
             }
+            RouteAction::SetRelayServer => {
+                let _ = set_relay_server_handler(&mut conn, head).await;
+            }
+            RouteAction::EndConnection => {
+                return Some(conn);
+            }
             RouteAction::Unknown(action) => {
                 let msg = format!("unknown action: {:?}", action);
-                let _ = crate::route::resp::resp_common_error_msg(&mut conn, &msg).await;
+                let _ = crate::route::transfer::resp_common_error_msg(&mut conn, &msg).await;
                 error!("{}", msg);
             }
         }
         use tokio::io::AsyncWriteExt;
         if let Err(e) = conn.flush().await {
             error!("flush failed, err: {}", e);
+            return None;
         }
         if !ok {
-            return;
+            return Some(conn);
         }
     }
 }
@@ -381,7 +223,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
         Ok(ca_certificate) => ca_certificate,
         Err(e) => {
             error!("read ca certificate failed, err: {}", e);
-            let _ = crate::route::resp::resp_common_error_msg(conn, &e.to_string()).await;
+            let _ = crate::route::transfer::resp_common_error_msg(conn, &e.to_string()).await;
             return Err(());
         }
     };
@@ -398,11 +240,12 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     if let Err(e) = &action_resp {
         let err = format!("json marshal failed, err: {}", e);
         error!("{}", err);
-        let _ = crate::route::resp::resp_common_error_msg(conn, &err).await;
+        let _ = crate::route::transfer::resp_common_error_msg(conn, &err).await;
         return Err(());
     }
     let r =
-        crate::route::resp::send_msg(conn, &String::from_utf8(action_resp.unwrap()).unwrap()).await;
+        crate::route::transfer::send_msg(conn, &String::from_utf8(action_resp.unwrap()).unwrap())
+            .await;
     match r {
         Ok(_) => {
             #[cfg(not(feature = "disable-systray-support"))]
@@ -433,4 +276,42 @@ fn cancel_allow_to_be_searched_in_config() {
     let mut cnf = crate::config::GLOBAL_CONFIG.write().unwrap();
     cnf.allow_to_be_searched_once = false;
     cnf.save().expect("save config file error");
+}
+
+async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
+    use crate::config;
+    use crate::route::transfer::{resp_common_error_msg, send_msg};
+
+    let mut body_buf = vec![0u8; head.data_len as usize];
+    let r = conn.read_exact(&mut body_buf).await;
+    if let Err(e) = r {
+        error!("read body failed, err: {}", e);
+        let _ = resp_common_error_msg(conn, &e.to_string()).await;
+        return;
+    }
+    let req: SetRelayServerReq = match serde_json::from_slice(&body_buf) {
+        Ok(req) => req,
+        Err(e) => {
+            error!("json unmarshal failed, err: {}", e);
+            let _ = resp_common_error_msg(conn, &e.to_string()).await;
+            return;
+        }
+    };
+    debug!("set relay server req: {:?}", req);
+    let err;
+    {
+        let mut cnf = config::write_config();
+        cnf.relay_server_address = req.relay_server_address.clone();
+        cnf.relay_secret_key = req.relay_secret_key.clone();
+        cnf.enable_relay = req.enable_relay;
+        err = cnf.save();
+    }
+    if let Err(e) = err {
+        error!("save config failed, err: {}", e);
+        let _ = resp_common_error_msg(conn, &e).await;
+        return;
+    }
+    if let Err(_) = send_msg(conn, &"success".to_string()).await {
+        error!("send success msg failed");
+    }
 }
