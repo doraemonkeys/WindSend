@@ -45,13 +45,6 @@ class Device {
   String relayServerAddress = '';
   String? relaySecretKey;
 
-  // Future<dynamic>? _tryDirectConnectErr;
-  // DateTime? _lastTryDirectConnectTime;
-  // Future<dynamic>? _tryRelayErr;
-  // DateTime? _lastTryRelayTime;
-
-  // Future<bool>? _findingServerResult;
-
   int port = defaultPort;
   bool autoSelect = true;
   int downloadThread = 6;
@@ -107,10 +100,6 @@ class Device {
     actionWebPaste = device.actionWebPaste;
     relayServerAddress = device.relayServerAddress;
     relaySecretKey = device.relaySecretKey;
-    // _tryDirectConnectErr = device._tryDirectConnectErr;
-    // _lastTryDirectConnectTime = device._lastTryDirectConnectTime;
-    // _tryRelayErr = device._tryRelayErr;
-    // _lastTryRelayTime = device._lastTryRelayTime;
     enableRelay = device.enableRelay;
   }
 
@@ -181,21 +170,6 @@ class Device {
     final headEncryptedHex = hex.encode(headEncrypted);
     return (headEncryptedHex, timeIpStr);
   }
-
-  // Future<dynamic>? get tryDirectConnectErr => _tryDirectConnectErr;
-  // Future<dynamic>? get tryRelayErr => _tryRelayErr;
-  // DateTime? get lastTryDirectConnectTime => _lastTryDirectConnectTime;
-  // DateTime? get lastTryRelayTime => _lastTryRelayTime;
-
-  // set tryDirectConnectErr(Future<dynamic>? value) {
-  //   _tryDirectConnectErr = value;
-  //   _lastTryDirectConnectTime = DateTime.now();
-  // }
-
-  // set tryRelayErr(Future<dynamic>? value) {
-  //   _tryRelayErr = value;
-  //   _lastTryRelayTime = DateTime.now();
-  // }
 
   Future<SecureSocket> connect({Duration? timeout}) async {
     // See commit https://github.com/doraemonkeys/WindSend/commit/063c311fd58c62d68e13d9ae6364ac8700471cc9
@@ -283,12 +257,14 @@ class Device {
       return (await connect(timeout: timeout), false);
     } catch (e) {
       directErr = e;
+      state.tryDirectConnectErr = Future.value(e);
     }
     if (enableRelay) {
       try {
         return (await connectToRelay(timeout: timeout), true);
       } catch (e) {
         SharedLogger().logger.e('connect to relay server failed: $e');
+        state.tryRelayErr = Future.value(e);
       }
     }
     throw directErr;
@@ -326,6 +302,7 @@ class Device {
           return (await connectToRelay(timeout: timeout), true);
         } catch (e) {
           SharedLogger().logger.e('connect to relay server failed: $e');
+          state.tryRelayErr = Future.value(e);
         }
       }
       if (state.findingServerRunning != null) {

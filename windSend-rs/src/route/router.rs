@@ -11,6 +11,7 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
     loop {
         let head = common_auth(&mut conn).await;
         if head.is_err() {
+            conn.get_mut().0.shutdown().await.ok();
             return None;
         }
         let head = head.unwrap();
