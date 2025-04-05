@@ -14,8 +14,6 @@ import 'dart:io';
 import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/crypto/aes.dart';
-import 'package:wind_send/crypto/aes.dart';
-import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:wind_send/protocol/relay/model.dart' as relay_model;
@@ -600,9 +598,7 @@ class Device {
     final headEncrypted = cryptor.encrypt(headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
 
-    localDeviceName ??= AppSharedCnfService.initialized
-        ? AppConfigModel().deviceName
-        : 'unknown';
+    localDeviceName ??= globalLocalDeviceName;
     // print('localDeviceName: $localDeviceName');
     var headInfo = HeadInfo(
         localDeviceName, DeviceAction.ping, headEncryptedHex,
@@ -721,9 +717,8 @@ class Device {
       msgController.add(device);
       return;
     }
-
-    var headInfo = HeadInfo(
-        AppConfigModel().deviceName, DeviceAction.matchDevice, 'no need');
+    var headInfo =
+        HeadInfo(globalLocalDeviceName, DeviceAction.matchDevice, 'no need');
     await headInfo.writeToConn(conn);
     await conn.flush();
     // var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -764,7 +759,7 @@ class Device {
       [Duration connectTimeout = const Duration(seconds: 2)]) async {
     var (conn, isRelay) = await connectAuto(timeout: connectTimeout);
     var headInfo = HeadInfo(
-      AppConfigModel().deviceName,
+      globalLocalDeviceName,
       DeviceAction.copy,
       generateTimeipHeadHex(),
     );
@@ -790,9 +785,8 @@ class Device {
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
       final imageName = respHead.msg;
-      String filePath =
-          filepath.join(AppConfigModel().imageSavePath, imageName);
-      await Directory(AppConfigModel().imageSavePath).create(recursive: true);
+      String filePath = filepath.join(LocalConfig.imageSavePath, imageName);
+      await Directory(LocalConfig.imageSavePath).create(recursive: true);
       await File(filePath).writeAsBytes(respBody);
       if (Platform.isAndroid) {
         MediaScanner.loadMedia(path: filePath);
@@ -843,8 +837,8 @@ class Device {
 
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(pasteText);
-    var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.syncText,
-        generateTimeipHeadHex(),
+    var headInfo = HeadInfo(
+        globalLocalDeviceName, DeviceAction.syncText, generateTimeipHeadHex(),
         dataLen: pasteTextUint8.length);
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
@@ -863,7 +857,8 @@ class Device {
     }
 
     final content = utf8.decode(respBody);
-    // 与当前剪贴板内容相同则不设置，避免触发剪贴板变化事件
+    // If the content is not empty and is not the same as the current clipboard content, set it,
+    // otherwise do not set it to avoid triggering the clipboard change event
     if (content.isNotEmpty && content != pasteText) {
       final clipboard = SystemClipboard.instance;
       if (clipboard == null) {
@@ -883,7 +878,7 @@ class Device {
   Future<void> doSendRelayServerConfig() async {
     var conn = await connect(timeout: const Duration(seconds: 2));
     var headInfo = HeadInfo(
-      AppConfigModel().deviceName,
+      globalLocalDeviceName,
       DeviceAction.setRelayServer,
       generateTimeipHeadHex(),
     );
@@ -947,10 +942,9 @@ class Device {
         throw Exception('Do not use this method in isolate');
       }
     }
-
-    String imageSavePath = AppConfigModel().imageSavePath;
-    String fileSavePath = AppConfigModel().fileSavePath;
-    String localDeviceName = AppConfigModel().deviceName;
+    String imageSavePath = LocalConfig.imageSavePath;
+    String fileSavePath = LocalConfig.fileSavePath;
+    String localDeviceName = globalLocalDeviceName;
     Future<List<String>> startDownload(
         (Device, DeviceStateStatic, List<DownloadInfo>) args) async {
       var (device, state, targetItems) = args;
@@ -1145,7 +1139,6 @@ class Device {
     }
 
     int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-    String localDeviceName = AppConfigModel().deviceName;
 
     var stateStatic = await getStateStatic();
 
@@ -1178,9 +1171,11 @@ class Device {
       }
     }
 
+    String localDeviceName = globalLocalDeviceName;
+
     void uploadFiles((Device, DeviceStateStatic, List<String>) args) async {
       var (device, state, filePaths) = args;
-      print('uploadFiles: $filePaths');
+      // print('uploadFiles: $filePaths');
       UploadOperationInfo uploadOpInfo = UploadOperationInfo(
         totalSize,
         filePaths.length,
@@ -1190,9 +1185,9 @@ class Device {
 
       device.setStateStatic(state);
 
-      var f1 = await refState().tryDirectConnectErr!;
-      var f2 = await refState().tryRelayErr!;
-      print('f1: $f1, f2: $f2');
+      // var f1 = await refState().tryDirectConnectErr!;
+      // var f2 = await refState().tryRelayErr!;
+      // print('f1: $f1, f2: $f2');
 
       var fileUploader = FileUploader(
         device,
@@ -1350,8 +1345,8 @@ class Device {
   }) async {
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(text);
-    var headInfo = HeadInfo(AppConfigModel().deviceName, DeviceAction.pasteText,
-        generateTimeipHeadHex(),
+    var headInfo = HeadInfo(
+        globalLocalDeviceName, DeviceAction.pasteText, generateTimeipHeadHex(),
         dataLen: pasteTextUint8.length);
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
@@ -1374,7 +1369,7 @@ class Device {
     required Uint8List data,
     required String fileName,
   }) async {
-    var uploader = FileUploader(this, AppConfigModel().deviceName);
+    var uploader = FileUploader(this, globalLocalDeviceName);
     await uploader.uploadByBytes(data, fileName);
     await uploader.close();
   }

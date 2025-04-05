@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter/services.dart';
@@ -239,14 +237,14 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
           onConfirmed: () {
             setState(() {
               if (widget.device.targetDeviceName ==
-                  AppConfigModel().defaultSyncDevice) {
-                AppConfigModel().defaultSyncDevice =
-                    deviceNameController.text.trim();
+                  LocalConfig.defaultSyncDevice) {
+                LocalConfig.setDefaultSyncDevice(
+                    deviceNameController.text.trim());
               }
               if (widget.device.targetDeviceName ==
-                  AppConfigModel().defaultShareDevice) {
-                AppConfigModel().defaultShareDevice =
-                    deviceNameController.text.trim();
+                  LocalConfig.defaultShareDevice) {
+                LocalConfig.setDefaultShareDevice(
+                    deviceNameController.text.trim());
               }
               widget.device.targetDeviceName = deviceNameController.text.trim();
             });

@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -31,7 +30,7 @@ final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
 Future<void> init() async {
   // Ensure the binding is initialized before calling any Flutter plugins
   WidgetsFlutterBinding.ensureInitialized();
-  await AppSharedCnfService.initInstance();
+  await LocalConfig.initInstance();
   await SharedLogger.initFileLogger(appName);
 }
 
@@ -50,9 +49,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
-  AppColorSeed colorSelected = AppSharedCnfService.themeColor;
-  // late StreamSubscription _intentDataStreamSubscription;
-  // List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
+  late AppColorSeed colorSelected;
 
   @override
   void initState() {
@@ -72,11 +69,13 @@ class _MyAppState extends State<MyApp> {
           fontFamily: 'Font ZH',
         ),
       ],
-      initLanguageCode: AppSharedCnfService.locale.languageCode,
+      initLanguageCode: LocalConfig.locale.languageCode,
     );
     _localization.onTranslatedLanguage = _onTranslatedLanguage;
     // ThemeMode
     themeMode = getThemeMode();
+    // colorSelected
+    colorSelected = LocalConfig.themeColor;
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
@@ -95,10 +94,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   ThemeMode getThemeMode() {
-    if (AppSharedCnfService.followSystemTheme) {
+    if (LocalConfig.followSystemTheme) {
       return ThemeMode.system;
     } else {
-      return AppSharedCnfService.brightness == Brightness.light
+      return LocalConfig.brightness == Brightness.light
           ? ThemeMode.light
           : ThemeMode.dark;
     }
@@ -111,15 +110,15 @@ class _MyAppState extends State<MyApp> {
   void _handleBrightnessChange(bool useLightMode) {
     setState(() {
       themeMode = useLightMode ? ThemeMode.light : ThemeMode.dark;
-      AppSharedCnfService.brightness =
-          useLightMode ? Brightness.light : Brightness.dark;
+      LocalConfig.setBrightness(
+          useLightMode ? Brightness.light : Brightness.dark);
     });
   }
 
   void _handleColorSelect(int index) {
     setState(() {
       colorSelected = AppColorSeed.values[index];
-      AppSharedCnfService.themeColor = colorSelected;
+      LocalConfig.setThemeColor(colorSelected);
     });
   }
 
@@ -151,12 +150,13 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             _localization.translate(language.languageCode);
           });
-          AppSharedCnfService.locale = language;
+          LocalConfig.setLocale(language);
         },
         onFollowSystemThemeChanged: (followSystemTheme) {
-          AppSharedCnfService.followSystemTheme = followSystemTheme;
-          setState(() {
-            themeMode = getThemeMode();
+          LocalConfig.setFollowSystemTheme(followSystemTheme).then((_) {
+            setState(() {
+              themeMode = getThemeMode();
+            });
           });
         },
       ),
@@ -189,11 +189,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class MyHomePageState extends State<MyHomePage> {
-  List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
+  late List<Device> devices = LocalConfig.devices ?? <Device>[];
 
   void devicesRebuild() {
     setState(() {});
-    AppSharedCnfService.devices = devices;
+    LocalConfig.setDevices(devices);
   }
 
   @override
@@ -230,10 +230,12 @@ class MyHomePageState extends State<MyHomePage> {
                 devices: devices,
                 onAddDevice: () {
                   if (devices.length == 1) {
-                    AppConfigModel().defaultShareDevice =
-                        devices.first.targetDeviceName;
+                    LocalConfig.setDefaultShareDevice(
+                            devices.first.targetDeviceName)
+                        .then((_) {
+                      devicesRebuild();
+                    });
                   }
-                  devicesRebuild();
                 },
               );
             },
@@ -247,7 +249,7 @@ class MyHomePageState extends State<MyHomePage> {
       ),
       body: MainBody(
         devices: devices,
-        devicesRebuild: devicesRebuild,
+        onDevicesChange: devicesRebuild,
       ),
     );
   }
@@ -426,13 +428,13 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
 
 class MainBody extends StatefulWidget {
   final List<Device> devices;
-  final void Function() devicesRebuild;
+  final void Function() onDevicesChange;
   static const double maxBodyWidth = 600.0;
 
   const MainBody({
     super.key,
     required this.devices,
-    required this.devicesRebuild,
+    required this.onDevicesChange,
   });
 
   @override
@@ -472,12 +474,11 @@ class _MainBodyState extends State<MainBody> {
               final d = widget.devices[defaultDeviceIndex];
               d.iP = ip;
               d.refState().tryDirectConnectErr = Future.value(null);
-              widget.devicesRebuild();
+              widget.onDevicesChange();
             }
-          } catch (e) {
-            SharedLogger()
-                .logger
-                .e('unexpected error, find server failed', error: e);
+          } catch (e, s) {
+            SharedLogger().logger.e('unexpected error, find server failed',
+                error: e, stackTrace: s);
           }
         });
       }
@@ -514,8 +515,8 @@ class _MainBodyState extends State<MainBody> {
         defaultDevice,
         (Device d) {
           widget.devices[defaultDeviceIndex].iP = d.iP;
-          AppSharedCnfService.devices = widget.devices;
-          widget.devicesRebuild();
+          // widget.cnf.setDevices(widget.devices);
+          widget.onDevicesChange();
         },
         () async {
           List<String> fileList = [];
@@ -639,8 +640,8 @@ class _MainBodyState extends State<MainBody> {
         );
       },
       onRefresh: () async {
-        if (AppConfigModel().defaultSyncDevice == null ||
-            AppConfigModel().defaultSyncDevice!.isEmpty) {
+        if (LocalConfig.defaultSyncDevice == null ||
+            LocalConfig.defaultSyncDevice!.isEmpty) {
           // disable sync
           return;
         }
@@ -662,7 +663,7 @@ class _MainBodyState extends State<MainBody> {
                 break;
               }
             }
-            widget.devicesRebuild();
+            widget.onDevicesChange();
           },
           () async {
             var (respText, sentText) = await defaultDevice.doSyncTextAction();
@@ -700,25 +701,24 @@ class _MainBodyState extends State<MainBody> {
             return DeviceCard(
               device: widget.devices[index],
               devices: widget.devices,
-              saveChange: (device) {
+              saveChange: (device) async {
                 widget.devices[index] = device;
-                AppSharedCnfService.devices = widget.devices;
+                LocalConfig.setDevices(widget.devices);
               },
-              onDelete: () {
+              onDelete: () async {
                 var removed = widget.devices.removeAt(index);
-                if (AppConfigModel().defaultShareDevice != null &&
-                    AppConfigModel().defaultShareDevice ==
+                if (LocalConfig.defaultShareDevice != null &&
+                    LocalConfig.defaultShareDevice ==
                         removed.targetDeviceName) {
-                  AppConfigModel().defaultShareDevice = widget.devices.isEmpty
+                  await LocalConfig.setDefaultShareDevice(widget.devices.isEmpty
                       ? null
-                      : widget.devices.first.targetDeviceName;
+                      : widget.devices.first.targetDeviceName);
                 }
-                if (AppConfigModel().defaultSyncDevice != null &&
-                    AppConfigModel().defaultSyncDevice ==
-                        removed.targetDeviceName) {
-                  AppConfigModel().defaultSyncDevice = null;
+                if (LocalConfig.defaultSyncDevice != null &&
+                    LocalConfig.defaultSyncDevice == removed.targetDeviceName) {
+                  await LocalConfig.setDefaultSyncDevice(null);
                 }
-                widget.devicesRebuild();
+                widget.onDevicesChange();
               },
             );
           },

@@ -6,17 +6,14 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+
 import 'package:path/path.dart' as filepathpkg;
 // import 'package:filesaverz/filesaverz.dart';
 import 'package:wind_send/protocol/protocol.dart';
 
-import 'socket.dart';
-import 'protocol/protocol.dart';
 import 'device.dart';
 import 'utils.dart';
 import 'spmc.dart';
-import 'main.dart';
 
 class FileUploader {
   final Device device;
