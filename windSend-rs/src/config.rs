@@ -102,11 +102,11 @@ fn app_icon_path() -> String {
 pub static TLS_ACCEPTOR: std::sync::LazyLock<tokio_rustls::TlsAcceptor> =
     std::sync::LazyLock::new(|| get_tls_acceptor().expect("get_tls_acceptor error"));
 
-pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
-    let cryptor = utils::encrypt::AESCbcFollowedCrypt::new(
+pub fn get_cipher() -> Result<utils::encrypt::AesGcmCipher, Box<dyn std::error::Error>> {
+    let cipher = utils::encrypt::AesGcmCipher::new(
         hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
     )?;
-    Ok(cryptor)
+    Ok(cipher)
 }
 
 pub fn read_config() -> std::sync::RwLockReadGuard<'static, Config> {

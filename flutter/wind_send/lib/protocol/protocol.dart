@@ -76,7 +76,7 @@ class HeadInfo with HeadWriter {
   String timeIp;
 
   /// encrypted timeIp
-  // String timeIpAuth;
+  String aad;
 
   int fileID;
   int fileSize;
@@ -93,7 +93,7 @@ class HeadInfo with HeadWriter {
   int opID;
   // int filesCountInThisOp;
 
-  HeadInfo(this.deviceName, this.action, this.timeIp,
+  HeadInfo(this.deviceName, this.action, this.timeIp, this.aad,
       {this.fileID = 0,
       this.fileSize = 0,
       this.uploadType = DeviceUploadType.unKnown,
@@ -107,6 +107,7 @@ class HeadInfo with HeadWriter {
       : deviceName = json['deviceName'],
         action = DeviceAction.fromString(json['action']),
         timeIp = json['timeIp'],
+        aad = json['aad'],
         fileID = json['fileID'],
         uploadType = DeviceUploadType.fromString(json['uploadType']),
         fileSize = json['fileSize'],
@@ -121,6 +122,7 @@ class HeadInfo with HeadWriter {
         'deviceName': deviceName,
         'action': action,
         'timeIp': timeIp,
+        'aad': aad,
         'fileID': fileID,
         'uploadType': uploadType,
         'fileSize': fileSize,
@@ -167,7 +169,8 @@ class HeadInfo with HeadWriter {
 class RespHead {
   int code;
   String dataType;
-  String? timeIp;
+  // String? timeIp;
+  // String? aad;
   String? msg;
   // only for dataTypeFiles
   int? totalFileSize;
@@ -178,11 +181,12 @@ class RespHead {
   static const String dataTypeText = 'text';
   static const String dataTypeImage = 'clip-image';
 
-  RespHead(this.code, this.dataType, {this.timeIp, this.msg, this.dataLen = 0});
+  RespHead(this.code, this.dataType, {this.msg, this.dataLen = 0});
 
   RespHead.fromJson(Map<String, dynamic> json)
       : code = json['code'],
-        timeIp = json['timeIp'],
+        // timeIp = json['timeIp'],
+        // aad = json['aad'],
         msg = json['msg'],
         // paths = json['paths']?.cast<String>(),
         totalFileSize = json['totalFileSize'],
@@ -191,7 +195,8 @@ class RespHead {
 
   Map<String, dynamic> toJson() => {
         'code': code,
-        'timeIp': timeIp,
+        // 'timeIp': timeIp,
+        // 'aad': aad,
         'msg': msg,
         if (totalFileSize != null) 'totalFileSize': totalFileSize,
         'dataLen': dataLen,

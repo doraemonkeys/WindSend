@@ -74,11 +74,13 @@ class FileUploader {
 
     var infoJson = jsonEncode(info.toJson());
     Uint8List infoBytes = utf8.encode(infoJson);
+    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
+      headEncryptedHex,
+      aad,
       uploadType: DeviceUploadType.uploadInfo,
-      device.generateTimeipHeadHex(),
       dataLen: infoBytes.length,
       opID: opID,
     );
@@ -110,12 +112,13 @@ class FileUploader {
     // print('conns.length: ${_connectionManager.conns.length}');
     var connStream = await _connectionManager.getConnection();
     var (conn, stream) = (connStream.conn, connStream.stream);
-
+    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
+      headEncryptedHex,
+      aad,
       uploadType: DeviceUploadType.file,
-      device.generateTimeipHeadHex(),
       fileID: fileID,
       fileSize: await fileAccess.length(),
       path: filepathpkg.join(savePath, filepathpkg.basename(filePath)),
@@ -268,11 +271,12 @@ class FileUploader {
 
     var connStream = await _connectionManager.getConnection();
     var (conn, stream) = (connStream.conn, connStream.stream);
-
+    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
-      device.generateTimeipHeadHex(),
+      headEncryptedHex,
+      aad,
       uploadType: DeviceUploadType.file,
       fileID: Random().nextInt(int.parse('FFFFFFFF', radix: 16)),
       fileSize: data.length,
@@ -355,10 +359,12 @@ class FileDownloader {
     var (conn, stream) = (connStream.conn, connStream.stream);
 
     // print('_writeRangeFile start: $start, end: $end');
+    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     var head = HeadInfo(
       localDeviceName,
       DeviceAction.downloadAction,
-      device.generateTimeipHeadHex(),
+      headEncryptedHex,
+      aad,
       path: paths.remotePath,
       start: start,
       end: end,

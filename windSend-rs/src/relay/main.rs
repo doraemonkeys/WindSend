@@ -137,7 +137,7 @@ async fn handshake(
         ecdh_public_key_b64: BASE64_STANDARD.encode(public),
     };
 
-    if let Err(_) = req.write_to(conn).await {
+    if req.write_to(conn).await.is_err() {
         return None;
     }
 

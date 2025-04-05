@@ -122,11 +122,11 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     }
     // debug!("head: {:?}", head);
 
-    let time_and_ip_bytes =
+    let mut time_and_ip_bytes =
         hex::decode(&head.time_ip).map_err(|e| error!("hex decode failed, err: {}", e))?;
-    let decrypted = crate::config::get_cryptor()
-        .map_err(|e| error!("get_cryptor failed, err: {}", e))?
-        .decrypt(&time_and_ip_bytes);
+    let decrypted = crate::config::get_cipher()
+        .map_err(|e| error!("get_cipher failed, err: {}", e))?
+        .decrypt(&mut time_and_ip_bytes, head.aad.as_bytes());
 
     if let Err(e) = decrypted {
         let msg = format!(
@@ -139,77 +139,12 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         return Err(());
     }
     let decrypted = decrypted.unwrap();
-
-    let time_and_ip_str =
-        String::from_utf8(decrypted).map_err(|e| error!("utf8 decode failed, err: {}", e))?;
-    let time_len = EXAMINE_TIME_STR.len();
-    if time_and_ip_str.len() < time_len {
-        let msg = format!("time-ip is too short, remote_ip: {}", remote_addr.ip());
-        error!(msg);
-        let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-        return Err(());
-    }
-    let time_str = &time_and_ip_str[..time_len];
-    // The original address of the remote access
-    let remote_access_host = &time_and_ip_str[time_len + 1..];
     trace!(
-        "time_str: {}, remote access host: {}",
-        time_str, remote_access_host
+        "time_str, remote access host: {}",
+        String::from_utf8_lossy(decrypted)
     );
+    // pub static EXAMINE_TIME_STR: &str = "2023-10-10 01:45:32";
     Ok(head)
-    // let t = chrono::NaiveDateTime::parse_from_str(time_str, TIME_FORMAT)
-    //     .map_err(|e| error!("parse time failed, err: {}", e))?;
-    // let now = chrono::Utc::now();
-    // // Replay attack, if the time difference is greater than MAX_TIME_DIFF seconds, it is considered that the time has expired
-    // if now.signed_duration_since(t.and_utc()).num_seconds() > MAX_TIME_DIFF {
-    //     // The problem that cannot be solved: the clock synchronization problem of timestamp verification
-    //     let msg = format!("time expired! recv time: {}, local time: {}", t, now);
-    //     debug!(msg);
-    //     let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-    //     return Err(());
-    // }
-    // let myip = conn
-    //     .get_ref()
-    //     .0
-    //     .local_addr()
-    //     .map_err(|e| error!("get local addr failed, err: {}", e))?
-    //     .ip()
-    //     .to_string();
-    // let myip = myip.strip_prefix("::ffff:").unwrap_or(myip.as_str());
-    // let remote_ip = remote_addr.ip().to_string();
-    // let remote_ip = remote_ip
-    //     .strip_prefix("::ffff:")
-    //     .unwrap_or(remote_ip.as_str());
-    // debug!(
-    //     "remote access host: {}, remote ip: {}, my ip: {}",
-    //     remote_access_host, remote_ip, myip
-    // );
-    // let mut rah = remote_access_host;
-    // if rah.contains('%') {
-    //     rah = &rah[..rah.find('%').unwrap()];
-    // }
-    // if rah == myip {
-    //     return Ok(head);
-    // }
-
-    // {
-    //     let external_ips = &GLOBAL_CONFIG.read().unwrap().external_ips;
-    //     if external_ips.is_some() && external_ips.as_ref().unwrap().contains(&rah.to_string()) {
-    //         return Ok(head);
-    //     }
-    // }
-    // {
-    //     let trh = &GLOBAL_CONFIG.read().unwrap().trusted_remote_hosts;
-    //     // dbg!(trh);
-    //     // dbg!(remote_ip.to_string());
-    //     if trh.is_some() && trh.as_ref().unwrap().contains(&remote_ip.to_string()) {
-    //         return Ok(head);
-    //     }
-    // }
-    // let msg = format!("ip not match: {} != {}", remote_access_host, myip);
-    // error!(msg);
-    // let _ = resp_error_msg(conn, UNAUTHORIZED_CODE, &msg).await;
-    // Err(())
 }
 
 async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {

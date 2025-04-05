@@ -36,8 +36,12 @@ pub struct RouteRecvHead {
     pub action: RouteAction,
     #[serde(rename = "deviceName")]
     pub device_name: String,
+    /// encrypted timeIp
     #[serde(rename = "timeIp")]
     pub time_ip: String,
+    /// Additional data for authentication
+    #[serde(rename = "aad")]
+    pub aad: String,
     #[serde(rename = "fileID")]
     pub file_id: u32,
     #[serde(rename = "fileSize")]
@@ -185,7 +189,3 @@ pub enum RouteDataType {
     #[serde(rename = "binary")]
     Binary,
 }
-
-// static TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-pub static EXAMINE_TIME_STR: &str = "2023-10-10 01:45:32";
-// static MAX_TIME_DIFF: i64 = 300;

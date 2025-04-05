@@ -1,6 +1,6 @@
 use crate::language::{LANGUAGE_MANAGER, LanguageKey};
 use crate::route::protocol::{RouteDataType, RouteRecvHead, RouteRespHead};
-use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{error, trace};
@@ -122,34 +122,34 @@ where
 }
 
 pub async fn ping_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> Result<(), ()> {
-    let mut body_buf = vec![0u8; head.data_len as usize];
-    if let Err(e) = conn.read_exact(&mut body_buf).await {
-        error!("read body failed, err: {}", e);
-        return Err(());
-    };
+    // let mut body_buf = vec![0u8; head.data_len as usize];
+    // if let Err(e) = conn.read_exact(&mut body_buf).await {
+    //     error!("read body failed, err: {}", e);
+    //     return Err(());
+    // };
 
-    let decrypted_body = crate::config::get_cryptor()
-        .and_then(|c| Ok(c.decrypt(&body_buf)?))
-        .map_err(|e| format!("decrypt failed, err: {}", e));
-    if let Err(e) = &decrypted_body {
-        error!("{}", e);
-        resp_common_error_msg(conn, e).await.ok();
-        return Err(());
-    }
-    let decrypted_body = decrypted_body.unwrap();
+    // let decrypted_body = crate::config::get_cipher()
+    //     .and_then(|c| Ok(c.decrypt(&mut body_buf, head.aad.as_bytes())?))
+    //     .map_err(|e| format!("decrypt failed, err: {}", e));
+    // if let Err(e) = &decrypted_body {
+    //     error!("{}", e);
+    //     resp_common_error_msg(conn, e).await.ok();
+    //     return Err(());
+    // }
+    // let decrypted_body = decrypted_body.unwrap();
 
-    if decrypted_body != b"ping" {
-        let msg = format!(
-            "invalid ping data: {}",
-            String::from_utf8_lossy(&decrypted_body)
-        );
-        let _ = resp_common_error_msg(conn, &msg).await;
-        return Err(());
-    }
+    // if decrypted_body != b"ping" {
+    //     let msg = format!(
+    //         "invalid ping data: {}",
+    //         String::from_utf8_lossy(decrypted_body)
+    //     );
+    //     let _ = resp_common_error_msg(conn, &msg).await;
+    //     return Err(());
+    // }
     let resp = b"pong";
-    let encrypted_resp = crate::config::get_cryptor()
-        .map_err(|e| error!("get_cryptor failed, err: {}", e))?
-        .encrypt(resp)
+    let encrypted_resp = crate::config::get_cipher()
+        .map_err(|e| error!("get_cipher failed, err: {}", e))?
+        .encrypt(resp, head.aad.as_bytes())
         .map_err(|e| error!("encrypt failed, err: {}", e))?;
 
     let verify_success = LANGUAGE_MANAGER

@@ -11,7 +11,6 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/crypto/aes.dart';
 import 'package:crypto/crypto.dart';
@@ -166,21 +165,21 @@ class Device {
     return data;
   }
 
-  CbcAESCrypt get cryptor => CbcAESCrypt.fromHex(secretKey);
+  // CbcAESCrypt get cryptor => CbcAESCrypt.fromHex(secretKey);
   AesGcm? get relayCipher =>
       relaySecretAuthKey() != null ? AesGcm(relaySecretAuthKey()!) : null;
   AesGcm get cipher => AesGcm.fromHex(secretKey);
 
-  String generateTimeipHeadHex() {
+  (String, String) generateAuthHeaderAndAAD() {
     // 2006-01-02 15:04:05 192.168.1.1
     // UTC
     final now = DateTime.now().toUtc();
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    final head = utf8.encode('$timestr $iP');
-    final headUint8List = Uint8List.fromList(head);
-    final headEncrypted = cryptor.encrypt(headUint8List);
+    final timeIpStr = '$timestr $iP';
+    final headUint8List = utf8.encode(timeIpStr);
+    final headEncrypted = cipher.encrypt(headUint8List, headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
-    return headEncryptedHex;
+    return (headEncryptedHex, timeIpStr);
   }
 
   // Future<dynamic>? get tryDirectConnectErr => _tryDirectConnectErr;
@@ -585,27 +584,25 @@ class Device {
       {Duration timeout = const Duration(seconds: 2),
       String? localDeviceName}) async {
     // print('checkServer: $ip:$port');
-    var body = utf8.encode('ping');
-    var bodyUint8List = Uint8List.fromList(body);
-    var encryptedBody = cryptor.encrypt(bodyUint8List);
+    // var body = utf8.encode('ping');
+    // var bodyUint8List = Uint8List.fromList(body);
+    // var encryptedBody = cipher.encrypt(bodyUint8List);
     SecureSocket conn;
     conn = await connect(timeout: timeout);
 
-    final now = DateTime.now().toUtc();
-    final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    final timeIpHead = utf8.encode('$timestr $iP');
-    final headUint8List = Uint8List.fromList(timeIpHead);
-    final headEncrypted = cryptor.encrypt(headUint8List);
-    final headEncryptedHex = hex.encode(headEncrypted);
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
 
     localDeviceName ??= globalLocalDeviceName;
     // print('localDeviceName: $localDeviceName');
     var headInfo = HeadInfo(
-        localDeviceName, DeviceAction.ping, headEncryptedHex,
-        dataLen: encryptedBody.length);
+      localDeviceName,
+      DeviceAction.ping,
+      headEncryptedHex,
+      aad,
+    );
     // print('headInfoJson: ${jsonEncode(headInfo)}');
 
-    await headInfo.writeToConnWithBody(conn, encryptedBody);
+    await headInfo.writeToConn(conn);
     await conn.flush();
 
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn)
@@ -621,7 +618,8 @@ class Device {
       conn.destroy();
       throw Exception('${respHead.msg}');
     }
-    var decryptedBody = cryptor.decrypt(Uint8List.fromList(respBody));
+    var decryptedBody =
+        cipher.decrypt(Uint8List.fromList(respBody), utf8.encode(aad));
     var decryptedBodyStr = utf8.decode(decryptedBody);
     conn.destroy();
     if (decryptedBodyStr != 'pong') {
@@ -717,8 +715,8 @@ class Device {
       msgController.add(device);
       return;
     }
-    var headInfo =
-        HeadInfo(globalLocalDeviceName, DeviceAction.matchDevice, 'no need');
+    var headInfo = HeadInfo(
+        globalLocalDeviceName, DeviceAction.matchDevice, 'no need', '');
     await headInfo.writeToConn(conn);
     await conn.flush();
     // var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -758,10 +756,12 @@ class Device {
   Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction(
       [Duration connectTimeout = const Duration(seconds: 2)]) async {
     var (conn, isRelay) = await connectAuto(timeout: connectTimeout);
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.copy,
-      generateTimeipHeadHex(),
+      headEncryptedHex,
+      aad,
     );
     await headInfo.writeToConn(conn);
     await conn.flush();
@@ -837,9 +837,14 @@ class Device {
 
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(pasteText);
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
-        globalLocalDeviceName, DeviceAction.syncText, generateTimeipHeadHex(),
-        dataLen: pasteTextUint8.length);
+      globalLocalDeviceName,
+      DeviceAction.syncText,
+      headEncryptedHex,
+      aad,
+      dataLen: pasteTextUint8.length,
+    );
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -877,10 +882,12 @@ class Device {
 
   Future<void> doSendRelayServerConfig() async {
     var conn = await connect(timeout: const Duration(seconds: 2));
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.setRelayServer,
-      generateTimeipHeadHex(),
+      headEncryptedHex,
+      aad,
     );
     final req = SetRelayServerReq(
       relayServerAddress,
@@ -902,10 +909,12 @@ class Device {
   Future<void> doSendEndConnection(SecureSocket conn,
       {String? localDeviceName}) async {
     // await Future.delayed(const Duration(milliseconds: 1000));
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
-      localDeviceName ?? '',
+      localDeviceName ?? globalLocalDeviceName,
       DeviceAction.endConnection,
-      generateTimeipHeadHex(),
+      headEncryptedHex,
+      aad,
     );
     await headInfo.writeToConn(conn);
   }
@@ -1345,8 +1354,9 @@ class Device {
   }) async {
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(text);
+    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
-        globalLocalDeviceName, DeviceAction.pasteText, generateTimeipHeadHex(),
+        globalLocalDeviceName, DeviceAction.pasteText, headEncryptedHex, aad,
         dataLen: pasteTextUint8.length);
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();

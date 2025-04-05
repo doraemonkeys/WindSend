@@ -1,3 +1,4 @@
+#[allow(unused)]
 pub mod encrypt;
 // pub mod tls;
 

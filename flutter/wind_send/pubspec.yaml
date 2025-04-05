@@ -50,10 +50,6 @@ dependencies:
   dio_cookie_manager: ^3.1.1
   dio: ^5.6.0
   crypto: ^3.0.5
-  aes_crypt_null_safe:
-    git:
-      url: https://github.com/doraemonkeys/aes_crypt_null_safe
-      ref: master
   path: ^1.8.3
   intl: 0.19.0
   logger: ^2.4.0
