@@ -29,7 +29,7 @@ const String appName = 'WindSend';
 final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
 
 Future<void> init() async {
-  // 初始化插件前需调用初始化代码 runApp()函数之前
+  // Ensure the binding is initialized before calling any Flutter plugins
   WidgetsFlutterBinding.ensureInitialized();
   await AppSharedCnfService.initInstance();
   await SharedLogger.initFileLogger(appName);
