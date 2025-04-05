@@ -1,7 +1,7 @@
 /// return true if connect to relay  success
 pub async fn relay_main() -> bool {
     use crate::config;
-    use crate::utils::encrypt;
+
     use tracing::{debug, error};
 
     debug!("try to connect to relay server");
@@ -37,9 +37,22 @@ pub async fn relay_main() -> bool {
 
     tracing::info!("connect to relay server success");
 
+    update_relay_server_status(true);
+
     handle_request(tcp_stream, Some(cipher)).await;
 
+    update_relay_server_status(false);
+
     true
+}
+
+pub fn update_relay_server_status(connected: bool) {
+    use crate::status::RELAY_SERVER_CONNECTED;
+    use crate::status::TX_UPDATE_RELAY_SERVER_CONNECTED;
+
+    *RELAY_SERVER_CONNECTED.lock().unwrap() = connected;
+    let tx = TX_UPDATE_RELAY_SERVER_CONNECTED.get().unwrap();
+    tx.try_send(()).ok();
 }
 
 async fn send_connection_req(
@@ -214,10 +227,9 @@ async fn handle_request(
 
 async fn handle_relay(
     conn: tokio::net::TcpStream,
-    cipher: Option<&crate::utils::encrypt::AesGcmCipher>,
+    _: Option<&crate::utils::encrypt::AesGcmCipher>,
 ) -> Result<tokio::net::TcpStream, ()> {
     use crate::config;
-    use crate::relay::protocol::{Action, CommonReqHead};
     use tracing::{debug, error};
     debug!("new relay connection");
 
@@ -234,15 +246,7 @@ async fn handle_relay(
         None => return Err(()),
     };
     debug!("relay route success");
-    let (mut io, _) = conn.into_inner();
-    // let req_head = CommonReqHead {
-    //     action: Action::Heartbeat,
-    //     data_len: 0,
-    // };
-    // match req_head.write_to(&mut io, cipher).await {
-    //     Ok(_) => (),
-    //     Err(_) => return Err(()),
-    // }
+    let (io, _) = conn.into_inner();
     Ok(io)
 }
 

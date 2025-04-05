@@ -1,19 +1,19 @@
 use tracing::{debug, error, info, warn};
 
-use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tao::platform::run_return::EventLoopExtRunReturn;
-use tray_icon::TrayIconBuilder;
-use tray_icon::menu::{
-    AboutMetadata, CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
-    Submenu, SubmenuBuilder,
-};
-
 use crate::PROGRAM_NAME;
 use crate::config;
 use crate::language::{LANGUAGE_MANAGER, Language, LanguageKey, translate};
 use crate::status::SELECTED_FILES;
 use crate::utils;
 use crate::web;
+use tao::event_loop::{ControlFlow, EventLoopBuilder};
+use tao::platform::run_return::EventLoopExtRunReturn;
+use tray_icon::TrayIconBuilder;
+use tray_icon::menu::IconMenuItem;
+use tray_icon::menu::{
+    AboutMetadata, CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
+    Submenu, SubmenuBuilder,
+};
 
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
@@ -118,7 +118,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     };
     let relay_server_connected_i = CheckMenuItem::new(
         relay_server_connected_str,
-        false,
+        true,
         relay_server_connected,
         None,
     );
@@ -360,6 +360,9 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     exit_code = ReturnCode::Quit;
                     *control_flow = ControlFlow::Exit;
                 }
+                id if id == relay_server_connected_i.id() => {
+                    handle_menu_event_update_relay_server_connected(&relay_server_connected_i);
+                }
                 other_id => {
                     // println!("recv unknown menu event, id: {:?}", other_id);
                     error!("recv unknown menu event, id: {:?}", other_id);
@@ -516,6 +519,12 @@ impl<S: AsRef<str>> SetTitle<S> for PredefinedMenuItem {
 }
 
 impl<S: AsRef<str>> SetTitle<S> for CheckMenuItem {
+    fn set_text(&self, text: S) {
+        self.set_text(text.as_ref());
+    }
+}
+
+impl<S: AsRef<str>> SetTitle<S> for IconMenuItem {
     fn set_text(&self, text: S) {
         self.set_text(text.as_ref());
     }

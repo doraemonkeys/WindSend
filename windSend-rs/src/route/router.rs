@@ -298,6 +298,12 @@ async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
         }
     };
     debug!("set relay server req: {:?}", req);
+    if req.enable_relay && req.relay_server_address.is_empty() {
+        let msg = String::from("invalid relay server address");
+        error!("set relay server failed, {}", msg);
+        let _ = resp_common_error_msg(conn, &msg).await;
+        return;
+    }
     let err;
     {
         let mut cnf = config::write_config();
@@ -313,5 +319,9 @@ async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
     }
     if let Err(_) = send_msg(conn, &"success".to_string()).await {
         error!("send success msg failed");
+    }
+
+    if req.enable_relay {
+        crate::relay::run::tick_relay();
     }
 }

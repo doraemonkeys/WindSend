@@ -96,6 +96,7 @@ impl CommonReqHead {
         read_head_from(conn, cipher).await
     }
 
+    #[allow(dead_code)]
     pub async fn write_to<W>(
         &self,
         writer: &mut W,
@@ -229,6 +230,7 @@ pub struct HeartbeatReq {
 }
 
 impl HeartbeatReq {
+    #[allow(dead_code)]
     pub async fn write_to<W>(
         &self,
         writer: &mut W,

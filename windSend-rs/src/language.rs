@@ -149,13 +149,10 @@ lazy_static! {
             LanguageKey::DirCreatedSuccessfully,
             String::from("Directory created successfully")
         ),
-        (
-            LanguageKey::RelayConnected,
-            String::from("Server Connected")
-        ),
+        (LanguageKey::RelayConnected, String::from("Relay Connected")),
         (
             LanguageKey::RelayServerNotConnected,
-            String::from("Server Disconnected")
+            String::from("Relay Disconnected")
         )
     ]
     .into_iter()

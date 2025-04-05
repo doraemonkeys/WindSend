@@ -16,6 +16,4 @@ pub static TX_UPDATE_RELAY_SERVER_CONNECTED: OnceLock<crossbeam_channel::Sender<
 pub static SELECTED_FILES: LazyLock<Mutex<HashSet<String>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));
 
-#[allow(unused)]
-#[allow(dead_code)]
 pub static RELAY_SERVER_CONNECTED: Mutex<bool> = Mutex::new(false);

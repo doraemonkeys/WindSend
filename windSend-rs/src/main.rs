@@ -110,7 +110,12 @@ fn main() {
 async fn async_main() {
     trace!("async_main");
 
-    RUNTIME.spawn(run_relay_server());
+    {
+        let config = config::read_config();
+        if config.enable_relay && !config.relay_server_address.is_empty() {
+            relay::run::tick_relay();
+        }
+    }
 
     let server_port = config::GLOBAL_CONFIG
         .read()
@@ -156,43 +161,4 @@ async fn async_main() {
         debug!("tls accept success");
         RUNTIME.spawn(route::main_process(tls_stream));
     }
-}
-
-async fn run_relay_server() {
-    use crate::relay::relay::relay_main;
-
-    info!(
-        "run relay server, address: {}",
-        config::read_config().relay_server_address,
-    );
-
-    let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3));
-    let mut try_count = 0;
-
-    const MAX_TRY_COUNT: u32 = 30;
-
-    loop {
-        ticker.tick().await; // The first tick completes immediately
-        {
-            let config = config::read_config();
-            if config.relay_server_address.is_empty() || !config.enable_relay {
-                info!("relay server not configured, skip relay");
-                return;
-            }
-        }
-        try_count += 1;
-        let connected = relay_main().await;
-        if connected {
-            if try_count >= MAX_TRY_COUNT {
-                ticker = tokio::time::interval(std::time::Duration::from_secs(3));
-            }
-            try_count = 0;
-        }
-
-        if try_count == MAX_TRY_COUNT {
-            ticker = tokio::time::interval(std::time::Duration::from_secs(60));
-        }
-    }
-
-    // let (tx, rx) = tokio::sync::mpsc::channel::<(tokio::net::TcpStream, std::net::SocketAddr)>(1);
 }
