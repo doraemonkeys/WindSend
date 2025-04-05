@@ -1,6 +1,6 @@
 async fn run_relay_listener(mut notify_channel: tokio::sync::watch::Receiver<()>) {
     use crate::config;
-    use crate::relay::relay::relay_main;
+    use crate::relay::relay_main;
     use tokio::select;
     use tracing::{debug, info};
 

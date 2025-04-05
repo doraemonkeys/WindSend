@@ -40,9 +40,9 @@ where
         None => &head_buf[..],
     };
 
-    debug!("head_buf: {:?}", String::from_utf8_lossy(&head_buf));
+    debug!("head_buf: {:?}", String::from_utf8_lossy(head_buf));
 
-    let common_req_head: T = serde_json::from_slice(&head_buf)
+    let common_req_head: T = serde_json::from_slice(head_buf)
         .map_err(|e| error!("json unmarshal failed, err: {}", e))?;
 
     Ok(common_req_head)
@@ -114,6 +114,6 @@ where
     };
 
     let data: T =
-        serde_json::from_slice(&buf).map_err(|e| error!("json unmarshal failed, err: {}", e))?;
+        serde_json::from_slice(buf).map_err(|e| error!("json unmarshal failed, err: {}", e))?;
     Ok(data)
 }

@@ -1,6 +1,4 @@
 use crate::route::transfer::resp_error_msg;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
@@ -317,7 +315,7 @@ async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
         let _ = resp_common_error_msg(conn, &e).await;
         return;
     }
-    if let Err(_) = send_msg(conn, &"success".to_string()).await {
+    if (send_msg(conn, &"success".to_string()).await).is_err() {
         error!("send success msg failed");
     }
 

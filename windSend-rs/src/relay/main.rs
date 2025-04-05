@@ -104,7 +104,7 @@ async fn handshake(
     use tracing::error;
     use x25519_dalek::{EphemeralSecret, PublicKey};
 
-    let secret = EphemeralSecret::random_from_rng(&mut OsRng);
+    let secret = EphemeralSecret::random_from_rng(OsRng);
     let public = PublicKey::from(&secret);
 
     let relay_secret_key = config::read_config()
@@ -120,7 +120,7 @@ async fn handshake(
     let auth_aad = encrypt::generate_rand_bytes_hex(16);
     let auth_field_b64 = cipher
         .as_ref()
-        .and_then(|c| Some(c.encrypt(auth_field.as_bytes(), auth_aad.as_bytes())));
+        .map(|c| c.encrypt(auth_field.as_bytes(), auth_aad.as_bytes()));
     let auth_field_b64 = match auth_field_b64 {
         Some(Ok(b)) => Some(BASE64_STANDARD.encode(b)),
         Some(Err(e)) => {
@@ -137,9 +137,8 @@ async fn handshake(
         ecdh_public_key_b64: BASE64_STANDARD.encode(public),
     };
 
-    match req.write_to(conn).await {
-        Err(_) => return None,
-        Ok(_) => (),
+    if let Err(_) = req.write_to(conn).await {
+        return None;
     }
 
     let resp = match HandshakeResp::read_from(conn).await {

@@ -225,6 +225,7 @@ pub enum AesGcmError {
     InvalidKey(String),
 
     #[error("Invalid Nonce length, requires {0} bytes")]
+    #[allow(dead_code)]
     InvalidNonceLength(usize),
 
     #[error("Encryption failed: {0}")]
@@ -236,6 +237,7 @@ pub enum AesGcmError {
     #[error(
         "Decryption failed (authentication tag mismatch: possibly incorrect key, nonce, or tampered ciphertext)"
     )]
+    #[allow(dead_code)]
     DecryptionError,
 
     #[error("Decryption failed: {0}")]
@@ -370,7 +372,7 @@ impl AesGcmCipher {
         let tag = aes_gcm::aead::Tag::<A>::from_slice(tag);
         let nonce = aes_gcm::aead::Nonce::<A>::from_slice(nonce);
         cipher
-            .decrypt_in_place_detached(nonce, aad, ciphertext, tag.into())
+            .decrypt_in_place_detached(nonce, aad, ciphertext, tag)
             .map_err(|e| AesGcmError::DecryptionFailed(e.to_string()))?;
         Ok(ciphertext)
     }
@@ -542,7 +544,7 @@ mod tests2 {
 
         // Ensure ciphertext is different from plaintext (unless plaintext is empty)
         if !plaintext.is_empty() {
-            let plaintext_part_in_ciphertext =
+            let _plaintext_part_in_ciphertext =
                 &ciphertext[AesGcmCipher::NONCE_SIZE..ciphertext.len() - AesGcmCipher::TAG_SIZE];
             // Note: Encryption might not change the buffer content immediately if plaintext is short enough
             // but the overall ciphertext (with nonce and tag) must be different.
@@ -718,7 +720,7 @@ mod tests2 {
         assert!(matches!(result, Err(AesGcmError::CiphertextTooShort)));
 
         // Test exact minimum length (should proceed but likely fail decrypt unless plaintext empty)
-        let mut min_len_ct = vec![0u8; AesGcmCipher::NONCE_SIZE + AesGcmCipher::TAG_SIZE];
+        let _min_len_ct = vec![0u8; AesGcmCipher::NONCE_SIZE + AesGcmCipher::TAG_SIZE];
         // For a zero-length plaintext, a zero'd buffer might actually decrypt if the tag matches zero data.
         // Let's try with a real encrypted empty message.
         let mut actual_min_ciphertext = cipher.encrypt(b"", AAD).unwrap();
