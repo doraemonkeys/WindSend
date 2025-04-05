@@ -46,6 +46,8 @@ pub struct HandshakeReq {
     pub secret_key_selector: Option<String>,
     #[serde(rename = "authFieldB64")]
     pub auth_field_b64: Option<String>,
+    #[serde(rename = "authAAD")]
+    pub auth_aad: String,
     #[serde(rename = "ecdhPublicKeyB64")]
     pub ecdh_public_key_b64: String,
 }

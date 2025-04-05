@@ -117,9 +117,10 @@ async fn handshake(
         .map(|k| encrypt::AesGcmCipher::new(&k))
         .map(|cipher| cipher.unwrap());
     let auth_field = "AUTH".to_string() + &encrypt::generate_rand_bytes_hex(16);
+    let auth_aad = encrypt::generate_rand_bytes_hex(16);
     let auth_field_b64 = cipher
         .as_ref()
-        .and_then(|c| Some(c.encrypt(auth_field.as_bytes(), b"AUTH")));
+        .and_then(|c| Some(c.encrypt(auth_field.as_bytes(), auth_aad.as_bytes())));
     let auth_field_b64 = match auth_field_b64 {
         Some(Ok(b)) => Some(BASE64_STANDARD.encode(b)),
         Some(Err(e)) => {
@@ -132,6 +133,7 @@ async fn handshake(
     let req = HandshakeReq {
         secret_key_selector: relay_secret_key_selector,
         auth_field_b64,
+        auth_aad,
         ecdh_public_key_b64: BASE64_STANDARD.encode(public),
     };
 

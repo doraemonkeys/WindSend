@@ -16,11 +16,13 @@ class StatusCode {
 class HandshakeReq with HeadWriter {
   final String secretKeySelector;
   final String authFieldB64;
+  final String authAAD;
   final String ecdhPublicKeyB64;
 
   HandshakeReq({
     required this.secretKeySelector,
     required this.authFieldB64,
+    required this.authAAD,
     required this.ecdhPublicKeyB64,
   });
 
@@ -28,6 +30,7 @@ class HandshakeReq with HeadWriter {
     var head = HandshakeReq(
       secretKeySelector: json['secretKeySelector'],
       authFieldB64: json['authFieldB64'],
+      authAAD: json['authAAD'],
       ecdhPublicKeyB64: json['ecdhPublicKeyB64'],
     );
     return head;
@@ -38,6 +41,7 @@ class HandshakeReq with HeadWriter {
     return {
       'secretKeySelector': secretKeySelector,
       'authFieldB64': authFieldB64,
+      'authAAD': authAAD,
       'ecdhPublicKeyB64': ecdhPublicKeyB64,
     };
   }

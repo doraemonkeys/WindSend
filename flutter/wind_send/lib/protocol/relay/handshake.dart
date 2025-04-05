@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -9,7 +8,6 @@ import 'package:wind_send/protocol/relay/model.dart' as model;
 import 'package:wind_send/utils.dart';
 import 'package:wind_send/crypto/aes.dart';
 import 'package:wind_send/device.dart';
-import 'package:wind_send/protocol/protocol.dart';
 
 import 'package:cryptography_plus/cryptography_plus.dart'
     show SimplePublicKey, SimpleKeyPair, X25519;
@@ -78,10 +76,11 @@ Future<(model.HandshakeReq, SimpleKeyPair)> resolveHandshakeReq(
 ) async {
   final secretKeySelector = device.relaySecretKeySelector() ?? '';
   var authField = '';
+  final authAAD = generateRandomString(16);
   if (device.relayCipher != null) {
     final authFieldEncrypted = device.relayCipher!.encrypt(
       utf8.encode('AUTH${generateRandomString(16)}'),
-      utf8.encode("AUTH"),
+      utf8.encode(authAAD),
     );
     authField = base64.encode(authFieldEncrypted);
   }
@@ -93,6 +92,7 @@ Future<(model.HandshakeReq, SimpleKeyPair)> resolveHandshakeReq(
     model.HandshakeReq(
       secretKeySelector: secretKeySelector,
       authFieldB64: authField,
+      authAAD: authAAD,
       ecdhPublicKeyB64: ecdhPublicKeyB64,
     ),
     keyPair
