@@ -48,11 +48,15 @@ pub async fn relay_main() -> bool {
 
 pub fn update_relay_server_status(connected: bool) {
     use crate::status::RELAY_SERVER_CONNECTED;
+    #[cfg(not(feature = "disable-systray-support"))]
     use crate::status::TX_UPDATE_RELAY_SERVER_CONNECTED;
 
     *RELAY_SERVER_CONNECTED.lock().unwrap() = connected;
-    let tx = TX_UPDATE_RELAY_SERVER_CONNECTED.get().unwrap();
-    tx.try_send(()).ok();
+    #[cfg(not(feature = "disable-systray-support"))]
+    {
+        let tx = TX_UPDATE_RELAY_SERVER_CONNECTED.get().unwrap();
+        tx.try_send(()).ok();
+    }
 }
 
 async fn send_connection_req(
