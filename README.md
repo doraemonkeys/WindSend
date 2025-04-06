@@ -21,7 +21,7 @@
 
 ## 如何使用
 
-> **注意**：配置阶段需要确保电脑和手机处于同一网络中。
+> **注意**：配置阶段需要确保电脑和手机处于同一网络中，或者你可以手动配置使用中转服务器。
 
 
 
@@ -39,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. 解压 **WindSend-linux-x64-S-Rust-v\*.zip** 到任意目录(最低版本为 1.3.0)。
+1. 解压 **WindSend-linux-x64-S-Rust-v\*.zip** 到任意目录。
 
    ```shell
     sudo apt install libxdo3
@@ -88,7 +88,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### 自动配对失败？手动添加设备密钥
 
-打开默认配置文件`config.yaml`，复制secretKeyHex，手动填入app配置。
+打开默认配置文件`config.yaml`，复制secretKeyHex。打开 `tls/ca_cert.pem` 复制全文，手动填入app配置。
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049362.png" alt="image-20230621192929505" style="zoom: 67%;" />
 
@@ -98,9 +98,8 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### 注意事项
 
-- 两个设备之间的时间差不能超过5分钟，否则会导致配对失败。
 - Windows上的通知发送依赖于PowerShell，如果你没有看到通知，请检查PowerShell是否在环境变量中。
-- APP的定位权限用于获取WIFI信息。
+- APP 的定位权限用于获取 WIFI 信息，强烈建议授予精确定位权限。
 
 
 
@@ -122,21 +121,46 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 
 
-### 不在同一网络的解决方案
+## 不在同一网络的解决方案
 
-#### 1. 使用内网穿透软件
+### 1. 使用内网穿透软件
 
-如果是Tailscale，只需要把电脑ip换成Tailscale分配的IP就行了，其他工具自行测试。
+例如Tailscale，只需要把电脑ip换成Tailscale分配的IP就行了，其他工具自行测试。
 
 
+### 2. 使用中转服务器
+
+WindSend 支持自行搭建中转服务器以应对不同的网络环境，搭建教程请参考 [WindSend-Relay](https://github.com/doraemonkeys/WindSend-Relay)。
+
+
+
+- **使用方法：**
+
+  1. 运行中转服务并设置连接密钥(可选)
+  2. 在设备设置中填写中转服务器地址
+  3. 推送中转服务器相关配置到目标设备(或者手动更改配置文件)。
+     <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406231418172.png" alt="relay config" style="zoom: 33%;" />
+
+  
+
+- **如果你需要手动更改配置文件：**
+
+  打开默认配置文件`config.yaml`，添加如下配置，然后重启软件。
+
+  ```yaml
+  # 中转服务器地址
+  relayServerAddress: your_relay_server_address:16779
+  # 连接密钥
+  relaySecretKey: ''
+  # 启用中转
+  enableRelay: true
+  ```
+
+  
 
 ## 跨平台情况
 
-由于作者只有Android与Windows的设备，所以不能保证软件在其他平台的功能是否正常。
-
-
-
-服务端代码拥有Go与Rust两种实现，代码中主要的库都是跨平台的，想要提供其他更多平台的支持和优化，只需稍微修改一下源代码，作者能力尚浅，欢迎高手来PR。
+由于作者只有 Android 与 Windows 的设备，所以不能保证软件在其他平台的功能是否正常，欢迎提交 PR 或者 Issue。
 
 
 
@@ -218,3 +242,11 @@ sudo apt install -y musl-dev musl-tools
 ### Go
 
 version: 1.21+
+
+
+## 贡献
+
+欢迎贡献！请随时在 [GitHub 仓库](https://github.com/doraemonkeys/WindSend-Relay) 提交拉取请求 (Pull Request) 或开启问题 (Issue)。
+
+作者不擅长移动端UI设计与开发，所以如果你有兴趣重构UI或者添加安卓悬浮窗或者添加新功能等，欢迎联系我，我会尽可能提供帮助。
+
