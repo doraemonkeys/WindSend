@@ -126,7 +126,9 @@ WindSend supports setting up your own relay server to handle different network e
   1. Run the relay service and set a connection secret key (optional).
   2. Enter the relay server address in the device settings.
   3. Push the relay server configuration to the target device (or modify the configuration file manually).
-     <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406234536830.png" alt="image-20250406234249283" style="zoom:33%;" />
+     <div>
+        <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406231418172.png" alt="relay config" width="58%" />
+     </div>
 
 - **If you need to modify the configuration file manually:**
 
@@ -234,6 +236,6 @@ version: 1.21+
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues on the [GitHub repository](https://github.com/doraemonkeys/WindSend-Relay).
+Contributions are welcome! Please feel free to submit pull requests or open issues on the [GitHub repository](https://github.com/doraemonkeys/WindSend).
 
 The author is not good at mobile UI design and development, so if you are interested in redesigning the UI or adding a floating window for Android or adding new features, please contact me, and I will do my best to help.

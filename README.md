@@ -139,7 +139,9 @@ WindSend 支持自行搭建中转服务器以应对不同的网络环境，搭�
   1. 运行中转服务并设置连接密钥(可选)
   2. 在设备设置中填写中转服务器地址
   3. 推送中转服务器相关配置到目标设备(或者手动更改配置文件)。
-     <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406231418172.png" alt="relay config" style="zoom: 33%;" />
+     <div>
+        <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406231418172.png" alt="relay config" width="58%" />
+     </div>
 
   
 
@@ -246,7 +248,7 @@ version: 1.21+
 
 ## 贡献
 
-欢迎贡献！请随时在 [GitHub 仓库](https://github.com/doraemonkeys/WindSend-Relay) 提交拉取请求 (Pull Request) 或开启问题 (Issue)。
+欢迎贡献！请随时在 [GitHub 仓库](https://github.com/doraemonkeys/WindSend) 提交拉取请求 (Pull Request) 或开启问题 (Issue)。
 
 作者不擅长移动端UI设计与开发，所以如果你有兴趣重构UI或者添加安卓悬浮窗或者添加新功能等，欢迎联系我，我会尽可能提供帮助。
 
