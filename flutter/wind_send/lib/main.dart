@@ -231,11 +231,9 @@ class MyHomePageState extends State<MyHomePage> {
                 onAddDevice: () {
                   if (devices.length == 1) {
                     LocalConfig.setDefaultShareDevice(
-                            devices.first.targetDeviceName)
-                        .then((_) {
-                      devicesRebuild();
-                    });
+                        devices.first.targetDeviceName);
                   }
+                  devicesRebuild();
                 },
               );
             },
