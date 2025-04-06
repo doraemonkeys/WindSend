@@ -9,6 +9,8 @@ import 'cnf.dart';
 import 'language.dart';
 import 'utils.dart';
 import 'device.dart';
+import 'toast.dart';
+import 'device_card.dart';
 
 class DeviceSettingPage extends StatefulWidget {
   final Device device;
@@ -107,7 +109,13 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               },
               pushRelayConfigToDevice: () async {
                 try {
-                  await widget.device.doSendRelayServerConfig();
+                  // await widget.device.doSendRelayServerConfig();
+                  DeviceCard.commonActionFunc(
+                      widget.device, (_) => setState(() {}), () {
+                    return widget.device
+                        .doSendRelayServerConfig()
+                        .then((_) => ToastResult(message: 'success'));
+                  });
                   return null;
                 } catch (e) {
                   return '$e';
