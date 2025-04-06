@@ -127,7 +127,7 @@ WindSend supports setting up your own relay server to handle different network e
   2. Enter the relay server address in the device settings.
   3. Push the relay server configuration to the target device (or modify the configuration file manually).
      <div>
-        <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406231418172.png" alt="relay config" width="58%" />
+        <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406234536830.png" alt="relay config" width="58%" />
      </div>
 
 - **If you need to modify the configuration file manually:**
