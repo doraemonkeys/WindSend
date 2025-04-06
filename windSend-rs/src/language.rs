@@ -69,6 +69,7 @@ pub enum LanguageKey {
     DirCreatedSuccessfully,
     RelayConnected,
     RelayServerNotConnected,
+    RelayDisabled,
 }
 
 impl LanguageKey {
@@ -153,7 +154,8 @@ lazy_static! {
         (
             LanguageKey::RelayServerNotConnected,
             String::from("Relay Disconnected")
-        )
+        ),
+        (LanguageKey::RelayDisabled, String::from("Relay Disabled")),
     ]
     .into_iter()
     .collect();
@@ -214,7 +216,8 @@ lazy_static! {
         (
             LanguageKey::RelayServerNotConnected,
             String::from("中转未连接")
-        )
+        ),
+        (LanguageKey::RelayDisabled, String::from("中转未启用")),
     ]
     .into_iter()
     .collect();

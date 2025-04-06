@@ -66,6 +66,8 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     // hotkeys_manager.register(hotkey_paste).unwrap();
     // let global_hotkey_channel = GlobalHotKeyEvent::receiver();
 
+    use crate::config::read_config;
+
     // before Menu::new()
     let mut event_loop = EventLoopBuilder::new().build();
     #[cfg(target_os = "macos")]
@@ -113,12 +115,14 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
     let relay_server_connected_str = if relay_server_connected {
         translate(LanguageKey::RelayConnected)
-    } else {
+    } else if read_config().enable_relay {
         translate(LanguageKey::RelayServerNotConnected)
+    } else {
+        translate(LanguageKey::RelayDisabled)
     };
     let relay_server_connected_i = CheckMenuItem::new(
         relay_server_connected_str,
-        true,
+        read_config().enable_relay,
         relay_server_connected,
         None,
     );
@@ -400,12 +404,17 @@ fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
     ));
 }
 fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &CheckMenuItem) {
+    use crate::config::read_config;
+    let enable_relay = read_config().enable_relay;
     let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
     relay_server_connected_i.set_checked(relay_server_connected);
+    relay_server_connected_i.set_enabled(enable_relay);
     relay_server_connected_i.set_text(if relay_server_connected {
         translate(LanguageKey::RelayConnected)
-    } else {
+    } else if enable_relay {
         translate(LanguageKey::RelayServerNotConnected)
+    } else {
+        translate(LanguageKey::RelayDisabled)
     });
 }
 
