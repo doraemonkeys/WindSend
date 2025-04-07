@@ -277,7 +277,8 @@ class Device {
     bool onlyDirect = false,
     bool onlyRelay = false,
   }) async {
-    dev.log('run connectAuto,timeout: $timeout');
+    dev.log(
+        'run connectAuto,forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout');
     // return _connectAutoRoutine(timeout: timeout);
     if (onlyDirect) {
       return (await connect(timeout: timeout), false);

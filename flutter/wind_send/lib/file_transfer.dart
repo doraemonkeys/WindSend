@@ -110,7 +110,10 @@ class FileUploader {
     int fileID,
   ) async {
     // print('conns.length: ${_connectionManager.conns.length}');
-    var connStream = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection(
+      forceDirectFirst: forceDirectFirst,
+      onlyDirect: onlyDirectConn,
+    );
     var (conn, stream) = (connStream.conn, connStream.stream);
     final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
@@ -269,7 +272,10 @@ class FileUploader {
     );
     await sendOperationInfo(opID, opInfo);
 
-    var connStream = await _connectionManager.getConnection();
+    var connStream = await _connectionManager.getConnection(
+      forceDirectFirst: forceDirectFirst,
+      onlyDirect: onlyDirectConn,
+    );
     var (conn, stream) = (connStream.conn, connStream.stream);
     final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
@@ -498,7 +504,10 @@ class FileDownloader {
   ) async {
     if (_connectionManager.totalConnNum == 0) {
       // Pre-create a connection to check if it is a relay connection (internal judgment)
-      final c = await _connectionManager.getConnection();
+      final c = await _connectionManager.getConnection(
+        forceDirectFirst: forceDirectFirst,
+        onlyDirect: onlyDirectConn,
+      );
       _connectionManager.putConnection(c);
     }
 
