@@ -110,7 +110,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               pushRelayConfigToDevice: () async {
                 try {
                   // await widget.device.doSendRelayServerConfig();
-                  DeviceCard.commonActionFunc(
+                  await DeviceCard.commonActionFunc(
                       widget.device, (_) => setState(() {}), () {
                     return widget.device
                         .doSendRelayServerConfig()
