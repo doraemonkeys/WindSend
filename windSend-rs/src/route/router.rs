@@ -255,6 +255,10 @@ async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
         error!("send success msg failed");
     }
 
+    use crate::language::{LanguageKey, translate};
+    use crate::utils::inform;
+    inform("", translate(LanguageKey::SettingSuccess), None);
+
     if req.enable_relay {
         crate::relay::run::tick_relay();
     }
