@@ -152,8 +152,8 @@ WindSend 支持自行搭建中转服务器以应对不同的网络环境，搭�
   ```yaml
   # 中转服务器地址
   relayServerAddress: your_relay_server_address:16779
-  # 连接密钥
-  relaySecretKey: ''
+  # 连接密钥(如果有，将null改为密钥字符串)
+  relaySecretKey: null
   # 启用中转
   enableRelay: true
   ```

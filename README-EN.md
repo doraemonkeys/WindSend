@@ -138,7 +138,8 @@ WindSend supports setting up your own relay server to handle different network e
   # Relay server address
   relayServerAddress: your_relay_server_address:16779
   # Connection secret key
-  relaySecretKey: ''
+  # if there is one, change null to the key string
+  relaySecretKey: null
   # Enable relay
   enableRelay: true
   ```
