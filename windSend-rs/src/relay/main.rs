@@ -200,13 +200,22 @@ async fn handle_request(
     cipher: Option<crate::utils::encrypt::AesGcmCipher>,
 ) {
     use crate::relay::protocol::{Action, CommonReqHead};
+    use tokio::time::Duration;
     use tracing::{debug, error};
+    const READ_TIMEOUT_DURATION: Duration = Duration::from_secs(180);
 
     loop {
         debug!("waiting for relay server request");
-        let common_req_head = match CommonReqHead::read_from(&mut conn, cipher.as_ref()).await {
-            Ok(head) => head,
-            Err(_) => return,
+
+        let read_future = CommonReqHead::read_from(&mut conn, cipher.as_ref());
+        let read_result = tokio::time::timeout(READ_TIMEOUT_DURATION, read_future).await;
+        let common_req_head = match read_result {
+            Ok(Ok(head)) => head,
+            Ok(Err(_)) => return,
+            Err(_) => {
+                error!("read relay server request timeout");
+                return;
+            }
         };
 
         match common_req_head.action {
