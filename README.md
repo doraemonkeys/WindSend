@@ -193,13 +193,29 @@ WindSend 支持自行搭建中转服务器以应对不同的网络环境，搭�
 
 ## 构建指南
 
+[Release.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/Release.yml) 文件中包含了自动构建的详细过程，可以参考。
+
+你也可以到 [Actions](https://github.com/doraemonkeys/WindSend/actions) 中下载工作流产生的原始文件。
+
 ### Flutter
+
+[Flutter](https://flutter-ko.dev/get-started/install)
 
 version: channel stable
 
 #### Requirements
 
 [Install Rust](https://www.rust-lang.org/tools/install)
+
+#### Build
+
+```shell
+cd flutter/wind_send
+flutter build apk --split-per-abi --release
+flutter build linux --release
+flutter build macos --release
+flutter build windows --release
+```
 
 ### Rust
 
@@ -229,8 +245,6 @@ version: channel stable
 
 [AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
 
-[.github/workflows/rust_build.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/rust_build.yml)
-
 
 **Linux**
 
@@ -240,11 +254,12 @@ sudo apt install -y pkg-config libssl-dev build-essential linux-libc-dev
 sudo apt install -y musl-dev musl-tools
 ```
 
+#### Build
 
-### Go
-
-version: 1.21+
-
+```shell
+cd windSend-rs
+cargo build --release
+```
 
 ## 贡献
 
