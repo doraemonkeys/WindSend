@@ -54,7 +54,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 1. Unzip **WindSend-windows-x64-S-Rust-v\*.zip** to any directory (Take Windows).
 
 2. Double-click the exe file to run:
-   Please click to allow windows firewall, **Note** check the public network (bold check, all content is encrypted).
+   Please click to allow windows firewall, **Note** check the public network.
 
    ![image-20240124214446056](https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242148675.png)
 

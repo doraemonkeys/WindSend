@@ -55,7 +55,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 2. 双击exe文件运行：
 
-   请点击允许windows网络防火墙，**注意**勾选公用网络(大胆的勾选，所有内容均已加密)。
+   请点击允许windows网络防火墙，**注意**勾选公用网络。
 
    ![image-20230621225600846](https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212303629.png)
 
