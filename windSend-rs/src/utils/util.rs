@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 use tracing::error;
 
-
 /// 去除颜色
 pub fn eliminate_color(line: &[u8]) -> Cow<'_, [u8]> {
     //"\033[31m 红色 \033[0m"
@@ -258,7 +257,7 @@ pub fn inform_with_progress(click_open: Option<&str>, progress: win_toast_notify
 }
 
 pub fn has_img_ext(name: &str) -> bool {
-    let ext = name.split('.').last().unwrap_or("");
+    let ext = name.split('.').next_back().unwrap_or("");
     // match ext.to_lowercase().as_str() {
     //     "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico" => true,
     //     _ => false,

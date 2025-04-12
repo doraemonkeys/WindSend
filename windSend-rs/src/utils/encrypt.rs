@@ -386,7 +386,7 @@ impl AesGcmCipher {
     /// # Arguments
     ///
     /// * `ciphertext` - A mutable byte slice containing the `nonce || ciphertext || tag`.
-    ///                  This buffer will be modified: the ciphertext portion is overwritten with plaintext on success.
+    ///   This buffer will be modified: the ciphertext portion is overwritten with plaintext on success.
     /// * `aad` - Additional Associated Data that was used during encryption. Must match exactly.
     ///
     /// # Returns
