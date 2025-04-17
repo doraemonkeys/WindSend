@@ -3,7 +3,7 @@ import 'dart:async';
 // import 'dart:isolate';
 // import 'dart:typed_data';
 import 'dart:math';
-import 'dart:developer' as dev;
+// import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -129,33 +129,7 @@ class _DeviceCardState extends State<DeviceCard> {
   void initState() {
     _device = widget.device;
     super.initState();
-    _refreshDeviceState();
-  }
-
-  void _refreshDeviceState() {
-    dev.log('refreshDeviceState, _device: ${_device.targetDeviceName}');
-    final state = _device.refState();
-    try {
-      var f = _device.pingDevice(timeout: const Duration(seconds: 2));
-      state.tryDirectConnectErr = f.then((_) => null, onError: (e) => e);
-    } catch (e) {
-      state.tryDirectConnectErr = Future.value(e);
-    }
-
-    if (_device.enableRelay) {
-      state.tryDirectConnectErr!.then((err) {
-        if (err == null) {
-          // Don't need to ping relay
-          return;
-        }
-        try {
-          var f = _device.pingRelay(timeout: const Duration(seconds: 2));
-          state.tryRelayErr = f.then((_) => null, onError: (e) => e);
-        } catch (e) {
-          state.tryRelayErr = Future.value(e);
-        }
-      });
-    }
+    _device.initConnectionState();
   }
 
   @override

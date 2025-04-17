@@ -34,6 +34,9 @@ import 'socket.dart';
 
 // import 'package:flutter/services.dart' show rootBundle;
 
+/*
+I wrote the first version when I was in school, new to flutter, and now I really don't want to refactor it
+*/
 class Device {
   /// unique id for persistence storage
   String uniqueId = '';
@@ -52,6 +55,7 @@ class Device {
   String? _relaySecretKey;
   String? _relayKdfSaltB64;
   String? _relayKdfSecretB64;
+  bool _connectionStateInitialized = false;
 
   int port = defaultPort;
   bool autoSelect = true;
@@ -855,6 +859,40 @@ class Device {
     return await _matchDeviceLoop(StreamController<Device>(), myIp);
   }
 
+  void _refreshConnectionState() {
+    dev.log('refreshConnectionState, _device: $targetDeviceName');
+    final state = refState();
+    try {
+      var f = pingDevice(timeout: const Duration(seconds: 2));
+      state.tryDirectConnectErr = f.then((_) => null, onError: (e) => e);
+    } catch (e) {
+      state.tryDirectConnectErr = Future.value(e);
+    }
+
+    if (enableRelay) {
+      state.tryDirectConnectErr!.then((err) {
+        if (err == null) {
+          // Don't need to ping relay
+          return;
+        }
+        try {
+          var f = pingRelay(timeout: const Duration(seconds: 2));
+          state.tryRelayErr = f.then((_) => null, onError: (e) => e);
+        } catch (e) {
+          state.tryRelayErr = Future.value(e);
+        }
+      });
+    }
+  }
+
+  void initConnectionState() {
+    if (_connectionStateInitialized) {
+      return;
+    }
+    _connectionStateInitialized = true;
+    _refreshConnectionState();
+  }
+
   /// Return parameters:
   /// 1. Copied content
   /// 2. Downloaded file list
@@ -1535,10 +1573,14 @@ class Device {
   }
 
   void setStateStatic(DeviceStateStatic state) {
+    // if (state.lastTryDirectConnectTime != null) {
+    //   _connectionStateInitialized = true;
+    // }
     AllDevicesState().setState(targetDeviceName, DeviceState.fromStatic(state));
   }
 }
 
+/// For passing state between different isolates, we need to convert the state to a static object
 class DeviceStateStatic {
   dynamic tryDirectConnectErr;
   DateTime? lastTryDirectConnectTime;
