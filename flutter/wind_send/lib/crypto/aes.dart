@@ -25,6 +25,7 @@ class AesGcm {
     return secureRandom.nextBytes(keyLengthInBytes);
   }
 
+  /// The space of ciphertext is not reused
   Uint8List encryptWithNonce(
     Uint8List plaintext,
     Uint8List nonce, [

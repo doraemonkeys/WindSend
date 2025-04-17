@@ -7,6 +7,7 @@ class StatusCode {
   static const error = 0;
   static const success = -1;
   static const authFailed = 1;
+  static const unauthKdfSaltMismatch = 2;
 
   static StatusCode fromJson(int json) {
     throw Exception('don\'t use this method');
@@ -14,15 +15,18 @@ class StatusCode {
 }
 
 class HandshakeReq with HeadWriter {
-  final String secretKeySelector;
-  final String authFieldB64;
-  final String authAAD;
+  final String? secretKeySelector;
+  final String? authFieldB64;
+  final String? authAAD;
+  final String? kdfSaltB64;
+
   final String ecdhPublicKeyB64;
 
   HandshakeReq({
-    required this.secretKeySelector,
-    required this.authFieldB64,
-    required this.authAAD,
+    this.secretKeySelector,
+    this.authFieldB64,
+    this.authAAD,
+    this.kdfSaltB64,
     required this.ecdhPublicKeyB64,
   });
 
@@ -32,6 +36,7 @@ class HandshakeReq with HeadWriter {
       authFieldB64: json['authFieldB64'],
       authAAD: json['authAAD'],
       ecdhPublicKeyB64: json['ecdhPublicKeyB64'],
+      kdfSaltB64: json['kdfSaltB64'],
     );
     return head;
   }
@@ -39,9 +44,10 @@ class HandshakeReq with HeadWriter {
   @override
   Map<String, dynamic> toJson() {
     return {
-      'secretKeySelector': secretKeySelector,
-      'authFieldB64': authFieldB64,
-      'authAAD': authAAD,
+      if (secretKeySelector != null) 'secretKeySelector': secretKeySelector,
+      if (authFieldB64 != null) 'authFieldB64': authFieldB64,
+      if (authAAD != null) 'authAAD': authAAD,
+      if (kdfSaltB64 != null) 'kdfSaltB64': kdfSaltB64,
       'ecdhPublicKeyB64': ecdhPublicKeyB64,
     };
   }
@@ -60,11 +66,13 @@ class HandshakeResp {
   final String ecdhPublicKeyB64;
   final int code;
   final String msg;
+  String? kdfSaltB64;
 
   HandshakeResp({
     required this.code,
     required this.msg,
     required this.ecdhPublicKeyB64,
+    this.kdfSaltB64,
   });
 
   factory HandshakeResp.fromJson(Map<String, dynamic> json) {
@@ -72,6 +80,7 @@ class HandshakeResp {
       code: json['code'],
       msg: json['msg'],
       ecdhPublicKeyB64: json['ecdhPublicKeyB64'],
+      kdfSaltB64: json['kdfSaltB64'],
     );
   }
 
@@ -80,6 +89,7 @@ class HandshakeResp {
       'code': code,
       'msg': msg,
       'ecdhPublicKeyB64': ecdhPublicKeyB64,
+      if (kdfSaltB64 != null) 'kdfSaltB64': kdfSaltB64,
     };
   }
 

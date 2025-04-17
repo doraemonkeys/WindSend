@@ -30,7 +30,6 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
             }
             RouteAction::Copy => {
                 crate::route::copy::copy_handler(&mut conn).await;
-                println!("copy handler");
             }
             RouteAction::Download => {
                 ok = crate::route::copy::download_handler(&mut conn, head).await;

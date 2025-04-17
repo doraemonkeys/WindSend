@@ -732,3 +732,63 @@ mod tests2 {
         assert!(cipher.decrypt(&mut actual_min_ciphertext, AAD).is_ok());
     }
 }
+
+// Define a type alias for clarity, representing a 192-bit (24-byte) AES key.
+// Using a fixed-size array is idiomatic and type-safe in Rust.
+pub type Aes192Key = [u8; 24];
+
+/// Derives a 192-bit AES key from a password and salt using PBKDF2-HMAC-SHA256.
+///
+/// # Arguments
+///
+/// * `password` - The password string to derive the key from.
+/// * `salt` - A cryptographic salt (byte slice). Should be unique per password.
+///
+/// # Returns
+///
+/// An `Aes192Key` (a `[u8; 24]` array) containing the derived key.
+pub fn aes192_key_kdf(password: &[u8], salt: &[u8]) -> Aes192Key {
+    // println!("password: {:?}", String::from_utf8_lossy(password));
+    // println!("salt: {:?}", String::from_utf8_lossy(salt));
+    use pbkdf2::pbkdf2_hmac; // The main PBKDF2 function using HMAC
+    use sha2::Sha256; // The SHA-256 hash algorithm implementation
+
+    const ITERATIONS: u32 = 10000;
+
+    // Define the desired key length (192 bits = 24 bytes).
+    // This matches the size of our return type `Aes192Key`.
+    const KEY_LEN: usize = 24;
+
+    // Create a buffer to store the derived key.
+    // Initialize it with zeros.
+    let mut key = [0u8; KEY_LEN];
+
+    // Perform the PBKDF2 derivation using HMAC-SHA256.
+    // - `password`: Pass the password bytes.
+    // - `salt`: Pass the salt slice.
+    // - `ITERATIONS`: Specify the number of iterations.
+    // - `&mut key`: Pass a mutable reference to the output buffer.
+    pbkdf2_hmac::<Sha256>(password, salt, ITERATIONS, &mut key);
+
+    // Return the derived key stored in the buffer.
+    key
+}
+// test('test', () {
+//     const myPassword = "mysecretpassword";
+//     const salt = 'test';
+//     final kdf = Device.aes192KeyKdf(myPassword, utf8.encode(salt));
+//     final kdfB64 = base64.encode(kdf);
+//     expect(kdfB64, isNotEmpty);
+//     expect(kdfB64, equals("9Dt2Ws9OB1uDRkxK4IHBHpqm9rMQ0d+z"));
+//   });
+
+#[test]
+fn test_aes192_key_kdf() {
+    use base64::prelude::*;
+    let password = "mysecretpassword";
+    let salt = "test";
+    let kdf = aes192_key_kdf(password.as_bytes(), salt.as_bytes());
+    let kdf_b64 = BASE64_STANDARD.encode(kdf);
+    assert_ne!(kdf_b64, "");
+    assert_eq!(kdf_b64, "FErBvveHZY/5Xb4uy7GWFMoQwY2RzNwD");
+}

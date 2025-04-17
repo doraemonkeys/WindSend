@@ -1,3 +1,5 @@
+use crate::utils::encrypt::aes192_key_kdf;
+
 /// return true if connect to relay  success
 pub async fn relay_main() -> bool {
     use crate::config;
@@ -101,55 +103,42 @@ async fn handshake(
     conn: &mut tokio::net::TcpStream,
 ) -> Option<crate::utils::encrypt::AesGcmCipher> {
     use crate::config;
-    use crate::relay::protocol::{HandshakeReq, HandshakeResp, StatusCode};
+    use crate::relay::protocol::{HandshakeResp, StatusCode};
     use crate::utils::encrypt;
     use base64::prelude::*;
     use rand::rngs::OsRng;
-    use tracing::error;
+    use tracing::{debug, error};
     use x25519_dalek::{EphemeralSecret, PublicKey};
 
     let secret = EphemeralSecret::random_from_rng(OsRng);
     let public = PublicKey::from(&secret);
 
-    let relay_secret_key = config::read_config()
-        .relay_secret_key
-        .as_ref()
-        .map(|s| hash_to_aes192_key(s.as_bytes()));
-    let relay_secret_key_selector = relay_secret_key.map(|k| get_aes192_key_selector(&k));
-    // println!("relay_secret_key_selector: {:?}", relay_secret_key_selector);
-    let cipher = relay_secret_key
-        .map(|k| encrypt::AesGcmCipher::new(&k))
-        .map(|cipher| cipher.unwrap());
-    let auth_field = "AUTH".to_string() + &encrypt::generate_rand_bytes_hex(16);
-    let auth_aad = encrypt::generate_rand_bytes_hex(16);
-    let auth_field_b64 = cipher
-        .as_ref()
-        .map(|c| c.encrypt(auth_field.as_bytes(), auth_aad.as_bytes()));
-    let auth_field_b64 = match auth_field_b64 {
-        Some(Ok(b)) => Some(BASE64_STANDARD.encode(b)),
-        Some(Err(e)) => {
-            error!("encrypt auth field error: {}", e);
-            return None;
-        }
-        None => None,
+    let mut handshake_cipher = match write_handshake_req(conn, public).await {
+        Ok(cipher) => cipher,
+        Err(_) => return None,
     };
-
-    let req = HandshakeReq {
-        secret_key_selector: relay_secret_key_selector,
-        auth_field_b64,
-        auth_aad,
-        ecdh_public_key_b64: BASE64_STANDARD.encode(public),
-    };
-
-    if req.write_to(conn).await.is_err() {
-        return None;
-    }
-
-    let resp = match HandshakeResp::read_from(conn).await {
+    let mut resp = match HandshakeResp::read_from(conn).await {
         Err(_) => return None,
         Ok(resp) => resp,
     };
-
+    if resp.code == StatusCode::KdfSaltMismatch {
+        RELAY_SALT.lock().unwrap().set_kdf_key(
+            config::read_config().relay_secret_key.as_ref(),
+            Some(&resp.kdf_salt_b64),
+        );
+        debug!(
+            "kdf salt mismatch, retry handshake, new salt: {}",
+            resp.kdf_salt_b64
+        );
+        handshake_cipher = match write_handshake_req(conn, public).await {
+            Ok(cipher) => cipher,
+            Err(_) => return None,
+        };
+        resp = match HandshakeResp::read_from(conn).await {
+            Err(_) => return None,
+            Ok(resp) => resp,
+        };
+    }
     if resp.code != StatusCode::Success {
         error!("handshake failed, code: {:?}, msg: {}", resp.code, resp.msg);
         return None;
@@ -163,7 +152,7 @@ async fn handshake(
         }
     };
 
-    let ecdh_public_key = match cipher {
+    let ecdh_public_key = match handshake_cipher {
         Some(cipher) => match cipher.decrypt(&mut ecdh_public_key, b"AUTH") {
             Ok(key) => key,
             Err(e) => {
@@ -194,6 +183,76 @@ async fn handshake(
     };
     Some(cipher)
 }
+
+async fn write_handshake_req(
+    conn: &mut tokio::net::TcpStream,
+    public: x25519_dalek::PublicKey,
+) -> Result<Option<crate::utils::encrypt::AesGcmCipher>, ()> {
+    use crate::config;
+    use crate::relay::protocol::HandshakeReq;
+    use crate::utils::encrypt;
+    use base64::prelude::*;
+    // use rand::rngs::OsRng;
+    use tracing::error;
+    // use x25519_dalek::{EphemeralSecret, PublicKey};
+
+    // let relay_secret_key = match RELAY_SALT.lock().unwrap().salt_b64 {
+    //     Some(salt) => config::read_config()
+    //         .relay_secret_key
+    //         .as_ref()
+    //         .map(|s| aes192_key_kdf(s.as_bytes(), salt.as_bytes())),
+    //     None => None,
+    // };
+    let (relay_secret_key, salt_b64) = RELAY_SALT
+        .lock()
+        .unwrap()
+        .get_kdf_key_cached(config::read_config().relay_secret_key.as_ref());
+
+    // let relay_secret_key_selector = get_aes192_key_selector(&relay_secret_key);
+    let relay_secret_key_selector = relay_secret_key.map(|key| get_aes192_key_selector(&key));
+    // println!("relay_secret_key_selector: {:?}", relay_secret_key_selector);
+    let cipher = relay_secret_key
+        .map(|k| encrypt::AesGcmCipher::new(&k))
+        .map(|cipher| cipher.unwrap());
+
+    let auth_field = "AUTH".to_string() + &encrypt::generate_rand_bytes_hex(16);
+    let auth_aad: Option<String> = cipher
+        .as_ref()
+        .map(|_| encrypt::generate_rand_bytes_hex(16));
+    let auth_field_bytes = cipher
+        .as_ref()
+        .map(|c| c.encrypt(auth_field.as_bytes(), auth_aad.as_ref().unwrap().as_bytes()));
+    let mut auth_field_b64 = match auth_field_bytes {
+        Some(Ok(b)) => Some(BASE64_STANDARD.encode(b)),
+        Some(Err(e)) => {
+            error!("encrypt auth field error: {}", e);
+            return Err(());
+        }
+        None => None,
+    };
+    if auth_field_b64.is_none() && config::read_config().relay_secret_key.is_some() {
+        auth_field_b64 = Some(BASE64_STANDARD.encode("fetch_salt"));
+    }
+    // println!("auth_field_b64: {:?}", auth_field_b64);
+    let req = HandshakeReq {
+        secret_key_selector: relay_secret_key_selector,
+        auth_field_b64,
+        auth_aad,
+        kdf_salt_b64: salt_b64,
+        ecdh_public_key_b64: BASE64_STANDARD.encode(public),
+    };
+
+    match req.write_to(conn).await {
+        Ok(_) => (),
+        Err(e) => {
+            error!("write handshake req error: {:?}", e);
+            return Err(());
+        }
+    }
+    Ok(cipher)
+}
+
+// async fn fetch_relay_salt(mut conn: tokio::net::TcpStream) -> Option<String> {}
 
 async fn handle_request(
     mut conn: tokio::net::TcpStream,
@@ -301,3 +360,70 @@ fn get_aes192_key_selector(key: &[u8; 24]) -> String {
     let hash = encrypt::compute_sha256(key);
     hex::encode(&hash[..4])
 }
+
+struct SaltCache {
+    salt_b64: Option<String>,
+    cur_pwd: Option<String>,
+    kdf_key: Option<crate::utils::encrypt::Aes192Key>,
+    // selector: String,
+}
+
+impl SaltCache {
+    fn new() -> Self {
+        Self {
+            salt_b64: None,
+            cur_pwd: None,
+            kdf_key: None,
+        }
+    }
+
+    fn get_kdf_key_cached(
+        &mut self,
+        pwd: Option<&String>,
+    ) -> (Option<crate::utils::encrypt::Aes192Key>, Option<String>) {
+        // use crate::config;
+        let pwd = match pwd {
+            Some(pwd) => pwd,
+            _ => return (None, None),
+        };
+        if let (Some(p), Some(_)) = (&self.cur_pwd, &self.salt_b64) {
+            if *p == *pwd {
+                return (self.kdf_key, self.salt_b64.clone());
+            }
+        }
+        (None, None)
+    }
+
+    fn set_kdf_key(
+        &mut self,
+        pwd: Option<&String>,
+        salt_b64: Option<&String>,
+    ) -> Option<crate::utils::encrypt::Aes192Key> {
+        use base64::prelude::*;
+        use tracing::error;
+        let (pwd, salt_b64) = match (pwd, salt_b64) {
+            (Some(pwd), Some(salt_b64)) => (pwd, salt_b64),
+            _ => return None,
+        };
+        if let (Some(p), Some(s)) = (&self.cur_pwd, &self.salt_b64) {
+            if *p == *pwd && *s == *salt_b64 {
+                return self.kdf_key;
+            }
+        }
+        let salt = match BASE64_STANDARD.decode(salt_b64) {
+            Ok(salt) => salt,
+            Err(e) => {
+                error!("decode salt error: {}", e);
+                return None;
+            }
+        };
+        self.cur_pwd = Some(pwd.clone());
+        self.salt_b64 = Some(salt_b64.clone());
+        let kdf_key = aes192_key_kdf(pwd.as_bytes(), &salt);
+        // println!("kdf_key: {:?}", kdf_key);
+        self.kdf_key = Some(kdf_key);
+        Some(kdf_key)
+    }
+}
+static RELAY_SALT: std::sync::LazyLock<std::sync::Mutex<SaltCache>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(SaltCache::new()));

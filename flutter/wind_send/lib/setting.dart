@@ -39,7 +39,7 @@ class _SettingPageState extends State<SettingPage> {
   String defaultShareDevice = LocalConfig.defaultShareDevice ?? '';
   String fileSavePath = LocalConfig.fileSavePath;
   String imageSavePath = LocalConfig.imageSavePath;
-  List<Device> devices = LocalConfig.devices ?? <Device>[];
+  List<Device> devices = LocalConfig.devices;
 
   @override
   Widget build(BuildContext context) {

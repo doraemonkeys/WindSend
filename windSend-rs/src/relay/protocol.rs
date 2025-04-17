@@ -6,6 +6,7 @@ pub enum StatusCode {
     Error = 0,
     Success = -1,
     AuthFailed = 1,
+    KdfSaltMismatch = 2,
 }
 
 impl Serialize for StatusCode {
@@ -25,6 +26,7 @@ impl TryFrom<i32> for StatusCode {
             0 => Ok(StatusCode::Error),
             -1 => Ok(StatusCode::Success),
             1 => Ok(StatusCode::AuthFailed),
+            2 => Ok(StatusCode::KdfSaltMismatch),
             _ => Err(format!("Invalid StatusCode value: {}", value)),
         }
     }
@@ -47,7 +49,9 @@ pub struct HandshakeReq {
     #[serde(rename = "authFieldB64")]
     pub auth_field_b64: Option<String>,
     #[serde(rename = "authAAD")]
-    pub auth_aad: String,
+    pub auth_aad: Option<String>,
+    #[serde(rename = "kdfSaltB64")]
+    pub kdf_salt_b64: Option<String>,
     #[serde(rename = "ecdhPublicKeyB64")]
     pub ecdh_public_key_b64: String,
 }
@@ -67,6 +71,8 @@ pub struct HandshakeResp {
     pub code: StatusCode,
     #[serde(rename = "msg")]
     pub msg: String,
+    #[serde(rename = "kdfSaltB64", default)]
+    pub kdf_salt_b64: String,
     #[serde(rename = "ecdhPublicKeyB64")]
     pub ecdh_public_key_b64: String,
 }

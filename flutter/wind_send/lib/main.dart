@@ -4,7 +4,7 @@ import 'dart:async';
 // import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
-
+import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -189,11 +189,20 @@ class MyHomePage extends StatefulWidget {
 }
 
 class MyHomePageState extends State<MyHomePage> {
-  late List<Device> devices = LocalConfig.devices ?? <Device>[];
+  List<Device> devices = LocalConfig.devices;
 
-  void devicesRebuild() {
-    setState(() {});
-    LocalConfig.setDevices(devices);
+  // Do not depend on LocalConfig.devices,
+  // because the modification of LocalConfig may be asynchronous
+  void devicesRebuild([List<Device>? ds]) {
+    // print('devicesRebuild');
+    // for (var device in devices) {
+    //   print('device3333: ${device.targetDeviceName}');
+    // }
+    setState(() {
+      if (ds != null) {
+        devices = ds;
+      }
+    });
   }
 
   @override
@@ -215,9 +224,7 @@ class MyHomePageState extends State<MyHomePage> {
             onLanguageChanged: widget.onLanguageChanged,
             onFollowSystemThemeChanged: widget.onFollowSystemThemeChanged,
             devices: devices,
-            devicesRebuild: () {
-              devicesRebuild();
-            },
+            devicesRebuild: devicesRebuild,
           ),
         ],
       ),
@@ -228,9 +235,10 @@ class MyHomePageState extends State<MyHomePage> {
             builder: (context) {
               return AddNewDeviceDialog(
                 devices: devices,
-                onAddDevice: () {
+                onAddDevice: () async {
+                  // print('onAddDevice');
                   if (devices.length == 1) {
-                    LocalConfig.setDefaultShareDevice(
+                    await LocalConfig.setDefaultShareDevice(
                         devices.first.targetDeviceName);
                   }
                   devicesRebuild();
@@ -400,7 +408,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
         return _formKey.currentState!.validate();
       },
       onConfirmed: () {
-        var device = Device(
+        var newDevice = Device(
           targetDeviceName: deviceName.isEmpty
               ? Random().nextInt(10000).toString()
               : deviceName,
@@ -409,15 +417,21 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           autoSelect: autoSelect,
           trustedCertificate: trustedCertificateController.text,
         );
-        if (device.iP.toLowerCase() == Device.webIP) {
-          device.iP = Device.webIP;
-          device.actionCopy = false;
-          device.actionPasteText = false;
-          device.actionPasteFile = false;
-          device.actionWebCopy = true;
-          device.actionWebPaste = true;
+        if (newDevice.iP.toLowerCase() == Device.webIP) {
+          newDevice.iP = Device.webIP;
+          newDevice.actionCopy = false;
+          newDevice.actionPasteText = false;
+          newDevice.actionPasteFile = false;
+          newDevice.actionWebCopy = true;
+          newDevice.actionWebPaste = true;
         }
-        widget.devices.add(device);
+        if (widget.devices.any((element) =>
+            element.targetDeviceName == newDevice.targetDeviceName)) {
+          throw Exception('save device failed, targetDeviceName is duplicate');
+        }
+        newDevice.uniqueId = generateRandomString(16);
+        widget.devices.add(newDevice);
+        LocalConfig.setDevice(newDevice);
         widget.onAddDevice();
       },
     );
@@ -441,7 +455,6 @@ class MainBody extends StatefulWidget {
 
 class _MainBodyState extends State<MainBody> {
   // bool _showRefreshCompleteIndicator = false;
-  final GlobalKey<_MainBodyState> mainBodyKey = GlobalKey();
 
   @override
   void initState() {
@@ -456,10 +469,16 @@ class _MainBodyState extends State<MainBody> {
       var defaultDeviceIndex = widget.devices.indexWhere(
         (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
       );
+      dev.log('defaultDevice: ${defaultDevice.targetDeviceName} '
+          'autoSelect: ${defaultDevice.autoSelect} '
+          'enableRelay: ${defaultDevice.enableRelay}');
+
       // Only ping when using relay, lazy load when not using relay
       if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
         // print('ping device: ${defaultDevice.targetDeviceName}');
         defaultDevice.pingDevice().then((_) {}).catchError((e) async {
+          dev.log(
+              'The default device ${defaultDevice.targetDeviceName} is using relay, and the direct connection failed, try to refresh ip');
           try {
             final ip = await compute(
               (Device d) async {
@@ -467,7 +486,8 @@ class _MainBodyState extends State<MainBody> {
               },
               defaultDevice,
             );
-            // print('find ip: $ip');
+            dev.log(
+                'refresh default device result ${defaultDevice.targetDeviceName} ip: $ip');
             if (ip != null) {
               final d = widget.devices[defaultDeviceIndex];
               d.iP = ip;
@@ -509,7 +529,7 @@ class _MainBodyState extends State<MainBody> {
         throw 'unexpect error, default device not found';
       }
       await DeviceCard.commonActionFuncWithToastr(
-        mainBodyKey.currentContext!,
+        appWidgetKey.currentContext!,
         defaultDevice,
         (Device d) {
           widget.devices[defaultDeviceIndex].iP = d.iP;
@@ -586,7 +606,6 @@ class _MainBodyState extends State<MainBody> {
   @override
   Widget build(BuildContext context) {
     return Center(
-      key: mainBodyKey,
       child: SizedBox(
         width: MediaQuery.of(context).size.width > MainBody.maxBodyWidth
             ? MainBody.maxBodyWidth
@@ -695,16 +714,18 @@ class _MainBodyState extends State<MainBody> {
         child: ListView.builder(
           itemCount: widget.devices.length,
           itemBuilder: (context, index) {
-            // print('build MainBody,index: $index');
+            // print('build MainBody DeviceCard,index: $index');
             return DeviceCard(
+              key: ValueKey(widget.devices[index].uniqueId),
               device: widget.devices[index],
               devices: widget.devices,
-              saveChange: (device) async {
-                widget.devices[index] = device;
-                LocalConfig.setDevices(widget.devices);
-              },
+              // saveChange: (device) async {
+              //   widget.devices[index] = device;
+              //   LocalConfig.setDevices(widget.devices);
+              // },
               onDelete: () async {
                 var removed = widget.devices.removeAt(index);
+                LocalConfig.removeDevice(removed.uniqueId);
                 if (LocalConfig.defaultShareDevice != null &&
                     LocalConfig.defaultShareDevice ==
                         removed.targetDeviceName) {
@@ -755,7 +776,7 @@ class _BuildPopupMenuButton extends StatelessWidget {
   final List<Device> devices;
   final Function(Locale) onLanguageChanged;
   final Function(bool) onFollowSystemThemeChanged;
-  final Function() devicesRebuild;
+  final Function(List<Device>) devicesRebuild;
   static const _sizedBoxW10 = SizedBox(width: 10);
 
   const _BuildPopupMenuButton({
@@ -835,9 +856,12 @@ class _BuildPopupMenuButton extends StatelessWidget {
               ),
             );
             if (result != null) {
-              devices.clear();
-              devices.addAll(result as List<Device>);
-              devicesRebuild();
+              final newDevices = result as List<Device>;
+              LocalConfig.setAllDeviceId(
+                      newDevices.map((e) => e.uniqueId).toList())
+                  .then((value) {
+                devicesRebuild(newDevices);
+              });
             }
             break;
           case 2:

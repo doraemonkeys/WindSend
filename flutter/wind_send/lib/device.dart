@@ -17,6 +17,8 @@ import 'package:crypto/crypto.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:wind_send/protocol/relay/model.dart' as relay_model;
 import 'dart:developer' as dev;
+import 'package:pointycastle/export.dart'; // PointyCastle core exports
+
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
@@ -33,6 +35,10 @@ import 'socket.dart';
 // import 'package:flutter/services.dart' show rootBundle;
 
 class Device {
+  /// unique id for persistence storage
+  String uniqueId = '';
+
+  /// unique name
   late String targetDeviceName;
   // late String subtitle;
   late String secretKey;
@@ -43,7 +49,9 @@ class Device {
 
   bool enableRelay = false;
   String relayServerAddress = '';
-  String? relaySecretKey;
+  String? _relaySecretKey;
+  String? _relayKdfSaltB64;
+  String? _relayKdfSecretB64;
 
   int port = defaultPort;
   bool autoSelect = true;
@@ -82,6 +90,7 @@ class Device {
   });
 
   Device.copy(Device device) {
+    uniqueId = device.uniqueId;
     targetDeviceName = device.targetDeviceName;
     // subtitle = device.subtitle;
     iP = device.iP;
@@ -99,8 +108,10 @@ class Device {
     actionWebCopy = device.actionWebCopy;
     actionWebPaste = device.actionWebPaste;
     relayServerAddress = device.relayServerAddress;
-    relaySecretKey = device.relaySecretKey;
+    _relaySecretKey = device.relaySecretKey;
     enableRelay = device.enableRelay;
+    _relayKdfSaltB64 = device._relayKdfSaltB64;
+    _relayKdfSecretB64 = device._relayKdfSecretB64;
   }
 
   Device clone() {
@@ -108,6 +119,7 @@ class Device {
   }
 
   Device.fromJson(Map<String, dynamic> json) {
+    uniqueId = json['uniqueId'] ?? '';
     targetDeviceName = json['TargetDeviceName'];
     // subtitle = json['subtitle'];
     iP = json['IP'] ?? '';
@@ -125,13 +137,16 @@ class Device {
     actionWebCopy = json['ActionWebCopy'] ?? actionWebCopy;
     actionWebPaste = json['ActionWebPaste'] ?? actionWebPaste;
     relayServerAddress = json['RelayServerAddress'] ?? relayServerAddress;
-    relaySecretKey = json['RelaySecretKey'] ?? relaySecretKey;
+    _relaySecretKey = json['RelaySecretKey'] ?? relaySecretKey;
     enableRelay = json['EnableRelay'] ?? enableRelay;
+    _relayKdfSaltB64 = json['RelayKdfSaltB64'] ?? _relayKdfSaltB64;
+    _relayKdfSecretB64 = json['RelayKdfSecretB64'] ?? _relayKdfSecretB64;
   }
 
   Map<String, dynamic> toJson() {
     // print('device toJson');
     final Map<String, dynamic> data = <String, dynamic>{};
+    data['uniqueId'] = uniqueId;
     data['TargetDeviceName'] = targetDeviceName;
     // data['subtitle'] = subtitle;
     data['IP'] = iP;
@@ -151,7 +166,70 @@ class Device {
     data['RelayServerAddress'] = relayServerAddress;
     data['RelaySecretKey'] = relaySecretKey;
     data['EnableRelay'] = enableRelay;
+    data['RelayKdfSaltB64'] = _relayKdfSaltB64;
+    data['RelayKdfSecretB64'] = _relayKdfSecretB64;
     return data;
+  }
+
+  String? get relayKdfSaltB64 {
+    return _relayKdfSaltB64;
+  }
+
+  String? get relaySecretKey => _relaySecretKey;
+
+  Future<void> setRelaySecretKey(String? value) async {
+    if (value == null) {
+      _relaySecretKey = null;
+      _relayKdfSaltB64 = null;
+      _relayKdfSecretB64 = null;
+      return;
+    }
+    _relaySecretKey = value;
+    if (relayKdfSaltB64 != null) {
+      await setRelayKdfSaltB64(relayKdfSaltB64);
+    }
+  }
+
+  void setRelayKdfCache(RelayKdfCache? value) async {
+    if (value == null) {
+      _relaySecretKey = null;
+      _relayKdfSaltB64 = null;
+      _relayKdfSecretB64 = null;
+      return;
+    }
+    _relaySecretKey = value.pwd;
+    _relayKdfSaltB64 = value.saltB64;
+    _relayKdfSecretB64 = value.kdfSecretB64;
+  }
+
+  RelayKdfCache? get relayKdfCache {
+    if (relaySecretKey == null ||
+        relayKdfSaltB64 == null ||
+        relayKdfSecretB64 == null) {
+      return null;
+    }
+    return RelayKdfCache(
+        pwd: relaySecretKey!,
+        saltB64: relayKdfSaltB64!,
+        kdfSecretB64: relayKdfSecretB64!);
+  }
+
+  String? get relayKdfSecretB64 => _relayKdfSecretB64;
+
+  /// Re-derive the secret key from the salt and the secret key
+  Future<void> setRelayKdfSaltB64(String? value) async {
+    _relayKdfSaltB64 = value;
+    if (relaySecretKey != null) {
+      // _relayKdfSecretB64 = base64Encode(
+      //     aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)));
+      _relayKdfSecretB64 = await compute(
+        (_) {
+          return base64Encode(
+              aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)));
+        },
+        null,
+      );
+    }
   }
 
   // CbcAESCrypt get cryptor => CbcAESCrypt.fromHex(secretKey);
@@ -172,6 +250,9 @@ class Device {
   }
 
   Future<SecureSocket> connect({Duration? timeout}) async {
+    // print(
+    //     "device: $targetDeviceName, try to connect direct serverAddress: $iP:$port");
+
     // See commit https://github.com/doraemonkeys/WindSend/commit/063c311fd58c62d68e13d9ae6364ac8700471cc9
     Duration socketFutureTimeout;
     if (timeout != null) {
@@ -205,7 +286,6 @@ class Device {
     final sock =
         await Socket.connect(relayServerHost, relayServerPort, timeout: timeout)
             .timeout(socketFutureTimeout);
-
     final sock2 = BroadcastSocket(sock, sock.asBroadcastStream());
     final sharedSecret = await handshake(this, sock2);
     final cipher = AesGcm(sharedSecret);
@@ -221,6 +301,7 @@ class Device {
   }
 
   Future<SecureSocket> connectToRelay({Duration? timeout}) async {
+    dev.log("try to connectToRelay serverAddress: $relayServerAddress");
     Duration socketFutureTimeout = resolveSocketFutureTimeout(timeout);
     final (sock2, cipher) = await handshakeInner(timeout: timeout);
     final reqHead = relay_model.ReqHead(action: relay_model.Action.relay);
@@ -278,7 +359,7 @@ class Device {
     bool onlyRelay = false,
   }) async {
     dev.log(
-        'run connectAuto,forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout');
+        'run connectAuto, relayEnabled: $enableRelay, forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout');
     // return _connectAutoRoutine(timeout: timeout);
     if (onlyDirect) {
       return (await connect(timeout: timeout), false);
@@ -293,6 +374,8 @@ class Device {
     // directConnect is executing or just finished
     var directConnectErr = await state.tryDirectConnectErr;
     var lastDirectConnectTime = state.lastTryDirectConnectTime!;
+    dev.log(
+        'device: $targetDeviceName, directConnectErr: $directConnectErr, lastDirectConnectTime: $lastDirectConnectTime');
     // Within 50ms
     if (DateTime.now().difference(lastDirectConnectTime).inMilliseconds < 50) {
       if (directConnectErr == null) {
@@ -346,22 +429,59 @@ class Device {
     refState().tryRelayErr = Future.value(null);
   }
 
-  Future<void> pingRelay2(String host, int port, String? secretKey,
+  Future<Device> pingRelay2(String host, int port, String? secretKey,
       {Duration? timeout}) async {
     final d = clone();
     d.relayServerAddress = '$host:$port';
-    d.relaySecretKey = secretKey;
+    if (secretKey != relaySecretKey) {
+      await d.setRelaySecretKey(secretKey);
+    }
     d.enableRelay = true;
     await d.pingRelay(timeout: timeout);
+    return d;
   }
 
-  static Uint8List hashToAES192Key(String c) {
-    // if (c.isEmpty) {
-    //   throw Exception('unreachable: Invalid input string');
-    // }
-    final hash = sha256.convert(utf8.encode(c)).bytes;
-    return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
+  /// Derives a 192-bit (24-byte) key suitable for AES-192 using PBKDF2.
+  ///
+  /// Mimics the Go function AES192KeyKDF.
+  ///
+  /// Parameters:
+  ///   - [password]: The input password string.
+  ///   - [salt]: A unique salt for this password (Uint8List).
+  ///
+  /// Returns:
+  ///   A 24-byte key (Uint8List).
+  static Uint8List aes192KeyKdf(String password, Uint8List salt) {
+    // 1. Define parameters (matching the Go function)
+    const int iterations = 10000;
+    const int keyLengthBytes = 192 ~/ 8; // 24 bytes for AES-192
+
+    // 2. Convert password string to bytes (UTF-8 is standard)
+    final Uint8List passwordBytes = Uint8List.fromList(utf8.encode(password));
+
+    // 3. Create the PBKDF2 key derivator
+    // PBKDF2 uses an underlying HMAC function. We need HMAC-SHA256 here.
+    // SHA-256 has a block size of 64 bytes.
+    final keyDerivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64));
+
+    // 4. Initialize the derivator with parameters
+    final params = Pbkdf2Parameters(salt, iterations, keyLengthBytes);
+    keyDerivator.init(params);
+
+    // 5. Derive the key from the password bytes
+    final Uint8List key = keyDerivator.process(passwordBytes);
+
+    // 6. Return the derived key
+    return key;
   }
+
+  // static Uint8List hashToAES192Key(String c) {
+  //   // if (c.isEmpty) {
+  //   //   throw Exception('unreachable: Invalid input string');
+  //   // }
+  //   final hash = sha256.convert(utf8.encode(c)).bytes;
+  //   return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
+  // }
 
   static Uint8List hashToAES192Key2(List<int> c) {
     // if (c.isEmpty) {
@@ -375,7 +495,10 @@ class Device {
     if (relaySecretKey == null) {
       return null;
     }
-    return hashToAES192Key(relaySecretKey!);
+    if (relayKdfSecretB64 == null) {
+      return null;
+    }
+    return base64Decode(relayKdfSecretB64!);
   }
 
   String getDeviceId() {
@@ -394,7 +517,11 @@ class Device {
     if (relaySecretKey == null) {
       return null;
     }
-    return _getAES192KeySelector(relaySecretAuthKey()!);
+    final key = relaySecretAuthKey();
+    if (key == null) {
+      return null;
+    }
+    return _getAES192KeySelector(key);
   }
 
   static String? Function(String?) deviceNameValidator(
@@ -603,6 +730,7 @@ class Device {
     if (decryptedBodyStr != 'pong') {
       throw Exception('pong error');
     }
+    dev.log('device: $targetDeviceName, direct ping ok');
     refState().tryDirectConnectErr = Future.value(null);
   }
 

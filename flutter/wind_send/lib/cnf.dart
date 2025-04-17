@@ -12,7 +12,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-// import 'package:path/path.dart' as filepath;
+// import 'package:path/path.dart' as p;
 
 import 'theme.dart';
 import 'language.dart';
@@ -196,9 +196,9 @@ class LocalConfig {
     if (value != null) {
       return value;
     }
-    if (devices != null && devices!.isNotEmpty) {
-      _sp.setString(_defaultShareDeviceKey, devices!.first.targetDeviceName);
-      return devices!.first.targetDeviceName;
+    if (devices.isNotEmpty) {
+      _sp.setString(_defaultShareDeviceKey, devices.first.targetDeviceName);
+      return devices.first.targetDeviceName;
     }
     return null;
   }
@@ -278,18 +278,18 @@ class LocalConfig {
     return (jsonDecode(value) as Map<String, dynamic>).cast<String, String?>();
   }
 
+  // set bssidDeviceNameMap(Map<String, String?> value) =>
+  //     _sp.setString('BssidDeviceNameMap', json.encode(value));
+  static Future<bool> setBssidDeviceNameMap(Map<String, String?> value) async {
+    return await _sp.setString('BssidDeviceNameMap', json.encode(value));
+  }
+
   static bool get isLocationPermissionDialogShown =>
       _sp.getBool('IsLocationPermissionDialogShown') ?? false;
   // set isLocationPermissionDialogShown(bool value) =>
   //     _sp.setBool('IsLocationPermissionDialogShown', value);
   static Future<bool> setIsLocationPermissionDialogShown(bool value) async {
     return await _sp.setBool('IsLocationPermissionDialogShown', value);
-  }
-
-  // set bssidDeviceNameMap(Map<String, String?> value) =>
-  //     _sp.setString('BssidDeviceNameMap', json.encode(value));
-  static Future<bool> setBssidDeviceNameMap(Map<String, String?> value) async {
-    return await _sp.setString('BssidDeviceNameMap', json.encode(value));
   }
 
   /// Language
@@ -316,21 +316,65 @@ class LocalConfig {
         'Language', '${value.languageCode}_${value.countryCode}');
   }
 
-  /// Devices
-  static List<Device>? get devices {
-    var listObject = _sp.get('Device') as List<dynamic>?;
-    final List<String>? list = listObject?.cast<String>();
+  static const String _oldDevicesKey = 'Device';
+  static const String _deviceStorePrefix = 'Device__';
 
-    if (list == null || list.isEmpty) {
-      // print('null geneDummyDeviceList');
-      // // return null;
-      // var list = geneDummyDeviceList();
-      // // 输出list的内容
-      // for (var i = 0; i < list.length; i++) {
-      //   print("list[$i] = ${list[i]}");
-      //   print(list[i].toJson());
-      // }
-      // return list;
+  /// Single device
+  static Device? getDevice(String id) {
+    final jsonString = _sp.getString('$_deviceStorePrefix$id');
+    if (jsonString == null || jsonString.isEmpty) {
+      return null;
+    }
+    return Device.fromJson(const JsonDecoder().convert(jsonString));
+  }
+
+  static Device? getDeviceByName(String name) {
+    final allDeviceIds = _getDeviceIds();
+    for (final id in allDeviceIds) {
+      final device = getDevice(id);
+      if (device?.targetDeviceName == name) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  static Future<bool> setDevice(Device device) async {
+    // print(
+    //     'setDevice ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
+    if (device.uniqueId.isEmpty) {
+      throw Exception('save device failed, uniqueId is empty');
+    }
+    final allDeviceIds = _getDeviceIds();
+    if (allDeviceIds.add(device.uniqueId)) {
+      await setAllDeviceId(allDeviceIds.toList());
+    }
+
+    return await _sp.setString(
+        '$_deviceStorePrefix${device.uniqueId}', json.encode(device.toJson()));
+  }
+
+  static Future<bool> removeDevice(String id) async {
+    final allDeviceIds = _getDeviceIds();
+    if (allDeviceIds.remove(id)) {
+      await setAllDeviceId(allDeviceIds.toList());
+    }
+    return await _sp.remove('$_deviceStorePrefix$id');
+  }
+
+  static Set<String> _getDeviceIds() {
+    return _sp.getStringList("AllDeviceId")?.toSet() ?? {};
+  }
+
+  static Future<bool> setAllDeviceId(List<String> ids) async {
+    // print('setAllDeviceId: $ids');
+    return await _sp.setStringList("AllDeviceId", ids);
+  }
+
+  @Deprecated('Remove this code at 2026-04-16.')
+  static List<Device>? get _devicesOld {
+    var list = _sp.getStringList(_oldDevicesKey);
+    if (list == null) {
       return null;
     }
     final List<Device> result = [];
@@ -340,20 +384,45 @@ class LocalConfig {
     return result;
   }
 
-  // set devices(List<Device>? value) {
-  //   final List<String> list = [];
-  //   for (final element in value!) {
-  //     list.add(json.encode(element.toJson()));
-  //   }
-  //   _sp.setStringList('Device', list);
-  // }
-
-  static Future<bool> setDevices(List<Device>? value) async {
-    final List<String> list = [];
-    for (final element in value!) {
-      list.add(json.encode(element.toJson()));
+  /// All devices
+  static List<Device> get devices {
+    var devicesOld = _devicesOld;
+    if (devicesOld != null) {
+      // Compatible with old versions.
+      // convert _devices_old to devices.
+      // TODO: Remove this code at 2026-04-16.
+      if (devicesOld.isEmpty) {
+        _sp.remove(_oldDevicesKey);
+        return [];
+      }
+      for (final element in devicesOld) {
+        if (element.uniqueId.isEmpty) {
+          element.uniqueId = generateRandomString(16);
+        }
+      }
+      () async {
+        final randMs = Random().nextInt(5000);
+        await Future.delayed(Duration(milliseconds: randMs));
+        if (_sp.getStringList(_oldDevicesKey) == null) {
+          return;
+        }
+        for (final element in devicesOld) {
+          await setDevice(element);
+        }
+        await _sp.remove(_oldDevicesKey);
+      }();
+      return devicesOld;
     }
-    return await _sp.setStringList('Device', list);
+
+    final ids = _getDeviceIds();
+    final List<Device> result = [];
+    for (final id in ids) {
+      // print('device id: $id');
+      var d = getDevice(id);
+      // print("device name:${d?.targetDeviceName}");
+      result.add(d!);
+    }
+    return result;
   }
 }
 
@@ -487,7 +556,7 @@ Future<Device?> resolveTargetDevice({
     final wifiBSSID = await info.getWifiBSSID();
     if (wifiBSSID != null) {
       final bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
-      Device? device = LocalConfig.devices?.firstWhereOrNull(
+      Device? device = LocalConfig.devices.firstWhereOrNull(
         (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
       );
       if (device != null) {
@@ -496,12 +565,54 @@ Future<Device?> resolveTargetDevice({
     }
   }
   if (defaultShareDevice) {
-    return LocalConfig.devices?.firstWhereOrNull(
+    return LocalConfig.devices.firstWhereOrNull(
         (e) => e.targetDeviceName == LocalConfig.defaultShareDevice);
   }
   if (defaultSyncDevice) {
-    return LocalConfig.devices?.firstWhereOrNull(
+    return LocalConfig.devices.firstWhereOrNull(
         (e) => e.targetDeviceName == LocalConfig.defaultSyncDevice);
   }
   return null;
 }
+
+class RelayKdfCache {
+  String pwd;
+  String saltB64;
+  String kdfSecretB64;
+
+  RelayKdfCache(
+      {required this.pwd, required this.saltB64, required this.kdfSecretB64});
+}
+
+// class RelayKdfInfoCache {
+//   // key: pwd$saltb64, value: kdfSecretB64
+//   Map<String, String> cache = {};
+//   static final RelayKdfInfoCache _instance = RelayKdfInfoCache();
+
+//   factory RelayKdfInfoCache() {
+//     return _instance;
+//   }
+
+//   Future<Directory> cacheDir(String pwd, String salt) async {
+//     final dir = await getApplicationDocumentsDirectory(); //TODO isolate
+//     return Directory(p.join(dir.path, 'RelayKdfCache'));
+//   }
+
+//   Future<Uint8List> getSecret(String pwd, String saltb64) async {
+//     if (cache[pwd + saltb64] != null) {
+//       return base64.decode(cache[pwd + saltb64]!);
+//     }
+//     final cacheDir = await this.cacheDir(pwd, saltb64);
+//     final cacheFile = File(p.join(cacheDir.path, '$pwd$saltb64'));
+//     if (await cacheFile.exists()) {
+//       final kdfSecretB64 = await cacheFile.readAsString();
+//       cache[pwd + saltb64] = kdfSecretB64;
+//       return base64.decode(kdfSecretB64);
+//     }
+//     final kdfSecret = Device.aes192KeyKdf(pwd, base64.decode(saltb64));
+//     final kdfSecretB64 = base64.encode(kdfSecret);
+//     cache[pwd + saltb64] = kdfSecretB64;
+//     await cacheFile.writeAsString(kdfSecretB64);
+//     return kdfSecret;
+//   }
+// }

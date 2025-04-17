@@ -32,6 +32,9 @@ class DeviceSettingPage extends StatefulWidget {
 class _DeviceSettingPageState extends State<DeviceSettingPage> {
   final _formKey = GlobalKey<FormState>();
 
+  /// key: '$serverAddress-$secretKey'
+  final saltCache = <String, RelayKdfCache?>{};
+
   String parseHost(String hostAndPort) {
     final (h, p) = parseHostAndPort(hostAndPort, defaultPort: 0);
     return h;
@@ -90,14 +93,23 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               },
               changeRelayConfig: (host, port, password) {
                 setState(() {
+                  // print('changeRelayConfig: $host $port $password');
                   widget.device.relayServerAddress = '$host:$port';
-                  widget.device.relaySecretKey = password;
+                  final cache = saltCache['$host-$port-$password'];
+                  if (cache != null) {
+                    // print('setRelayKdfCache: ${cache.kdfSecretB64}');
+                    widget.device.setRelayKdfCache(cache);
+                  } else {
+                    widget.device.setRelaySecretKey(password);
+                  }
                 });
               },
               testRelayConnection: (host, port, password) async {
                 try {
-                  await widget.device.pingRelay2(host, port, password,
+                  final testD = await widget.device.pingRelay2(
+                      host, port, password,
                       timeout: const Duration(seconds: 2));
+                  saltCache['$host-$port-$password'] = testD.relayKdfCache;
                   return null;
                 } catch (e) {
                   if (e is HandshakeAuthFailedException) {
