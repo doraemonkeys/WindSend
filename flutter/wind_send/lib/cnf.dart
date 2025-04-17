@@ -406,10 +406,14 @@ class LocalConfig {
         if (_sp.getStringList(_oldDevicesKey) == null) {
           return;
         }
-        for (final element in devicesOld) {
-          await setDevice(element);
-        }
         await _sp.remove(_oldDevicesKey);
+
+        final ids = devicesOld.map((e) => e.uniqueId).toList();
+        await setAllDeviceId(ids);
+        for (final element in devicesOld) {
+          await _sp.setString('$_deviceStorePrefix${element.uniqueId}',
+              json.encode(element.toJson()));
+        }
       }();
       return devicesOld;
     }
@@ -422,7 +426,21 @@ class LocalConfig {
       // print("device name:${d?.targetDeviceName}");
       result.add(d!);
     }
-    return result;
+
+    // TODO: Remove this code at 2026-04-16.
+    {
+      Map<String, Device> nameUniqueCheck = {};
+      for (final device in result) {
+        if (nameUniqueCheck.containsKey(device.targetDeviceName)) {
+          removeDevice(device.uniqueId);
+          continue;
+        }
+        nameUniqueCheck[device.targetDeviceName] = device;
+      }
+      return nameUniqueCheck.values.toList();
+    }
+
+    // return result;
   }
 }
 
