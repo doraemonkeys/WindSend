@@ -14,12 +14,20 @@ where
 
     // Read the length of the json
     let mut head_len = [0u8; 4];
-    conn.read_exact(&mut head_len)
-        .await
-        .map_err(|e| error!("read CommonReqHead len failed, err: {}", e))?;
+    conn.read_exact(&mut head_len).await.map_err(|e| {
+        error!(
+            "read head({:?}) len failed, err: {}",
+            std::any::type_name::<T>(),
+            e
+        )
+    })?;
     let head_len = i32::from_le_bytes(head_len);
     if head_len > MAX_HEAD_LEN as i32 || head_len <= 0 {
-        error!("invalid CommonReqHead len: {}", head_len);
+        error!(
+            "invalid head({:?}) len: {}",
+            std::any::type_name::<T>(),
+            head_len
+        );
         return Err(());
     }
     let mut head_buf = vec![0u8; head_len as usize];
