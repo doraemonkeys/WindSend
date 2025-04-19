@@ -82,7 +82,7 @@ async fn send_connection_req(
         Ok(head) => head,
         Err(_) => return Err(()),
     };
-    debug!("connection resp head: {:?}", head);
+    debug!("recv relay connection resp head: {:?}", head);
     use crate::relay::protocol::StatusCode;
 
     if head.code != StatusCode::Success {
