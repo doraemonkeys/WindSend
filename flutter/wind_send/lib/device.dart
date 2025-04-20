@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -897,8 +898,10 @@ class Device {
   /// 1. Copied content
   /// 2. Downloaded file list
   /// 3. The actual save path of the files(if too many files, return empty list)
-  Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction(
-      [Duration connectTimeout = const Duration(seconds: 2)]) async {
+  Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction({
+    Duration connectTimeout = const Duration(seconds: 2),
+    SendPort? progressSendPort,
+  }) async {
     var (conn, isRelay) = await connectAuto(timeout: connectTimeout);
     final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
@@ -953,8 +956,11 @@ class Device {
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
       List<DownloadInfo> respPaths =
           respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();
-      var realSavePaths =
-          await _downloadFiles(respPaths, respHead.totalFileSize!);
+      var realSavePaths = await _downloadFiles(
+        respPaths,
+        respHead.totalFileSize!,
+        progressSendPort: progressSendPort,
+      );
       return (null, respPaths, realSavePaths);
     }
     throw Exception('Unknown data type: ${respHead.dataType}');
@@ -1064,7 +1070,10 @@ class Device {
   }
 
   Future<List<String>> _downloadFiles(
-      List<DownloadInfo> targetItems, int totalFileSize) async {
+    List<DownloadInfo> targetItems,
+    int totalFileSize, {
+    SendPort? progressSendPort,
+  }) async {
     var stateStatic = await getStateStatic();
 
     const maxRelayBytes = 1024 * 1024 * 10;
@@ -1097,22 +1106,23 @@ class Device {
     }
     String imageSavePath = LocalConfig.imageSavePath;
     String fileSavePath = LocalConfig.fileSavePath;
-    String localDeviceName = globalLocalDeviceName;
-    Future<List<String>> startDownload(
-        (Device, DeviceStateStatic, List<DownloadInfo>) args) async {
-      var (device, state, targetItems) = args;
-      device.setStateStatic(state);
+
+    Future<List<String>> startDownload(IsolateDownloadArgs args) async {
+      // var (device, state, targetItems) = args;
+      args.device.setStateStatic(args.connState);
       var futures = <Future>[];
       var downloader = FileDownloader(
-        device,
-        localDeviceName,
-        threadNum: device.downloadThread,
-        forceDirectFirst: directFirst,
-        onlyDirectConn: forceDirect,
+        args.device,
+        args.localDeviceName,
+        threadNum: args.device.downloadThread,
+        forceDirectFirst: args.forceDirectFirst,
+        onlyDirectConn: args.onlyDirectConn,
+        operationTotalSize: args.totalSize,
+        progressSendPort: args.progressSendPort,
       );
       bool tooManyFiles = false;
       int tempFileCount = 0;
-      for (var item in targetItems) {
+      for (var item in args.targetItems) {
         if (item.isFile()) {
           tempFileCount++;
           if (tempFileCount > 20) {
@@ -1123,19 +1133,19 @@ class Device {
       }
       List<Future<String>> realSavePathsFuture = [];
       String systemSeparator = filepath.separator;
-      for (var item in targetItems) {
+      for (var item in args.targetItems) {
         String remotePath = item.remotePath.replaceAll('/', systemSeparator);
         remotePath = remotePath.replaceAll('\\', systemSeparator);
         var baseName = filepath.basename(remotePath);
 
         String saveDir;
         if (hasImageExtension(baseName)) {
-          saveDir = imageSavePath;
+          saveDir = args.imageSavePath;
         } else {
-          saveDir = fileSavePath;
+          saveDir = args.fileSavePath;
         }
         if (item.savePath.isNotEmpty) {
-          saveDir = fileSavePath; // 传输文件夹时，图片不分离
+          saveDir = args.fileSavePath; // 传输文件夹时，图片不分离
           saveDir = filepath.join(saveDir, item.savePath);
         }
         // print('fileName: $fileName, saveDir: $saveDir');
@@ -1159,11 +1169,24 @@ class Device {
       return realSavePaths;
     }
 
+    final args = IsolateDownloadArgs(
+      device: this,
+      connState: stateStatic,
+      targetItems: targetItems,
+      localDeviceName: globalLocalDeviceName,
+      forceDirectFirst: directFirst,
+      onlyDirectConn: forceDirect,
+      imageSavePath: imageSavePath,
+      fileSavePath: fileSavePath,
+      progressSendPort: progressSendPort,
+      totalSize: totalFileSize,
+    );
+
     // Start a new isolate
     // Do not catch Exception, it will be thrown directly
     final lastRealSavePath = await compute(
       startDownload,
-      (this, stateStatic, targetItems),
+      args,
     );
 
     if (targetItems.length == 1) {
@@ -1194,9 +1217,12 @@ class Device {
   }
 
   /// Send files or dirs.
-  Future<void> doSendAction(List<String> paths,
-      // key: filePath value: relativeSavePath
-      {Map<String, String>? fileRelativeSavePath}) async {
+  Future<void> doSendAction(
+    List<String> paths, {
+    // key: filePath value: relativeSavePath
+    Map<String, String>? fileRelativeSavePath,
+    SendPort? progressSendPort,
+  }) async {
     int totalSize = 0;
     List<String> emptyDirs = [];
     Map<String, PathInfo> pathInfoMap = {};
@@ -1291,8 +1317,6 @@ class Device {
       }
     }
 
-    int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-
     var stateStatic = await getStateStatic();
 
     const maxRelayBytes = 1024 * 1024 * 10;
@@ -1324,46 +1348,67 @@ class Device {
       }
     }
 
-    String localDeviceName = globalLocalDeviceName;
+    // final _receivePort = ReceivePort();
+    // final sendPort = _receivePort.sendPort;
 
-    void uploadFiles((Device, DeviceStateStatic, List<String>) args) async {
-      var (device, state, filePaths) = args;
+    void uploadFiles(
+      IsolateUploadArgs args,
+    ) async {
+      int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
+
+      // var (device, state, filePaths, sendPort) = args;
       // print('uploadFiles: $filePaths');
       UploadOperationInfo uploadOpInfo = UploadOperationInfo(
-        totalSize,
-        filePaths.length,
-        uploadPaths: pathInfoMap,
-        emptyDirs: emptyDirs,
+        args.totalSize,
+        args.filePaths.length,
+        uploadPaths: args.uploadPaths,
+        emptyDirs: args.emptyDirs,
       );
 
-      device.setStateStatic(state);
+      args.device.setStateStatic(args.connState);
 
       // var f1 = await refState().tryDirectConnectErr!;
       // var f2 = await refState().tryRelayErr!;
       // print('f1: $f1, f2: $f2');
 
       var fileUploader = FileUploader(
-        device,
-        localDeviceName,
-        threadNum: uploadThread,
-        forceDirectFirst: directFirst,
-        onlyDirectConn: forceDirect,
+        args.device,
+        args.localDeviceName,
+        threadNum: args.device.uploadThread,
+        forceDirectFirst: args.forceDirectFirst,
+        onlyDirectConn: args.onlyDirectConn,
+        operationTotalSize: args.totalSize,
+        progressSendPort: args.progressSendPort,
       );
 
       await fileUploader.sendOperationInfo(opID, uploadOpInfo);
 
-      for (var filepath in filePaths) {
+      for (var filepath in args.filePaths) {
         if (uploadThread == 0) {
           throw Exception('threadNum can not be 0');
         }
         // print('uploading $filepath');
         await fileUploader.addTask(
-            filepath, fileRelativeSavePath![filepath] ?? '', opID);
+            filepath, args.fileRelativeSavePath![filepath] ?? '', opID);
       }
       await fileUploader.close();
     }
 
-    await compute(uploadFiles, (this, stateStatic, allFilePath));
+    final args = IsolateUploadArgs(
+      device: this,
+      connState: stateStatic,
+      filePaths: allFilePath,
+      progressSendPort: progressSendPort,
+      totalSize: totalSize,
+      uploadPaths: pathInfoMap,
+      emptyDirs: emptyDirs,
+      localDeviceName: globalLocalDeviceName,
+      forceDirectFirst: directFirst,
+      onlyDirectConn: forceDirect,
+      fileRelativeSavePath: fileRelativeSavePath,
+    );
+    // await Isolate.spawn(uploadFiles, args);
+    await compute(uploadFiles, args);
   }
 
   Future<List<String>> pickFiles() async {

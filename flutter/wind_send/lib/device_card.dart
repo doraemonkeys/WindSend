@@ -3,6 +3,7 @@ import 'dart:async';
 // import 'dart:isolate';
 // import 'dart:typed_data';
 import 'dart:math';
+import 'dart:isolate';
 // import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import 'device_edit.dart';
 import 'device.dart';
 import 'cnf.dart';
 import 'toast.dart';
+import 'indicator.dart';
 
 class DeviceCard extends StatefulWidget {
   final Device device;
@@ -81,25 +83,42 @@ class DeviceCard extends StatefulWidget {
   }
 
   static Future<void> commonActionFuncWithToastr(
-      BuildContext context,
-      Device device,
-      void Function(Device device) onChanged,
-      Future<ToastResult> Function() task,
-      {bool showIndicator = true}) async {
+    BuildContext context,
+    Device device,
+    void Function(Device device) onChanged,
+    Future<ToastResult> Function() task, {
+    bool showIndicator = true,
+    ReceivePort? progressReceivePort,
+    String? progressTotalMsg,
+  }) async {
     ToastResult result;
     // bool isErrored = false;
     var indicatorExited = false;
     // Show loading spinner
     if (showIndicator) {
-      var dialog = showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        },
-      );
+      Future<dynamic> dialog;
+      if (progressReceivePort == null) {
+        dialog = showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          },
+        );
+      } else {
+        dialog = showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return LoadingIndicator(
+              progressStream:
+                  progressReceivePort.map((e) => e as TransferProgress),
+            );
+          },
+        );
+      }
       dialog.whenComplete(() => indicatorExited = true);
     }
     try {
@@ -295,10 +314,11 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
+            ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               var (copiedText, downloadInfos, realSavePaths) =
-                  await device.doCopyAction();
+                  await device.doCopyAction(progressSendPort: rp.sendPort);
               if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
@@ -355,7 +375,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                 message: 'unknown error',
                 status: ToastStatus.failure,
               );
-            });
+            }, progressReceivePort: rp);
           },
         ),
       );
@@ -414,20 +434,23 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
             List<String> selectedFilePaths = [];
+            ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
               if (selectedFilePaths.isEmpty) {
                 selectedFilePaths = await device.pickFiles();
               }
-              await device.doSendAction(selectedFilePaths);
+              await device.doSendAction(selectedFilePaths,
+                  progressSendPort: rp.sendPort);
               device.clearTemporaryFiles();
               if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
               return ToastResult(message: successMsg);
-            });
+            }, progressReceivePort: rp);
           },
           onLongPress: () async {
+            ReceivePort rp = ReceivePort();
             String successMsg =
                 context.formatString(AppLocale.operationSuccess, []);
             String selectedDirPath = '';
@@ -436,9 +459,10 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               if (selectedDirPath.isEmpty) {
                 selectedDirPath = await device.pickDir();
               }
-              await device.doSendAction([selectedDirPath]);
+              await device.doSendAction([selectedDirPath],
+                  progressSendPort: rp.sendPort);
               return ToastResult(message: successMsg);
-            });
+            }, progressReceivePort: rp);
           },
         ),
       );

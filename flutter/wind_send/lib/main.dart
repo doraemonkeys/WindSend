@@ -4,7 +4,9 @@ import 'dart:async';
 // import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
+import 'dart:isolate';
 import 'dart:developer' as dev;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -528,6 +530,7 @@ class _MainBodyState extends State<MainBody> {
       if (defaultDeviceIndex == -1) {
         throw 'unexpect error, default device not found';
       }
+      ReceivePort rp = ReceivePort();
       await DeviceCard.commonActionFuncWithToastr(
         appWidgetKey.currentContext!,
         defaultDevice,
@@ -567,7 +570,8 @@ class _MainBodyState extends State<MainBody> {
             throw 'Unsupported operation, web device only support text';
           }
           if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(fileList);
+            await defaultDevice.doSendAction(fileList,
+                progressSendPort: rp.sendPort);
           }
           if (text != null) {
             if (defaultDevice.iP == Device.webIP) {
@@ -582,6 +586,7 @@ class _MainBodyState extends State<MainBody> {
                 'share success',
           );
         },
+        progressReceivePort: rp,
       );
     }
 

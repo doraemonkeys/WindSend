@@ -4,7 +4,7 @@ import 'dart:async';
 // import 'dart:isolate';
 // import 'dart:typed_data';
 import 'dart:math';
-
+import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 
 import 'package:path/path.dart' as filepathpkg;
@@ -14,6 +14,7 @@ import 'package:wind_send/protocol/protocol.dart';
 import 'device.dart';
 import 'utils.dart';
 import 'spmc.dart';
+import 'indicator.dart';
 
 class FileUploader {
   final Device device;
@@ -33,6 +34,10 @@ class FileUploader {
   final Duration timeout;
   List<Future<void>> smallFileTasks = [];
 
+  int? operationTotalSize;
+  int totalSentSize = 0;
+  ProgressLimiter<TransferProgress>? _progressLimiter;
+
   FileUploader(
     this.device,
     this.loaclDeviceName, {
@@ -40,9 +45,20 @@ class FileUploader {
     this.timeout = const Duration(seconds: 4),
     this.forceDirectFirst = false,
     this.onlyDirectConn = false,
+    this.operationTotalSize,
+    SendPort? progressSendPort,
   }) {
     _connectionManager = ConnectionManager(device, timeout: timeout);
-    // print('fileID: $fileID');
+    if (progressSendPort != null) {
+      if (operationTotalSize == null) {
+        throw Exception('operationTotalSize is required');
+      }
+      _progressLimiter = ProgressLimiter<TransferProgress>(
+          sendPort: progressSendPort,
+          isSame: (a, b) =>
+              a.currentBytes == b.currentBytes && a.message == b.message,
+          totalBytes: operationTotalSize!);
+    }
   }
 
   Future<void> close() async {
@@ -133,7 +149,7 @@ class FileUploader {
 
     // print('head: ${head.toJson().toString()}');
     await head.writeToConn(conn);
-    // print('write head done');
+    // _updateProgress(filePath); // Activate the progress bar early
 
     int bufferSize = min(maxBufferSize, end - start);
     Uint8List buffer = Uint8List(bufferSize);
@@ -147,8 +163,10 @@ class FileUploader {
         throw Exception('unexpected situation');
       }
       // var data = await fileAccess.read(readSize);
-      sentSize += n;
       conn.add(Uint8List.view(buffer.buffer, 0, n));
+      sentSize += n;
+      totalSentSize += n;
+      _updateProgress(filePath);
       if (sentSize < end - start) {
         // The buffer list should not be modified before flush.
         await conn.flush();
@@ -171,6 +189,17 @@ class FileUploader {
     }
 
     _connectionManager.putConnection(connStream);
+  }
+
+  void _updateProgress(String filePath) {
+    if (_progressLimiter != null) {
+      final p = TransferProgress(
+        totalBytes: operationTotalSize!,
+        currentBytes: totalSentSize,
+        message: 'Uploading $filePath',
+      );
+      _progressLimiter!.update(p);
+    }
   }
 
   // Future<String> calculateMD5(File file) async {
@@ -324,6 +353,10 @@ class FileDownloader {
   bool forceDirectFirst = false;
   bool onlyDirectConn = false;
 
+  int? operationTotalSize;
+  int totalReceivedSize = 0;
+  ProgressLimiter<TransferProgress>? _progressLimiter;
+
   FileDownloader(
     this.device,
     this.localDeviceName, {
@@ -333,8 +366,21 @@ class FileDownloader {
     this.connTimeout = const Duration(seconds: 4),
     this.forceDirectFirst = false,
     this.onlyDirectConn = false,
+    this.operationTotalSize,
+    SendPort? progressSendPort,
   }) {
     _connectionManager = ConnectionManager(device, timeout: connTimeout);
+    if (progressSendPort != null) {
+      if (operationTotalSize == null) {
+        throw Exception('operationTotalSize is required');
+      }
+      _progressLimiter = ProgressLimiter<TransferProgress>(
+        sendPort: progressSendPort,
+        isSame: (a, b) =>
+            a.currentBytes == b.currentBytes && a.message == b.message,
+        totalBytes: operationTotalSize!,
+      );
+    }
   }
 
   Future<void> close() async {
@@ -396,6 +442,11 @@ class FileDownloader {
     int n = 0;
     await fileAccess.setPosition(start);
     await for (var data in stream) {
+      totalReceivedSize += data.length;
+      _updateProgress(paths.remotePath);
+
+      // await Future.delayed(Duration(milliseconds: 1)); //for local test
+
       // buf.addAll(data);
       if (data.length + n > buf.length) {
         throw Exception('buffer overflow');
@@ -434,6 +485,17 @@ class FileDownloader {
     }
     _connectionManager.putConnection(connStream);
     await fileAccess.close();
+  }
+
+  void _updateProgress(String filePath) {
+    if (_progressLimiter != null) {
+      final p = TransferProgress(
+        totalBytes: operationTotalSize!,
+        currentBytes: totalReceivedSize,
+        message: 'Downloading $filePath',
+      );
+      _progressLimiter!.update(p);
+    }
   }
 
   /// It's caller's responsibility to close the downloader.
@@ -652,4 +714,59 @@ class FilePickerException implements Exception {
   String toString() {
     return "FilePickerException($packageName): $message";
   }
+}
+
+class IsolateUploadArgs {
+  final Device device;
+  final DeviceStateStatic connState;
+  final List<String> filePaths;
+  final SendPort? progressSendPort;
+  final int totalSize;
+  final Map<String, PathInfo> uploadPaths;
+  final List<String> emptyDirs;
+  final String localDeviceName;
+  final bool forceDirectFirst;
+  final bool onlyDirectConn;
+  final Map<String, String>? fileRelativeSavePath;
+
+  IsolateUploadArgs({
+    required this.device,
+    required this.connState,
+    required this.filePaths,
+    required this.totalSize,
+    required this.uploadPaths,
+    required this.emptyDirs,
+    required this.localDeviceName,
+    required this.forceDirectFirst,
+    required this.onlyDirectConn,
+    this.progressSendPort,
+    this.fileRelativeSavePath,
+  });
+}
+
+class IsolateDownloadArgs {
+  final Device device;
+  final DeviceStateStatic connState;
+  final List<DownloadInfo> targetItems;
+  final String imageSavePath;
+  final String fileSavePath;
+  final String localDeviceName;
+  final bool forceDirectFirst;
+  final bool onlyDirectConn;
+  final SendPort? progressSendPort;
+  final int? totalSize;
+
+  IsolateDownloadArgs({
+    required this.device,
+    required this.connState,
+    // required this.remotePath,
+    required this.targetItems,
+    required this.imageSavePath,
+    required this.fileSavePath,
+    required this.localDeviceName,
+    required this.forceDirectFirst,
+    required this.onlyDirectConn,
+    this.progressSendPort,
+    this.totalSize,
+  });
 }
