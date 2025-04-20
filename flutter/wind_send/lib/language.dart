@@ -144,7 +144,7 @@ mixin AppLocale {
     checkConnection: '检测连接',
     useSecretKey: '使用密钥',
     invalidHost: '无效的主机',
-    useRelayTip: '中转服务器无法解析你的数据，可以放心使用',
+    useRelayTip: 'WindSend 使用 TLS 证书进行身份验证并加密中继流量，中转服务器无法解析你的数据，可以放心使用',
     configureRelayServer: '配置中转服务器',
     secretKey: '密钥',
     invalidSecretKey: '无效的密钥',
@@ -224,7 +224,8 @@ mixin AppLocale {
     checkConnection: 'Check',
     useSecretKey: 'Use secret key',
     invalidHost: 'Invalid host',
-    useRelayTip: 'Relay server cannot parse your data, it is safe to use',
+    useRelayTip:
+        'WindSend uses TLS certificates for authentication and encrypts the relay traffic. Relay server cannot parse your data, it is safe to use',
     configureRelayServer: 'Configure relay server',
     secretKey: 'Secret key',
     invalidSecretKey: 'Invalid secret key',
