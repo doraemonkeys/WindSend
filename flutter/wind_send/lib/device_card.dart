@@ -112,9 +112,13 @@ class DeviceCard extends StatefulWidget {
           context: context,
           barrierDismissible: false,
           builder: (BuildContext context) {
-            return LoadingIndicator(
-              progressStream:
-                  progressReceivePort.map((e) => e as TransferProgress),
+            // Wrap Material to avoid yellow double underline in share progress bar
+            return Material(
+              color: Colors.transparent,
+              child: LoadingIndicator(
+                progressStream:
+                    progressReceivePort.map((e) => e as TransferProgress),
+              ),
             );
           },
         );
