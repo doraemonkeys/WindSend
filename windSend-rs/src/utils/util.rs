@@ -407,3 +407,15 @@ impl<T: ?Sized + AsRef<str>> NormalizePath for T {
         self.as_ref().replace(['\\', '/'], &separator)
     }
 }
+
+pub fn log_path_info() {
+    use tracing::{error, info};
+    match std::env::current_exe() {
+        Ok(path) => info!("Current executable path: {:?}", path),
+        Err(e) => error!("Failed to get current executable path: {}", e),
+    };
+    match std::env::current_dir() {
+        Ok(path) => info!("Current directory path: {:?}", path),
+        Err(e) => error!("Failed to get current directory path: {}", e),
+    }
+}

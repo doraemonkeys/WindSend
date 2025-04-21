@@ -60,6 +60,7 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
 
 fn main() {
     init();
+    utils::log_path_info();
 
     //TODO: Remove this code after a long time
     #[cfg(target_os = "linux")]

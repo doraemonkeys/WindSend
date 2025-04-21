@@ -198,6 +198,13 @@ impl StartHelper {
 
         let executable_path = std::env::current_exe()?;
 
+        // Get the directory containing the executable. This will be our working directory.
+        let exe_dir = executable_path
+            .parent()
+            // It's unlikely current_exe() returns a path without a parent (like "/"),
+            // but handle it just in case or if it's a relative path somehow.
+            .ok_or("Could not get directory containing the executable")?;
+
         let icon_path = self.icon_relative_path.as_ref().map(|relative_path| {
             let exe_dir = executable_path.parent().unwrap_or_else(|| Path::new(""));
             exe_dir.join(relative_path).display().to_string()
@@ -210,6 +217,8 @@ impl StartHelper {
         desktop_file_content.push_str(&format!("Name={}\n", self.exe_name));
         desktop_file_content.push_str(&format!("Comment={}\n", self.exe_name));
         desktop_file_content.push_str(&format!("Exec={}\n", executable_path.display()));
+        // Set the working directory to the directory containing the executable
+        desktop_file_content.push_str(&format!("Path={}\n", exe_dir.display()));
         desktop_file_content.push_str(&format!("Icon={}\n", icon_path.unwrap_or_default()));
         desktop_file_content.push_str("Terminal=false\n");
         desktop_file_content.push_str("StartupNotify=false\n");
