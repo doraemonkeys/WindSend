@@ -196,7 +196,7 @@ class MyHomePageState extends State<MyHomePage> {
   // Do not depend on LocalConfig.devices,
   // because the modification of LocalConfig may be asynchronous
   void devicesRebuild([List<Device>? ds]) {
-    // print('devicesRebuild');
+    dev.log('devicesRebuild');
     // for (var device in devices) {
     //   print('device3333: ${device.targetDeviceName}');
     // }
@@ -495,6 +495,7 @@ class _MainBodyState extends State<MainBody> {
               d.iP = ip;
               d.refState().tryDirectConnectErr = Future.value(null);
               widget.onDevicesChange();
+              LocalConfig.setDevice(d);
             }
           } catch (e, s) {
             SharedLogger().logger.e('unexpected error, find server failed',
@@ -536,7 +537,7 @@ class _MainBodyState extends State<MainBody> {
         defaultDevice,
         (Device d) {
           widget.devices[defaultDeviceIndex].iP = d.iP;
-          // widget.cnf.setDevices(widget.devices);
+          LocalConfig.setDevice(widget.devices[defaultDeviceIndex]);
           widget.onDevicesChange();
         },
         () async {
@@ -678,6 +679,7 @@ class _MainBodyState extends State<MainBody> {
           context,
           defaultDevice,
           (newDevice) {
+            LocalConfig.setDevice(newDevice);
             for (var i = 0; i < widget.devices.length; i++) {
               if (widget.devices[i].targetDeviceName ==
                   newDevice.targetDeviceName) {
@@ -719,9 +721,9 @@ class _MainBodyState extends State<MainBody> {
         child: ListView.builder(
           itemCount: widget.devices.length,
           itemBuilder: (context, index) {
-            // print('build MainBody DeviceCard,index: $index');
+            dev.log('build MainBody DeviceCard,index: $index');
             return DeviceCard(
-              key: ValueKey(widget.devices[index].uniqueId),
+              key: ValueKey(widget.devices[index].toJson()),
               device: widget.devices[index],
               devices: widget.devices,
               // saveChange: (device) async {
