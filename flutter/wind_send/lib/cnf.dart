@@ -254,7 +254,8 @@ class LocalConfig {
   }
 
   /// Follow system theme
-  static bool get followSystemTheme => _sp.getBool('FollowSystemTheme') ?? true;
+  static bool get followSystemTheme =>
+      _sp.getBool('FollowSystemTheme') ?? false;
   // set followSystemTheme(bool value) => _sp.setBool('FollowSystemTheme', value);
   static Future<bool> setFollowSystemTheme(bool value) async {
     return await _sp.setBool('FollowSystemTheme', value);
