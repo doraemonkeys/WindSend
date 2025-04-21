@@ -1676,10 +1676,19 @@ class DeviceState {
   }
 
   DeviceState.fromStatic(DeviceStateStatic s) {
-    _tryDirectConnectErr = Future.value(s.tryDirectConnectErr);
     _lastTryDirectConnectTime = s.lastTryDirectConnectTime;
-    _tryRelayErr = Future.value(s.tryRelayErr);
+    if (s.lastTryDirectConnectTime == null) {
+      _tryDirectConnectErr = null;
+    } else {
+      _tryDirectConnectErr = Future.value(s.tryDirectConnectErr);
+    }
+
     _lastTryRelayTime = s.lastTryRelayTime;
+    if (s.lastTryRelayTime == null) {
+      _tryRelayErr = null;
+    } else {
+      _tryRelayErr = Future.value(s.tryRelayErr);
+    }
   }
 
   DeviceState();
