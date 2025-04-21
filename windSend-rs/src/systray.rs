@@ -1,19 +1,22 @@
 use tracing::{debug, error, info, warn};
 
+use crate::PROGRAM_NAME;
+use crate::config;
+use crate::language::{LANGUAGE_MANAGER, Language, LanguageKey, translate};
+use crate::status::SELECTED_FILES;
+use crate::utils;
+use crate::web;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::platform::run_return::EventLoopExtRunReturn;
 use tray_icon::TrayIconBuilder;
+use tray_icon::menu::IconMenuItem;
 use tray_icon::menu::{
     AboutMetadata, CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem,
     Submenu, SubmenuBuilder,
 };
 
-use crate::PROGRAM_NAME;
-use crate::config;
-use crate::language::{LANGUAGE_MANAGER, Language, LanguageKey};
-use crate::status::SELECTED_FILES;
-use crate::utils;
-use crate::web;
+#[cfg(target_os = "macos")]
+use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
 
 // use global_hotkey::hotkey::Modifiers as hotkey_Modifiers;
 // use global_hotkey::{
@@ -63,30 +66,22 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
     // hotkeys_manager.register(hotkey_paste).unwrap();
     // let global_hotkey_channel = GlobalHotKeyEvent::receiver();
 
+    use crate::config::read_config;
+
     // before Menu::new()
     let mut event_loop = EventLoopBuilder::new().build();
+    #[cfg(target_os = "macos")]
+    event_loop.set_activation_policy(ActivationPolicy::Accessory);
 
     let icon = load_icon();
     let tray_menu = Menu::new();
 
     let add_files_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::AddFiles)
-            .to_owned()
-            + "- 0",
+        translate(LanguageKey::AddFiles).to_owned() + "- 0",
         true,
         None,
     );
-    let clear_files_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::ClearFiles),
-        false,
-        None,
-    );
+    let clear_files_i = MenuItem::new(translate(LanguageKey::ClearFiles), false, None);
     let sub_hide_once_i = MenuItem::new(
         LANGUAGE_MANAGER
             .read()
@@ -95,14 +90,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         true,
         None,
     );
-    let sub_hide_forever_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::HideForever),
-        true,
-        None,
-    );
+    let sub_hide_forever_i = MenuItem::new(translate(LanguageKey::HideForever), true, None);
     let lang_zh_i = CheckMenuItem::new(
         "简体中文",
         true,
@@ -116,85 +104,42 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         None,
     );
     let auto_start = config::GLOBAL_CONFIG.read().unwrap().auto_start;
-    let auto_start_i = CheckMenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::AutoStart),
-        true,
-        auto_start,
-        None,
-    );
+    let auto_start_i =
+        CheckMenuItem::new(translate(LanguageKey::AutoStart), true, auto_start, None);
     let allow_to_be_search_i = CheckMenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::QuickPair),
+        translate(LanguageKey::QuickPair),
         true,
         *config::ALLOW_TO_BE_SEARCHED.lock().unwrap(),
         None,
     );
     let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
     let relay_server_connected_str = if relay_server_connected {
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::RelayConnected)
+        translate(LanguageKey::RelayConnected)
+    } else if read_config().enable_relay {
+        translate(LanguageKey::RelayServerNotConnected)
     } else {
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::RelayServerNotConnected)
+        translate(LanguageKey::RelayDisabled)
     };
     let relay_server_connected_i = CheckMenuItem::new(
         relay_server_connected_str,
-        false,
+        read_config().enable_relay,
         relay_server_connected,
         None,
     );
     let copy_from_web_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::Copy)
-            .to_owned()
-            + "[Web]",
+        translate(LanguageKey::Copy).to_owned() + "[Web]",
         true,
         None,
     );
     let paste_to_web_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::Paste)
-            .to_owned()
-            + "[Web]",
+        translate(LanguageKey::Paste).to_owned() + "[Web]",
         true,
         None,
     );
-    let save_path_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::SavePath),
-        true,
-        None,
-    );
-    let open_url_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::OpenOfficialWebsite),
-        true,
-        None,
-    );
+    let save_path_i = MenuItem::new(translate(LanguageKey::SavePath), true, None);
+    let open_url_i = MenuItem::new(translate(LanguageKey::OpenOfficialWebsite), true, None);
     let sub_menu_hide_builder = SubmenuBuilder::new()
-        .text(
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::HideIcon),
-        )
+        .text(translate(LanguageKey::HideIcon))
         .item(&sub_hide_forever_i)
         .enabled(true);
     #[cfg(not(target_os = "linux"))]
@@ -213,26 +158,14 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
         .build()
         .unwrap();
     let about_i = PredefinedMenuItem::about(
-        Some(
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::About),
-        ),
+        Some(translate(LanguageKey::About)),
         Some(AboutMetadata {
             name: Some(crate::PROGRAM_NAME.to_string()),
             version: Some(crate::PROGRAM_VERSION.to_string()),
             ..Default::default()
         }),
     );
-    let quit_i = MenuItem::new(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::Quit),
-        true,
-        None,
-    );
+    let quit_i = MenuItem::new(translate(LanguageKey::Quit), true, None);
 
     let items: &[&dyn IsMenuItem] = &[
         &add_files_i,
@@ -268,114 +201,41 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
 
     let items2: &[(&dyn SetTitle<String>, &dyn Fn() -> String)] = &[
         (&add_files_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::AddFiles)
-                .to_owned()
-                + "- 0"
+            translate(LanguageKey::AddFiles).to_owned() + "- 0"
         }),
         (&clear_files_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::ClearFiles)
-                .clone()
+            translate(LanguageKey::ClearFiles).clone()
         }),
         (&relay_server_connected_i, &|| {
             if *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap() {
-                LANGUAGE_MANAGER
-                    .read()
-                    .unwrap()
-                    .translate(LanguageKey::RelayConnected)
-                    .clone()
+                translate(LanguageKey::RelayConnected).clone()
             } else {
-                LANGUAGE_MANAGER
-                    .read()
-                    .unwrap()
-                    .translate(LanguageKey::RelayServerNotConnected)
-                    .to_owned()
+                translate(LanguageKey::RelayServerNotConnected).to_owned()
             }
         }),
-        (&sub_menu_hide, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::HideIcon)
-                .clone()
-        }),
+        (&sub_menu_hide, &|| translate(LanguageKey::HideIcon).clone()),
         (&sub_hide_once_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::OnlyOnce)
-                .clone()
+            translate(LanguageKey::OnlyOnce).clone()
         }),
         (&sub_hide_forever_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::HideForever)
-                .clone()
+            translate(LanguageKey::HideForever).clone()
         }),
-        (&auto_start_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::AutoStart)
-                .clone()
-        }),
+        (&auto_start_i, &|| translate(LanguageKey::AutoStart).clone()),
         (&allow_to_be_search_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::QuickPair)
-                .clone()
+            translate(LanguageKey::QuickPair).clone()
         }),
         (&copy_from_web_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::Copy)
-                .to_owned()
-                + "[Web]"
+            translate(LanguageKey::Copy).to_owned() + "[Web]"
         }),
         (&paste_to_web_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::Paste)
-                .to_owned()
-                + "[Web]"
+            translate(LanguageKey::Paste).to_owned() + "[Web]"
         }),
-        (&save_path_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::SavePath)
-                .clone()
-        }),
+        (&save_path_i, &|| translate(LanguageKey::SavePath).clone()),
         (&open_url_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::OpenOfficialWebsite)
-                .clone()
+            translate(LanguageKey::OpenOfficialWebsite).clone()
         }),
-        (&about_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::About)
-                .clone()
-        }),
-        (&quit_i, &|| {
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::Quit)
-                .clone()
-        }),
+        (&about_i, &|| translate(LanguageKey::About).clone()),
+        (&quit_i, &|| translate(LanguageKey::Quit).clone()),
     ];
 
     let mut should_poll = false;
@@ -473,12 +333,10 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     handle_menu_event_clear_files(&add_files_i, &clear_files_i);
                 }
                 id if id == paste_to_web_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_paste_to_web());
+                    crate::RUNTIME.spawn(handle_menu_event_paste_to_web());
                 }
                 id if id == copy_from_web_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_copy_from_web());
+                    crate::RUNTIME.spawn(handle_menu_event_copy_from_web());
                 }
                 id if id == auto_start_i.id() => {
                     let mut config = config::GLOBAL_CONFIG.write().unwrap();
@@ -495,8 +353,7 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                     should_poll = true;
                 }
                 id if id == save_path_i.id() => {
-                    let r = crate::RUNTIME.get().unwrap();
-                    r.spawn(handle_menu_event_save_path());
+                    crate::RUNTIME.spawn(handle_menu_event_save_path());
                 }
                 id if id == open_url_i.id() => {
                     if let Err(err) = crate::utils::open_url(crate::PROGRAM_URL) {
@@ -506,6 +363,9 @@ fn loop_systray(mr: MenuReceiver) -> ReturnCode {
                 id if id == quit_i.id() => {
                     exit_code = ReturnCode::Quit;
                     *control_flow = ControlFlow::Exit;
+                }
+                id if id == relay_server_connected_i.id() => {
+                    handle_menu_event_update_relay_server_connected(&relay_server_connected_i);
                 }
                 other_id => {
                     // println!("recv unknown menu event, id: {:?}", other_id);
@@ -531,7 +391,7 @@ fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
             return;
         }
     };
-    let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
+    let mut selected_files = SELECTED_FILES.lock().unwrap();
     for file in files {
         debug!("selected file: {:?}", file);
         selected_files.insert(file.as_path().to_str().unwrap().to_string());
@@ -539,27 +399,22 @@ fn handle_menu_event_add_files(add_item: &MenuItem, clear_item: &MenuItem) {
     clear_item.set_enabled(true);
     add_item.set_text(format!(
         "{} - {}",
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::AddFiles),
+        translate(LanguageKey::AddFiles),
         selected_files.len()
     ));
 }
-
 fn handle_menu_event_update_relay_server_connected(relay_server_connected_i: &CheckMenuItem) {
+    use crate::config::read_config;
+    let enable_relay = read_config().enable_relay;
     let relay_server_connected = *crate::status::RELAY_SERVER_CONNECTED.lock().unwrap();
     relay_server_connected_i.set_checked(relay_server_connected);
+    relay_server_connected_i.set_enabled(enable_relay);
     relay_server_connected_i.set_text(if relay_server_connected {
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::RelayConnected)
+        translate(LanguageKey::RelayConnected)
+    } else if enable_relay {
+        translate(LanguageKey::RelayServerNotConnected)
     } else {
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::RelayServerNotConnected)
+        translate(LanguageKey::RelayDisabled)
     });
 }
 
@@ -568,7 +423,7 @@ async fn handle_menu_event_save_path() {
     let path = match pick_task.await {
         Some(path) => path,
         None => {
-            warn!("pick folder error");
+            warn!("Folder selection canceled or error");
             return;
         }
     };
@@ -584,14 +439,7 @@ async fn handle_menu_event_paste_to_web() {
     let clipboard_text = config::CLIPBOARD.read_text();
     if let Err(e) = clipboard_text {
         error!("get clipboard text error: {}", e);
-        utils::inform(
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::ClipboardNotText),
-            PROGRAM_NAME,
-            None,
-        );
+        utils::inform(translate(LanguageKey::ClipboardNotText), PROGRAM_NAME, None);
         return;
     }
     debug!("clipboard_text: {:?}", clipboard_text);
@@ -599,21 +447,11 @@ async fn handle_menu_event_paste_to_web() {
     let result = web::post_content_to_web(clipboard_text.as_bytes()).await;
     if let Err(e) = result {
         error!("post content to web error: {}", e);
-        utils::inform(
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::PasteToWebFailed),
-            PROGRAM_NAME,
-            None,
-        );
+        utils::inform(translate(LanguageKey::PasteToWebFailed), PROGRAM_NAME, None);
         return;
     }
     utils::inform(
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::PasteToWebSuccess),
+        translate(LanguageKey::PasteToWebSuccess),
         PROGRAM_NAME,
         Some(&web::MY_URL),
     );
@@ -624,10 +462,7 @@ async fn handle_menu_event_copy_from_web() {
     if let Err(e) = result {
         error!("get content from web error: {}", e);
         utils::inform(
-            LANGUAGE_MANAGER
-                .read()
-                .unwrap()
-                .translate(LanguageKey::CopyFromWebFailed),
+            translate(LanguageKey::CopyFromWebFailed),
             PROGRAM_NAME,
             None,
         );
@@ -651,18 +486,12 @@ async fn handle_menu_event_copy_from_web() {
 
 fn handle_menu_event_clear_files(add_item: &MenuItem, clear_item: &MenuItem) {
     {
-        let mut selected_files = SELECTED_FILES.get().unwrap().lock().unwrap();
+        let mut selected_files = SELECTED_FILES.lock().unwrap();
         selected_files.clear();
         selected_files.shrink_to_fit();
     }
     clear_item.set_enabled(false);
-    add_item.set_text(format!(
-        "{} - 0",
-        LANGUAGE_MANAGER
-            .read()
-            .unwrap()
-            .translate(LanguageKey::AddFiles),
-    ));
+    add_item.set_text(format!("{} - 0", translate(LanguageKey::AddFiles),));
 }
 
 fn load_icon() -> tray_icon::Icon {
@@ -699,6 +528,12 @@ impl<S: AsRef<str>> SetTitle<S> for PredefinedMenuItem {
 }
 
 impl<S: AsRef<str>> SetTitle<S> for CheckMenuItem {
+    fn set_text(&self, text: S) {
+        self.set_text(text.as_ref());
+    }
+}
+
+impl<S: AsRef<str>> SetTitle<S> for IconMenuItem {
     fn set_text(&self, text: S) {
         self.set_text(text.as_ref());
     }

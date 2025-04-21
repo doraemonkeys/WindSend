@@ -6,12 +6,12 @@ import 'language.dart';
 import 'device.dart';
 
 class SortingPage extends StatefulWidget {
-  final List<Device> devices = [];
+  final List<Device> tempDevices = [];
   SortingPage({
     super.key,
     required List<Device> devices,
   }) {
-    this.devices.addAll(devices);
+    tempDevices.addAll(devices);
   }
 
   @override
@@ -19,6 +19,14 @@ class SortingPage extends StatefulWidget {
 }
 
 class _SortingPageState extends State<SortingPage> {
+  late List<Device> tempDevices;
+
+  @override
+  void initState() {
+    tempDevices = widget.tempDevices;
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,14 +35,14 @@ class _SortingPageState extends State<SortingPage> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.pop(context, widget.devices);
+              Navigator.pop(context, tempDevices);
             },
             icon: const Icon(Icons.done),
           ),
         ],
       ),
       body: ReorderableListView(
-        children: widget.devices
+        children: tempDevices
             .map(
               (e) => ListTile(
                 key: ValueKey(e.targetDeviceName),
@@ -49,8 +57,8 @@ class _SortingPageState extends State<SortingPage> {
             if (newIndex > oldIndex) {
               newIndex -= 1;
             }
-            final Device item = widget.devices.removeAt(oldIndex);
-            widget.devices.insert(newIndex, item);
+            final Device item = tempDevices.removeAt(oldIndex);
+            tempDevices.insert(newIndex, item);
           });
         },
       ),

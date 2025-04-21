@@ -38,13 +38,13 @@ pub async fn get_content_from_web() -> Result<Vec<u8>, Box<dyn std::error::Error
     let re = regex::Regex::new(r#"class[\s]*=[\s]*"txt_view">[\s]*<p>(.+)<\/p>"#)?;
     let matchs = re.captures(&body_text).ok_or("can not find content")?;
     debug!("{:?}", matchs);
-    let encrypted_data = hex::decode(matchs.get(1).unwrap().as_str())?;
-    let decrypt_data = crate::config::get_cryptor()?.decrypt(&encrypted_data)?;
-    Ok(decrypt_data)
+    let mut encrypted_data = hex::decode(matchs.get(1).unwrap().as_str())?;
+    let decrypt_data = crate::config::get_cipher()?.decrypt(&mut encrypted_data, "".as_bytes())?;
+    Ok(decrypt_data.to_vec())
 }
 
 pub async fn post_content_to_web(context: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let encrypted_data = crate::config::get_cryptor()?.encrypt(context)?;
+    let encrypted_data = crate::config::get_cipher()?.encrypt(context, "".as_bytes())?;
     let encrypted_data_hex = hex::encode(&encrypted_data);
     let client = reqwest::ClientBuilder::new()
         .cookie_store(true)
@@ -56,7 +56,7 @@ pub async fn post_content_to_web(context: &[u8]) -> Result<(), Box<dyn std::erro
     let my_url = (*MY_URL).replace('\\', "/");
     let post_code = my_url
         .split('/')
-        .last()
+        .next_back()
         .ok_or_else(|| format!("invalid post url: {}", my_url))?
         .to_string();
     debug!("post_code: {}", post_code);

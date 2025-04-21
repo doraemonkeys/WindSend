@@ -1,16 +1,15 @@
 // hide console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::OnceLock;
 use tracing::{debug, error, info, trace, warn};
 mod config;
 mod file;
 mod language;
+mod relay;
 mod route;
 mod status;
 mod utils;
-
-use std::{collections::HashSet, sync::Mutex};
+use std::sync::LazyLock;
 
 // #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 #[cfg(not(feature = "disable-systray-support"))]
@@ -26,19 +25,17 @@ static PROGRAM_NAME: &str = "WindSend-S-Rust";
 static PROGRAM_URL: &str = "https://github.com/doraemonkeys/WindSend";
 #[allow(dead_code)]
 static PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
+static MAC_APP_LABEL: &str = "com.doraemon.windsend.rs";
 
-pub static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+pub static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+});
 
 fn init() {
     config::init();
-    let r = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    RUNTIME.set(r).unwrap();
-    status::SELECTED_FILES
-        .set(Mutex::new(HashSet::new()))
-        .unwrap();
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         default_panic(panic_info);
@@ -53,7 +50,7 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
-        .open(std::path::Path::new(config::DEFAULT_LOG_DIR).join("panic.log"))
+        .open(std::path::Path::new(&*config::DEFAULT_LOG_DIR).join("panic.log"))
     {
         use std::io::Write;
         let _ = writeln!(f, "{}", panic_message);
@@ -64,15 +61,25 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
 fn main() {
     init();
 
+    //TODO: Remove this code after a long time
+    #[cfg(target_os = "linux")]
+    {
+        let desktop_file_path =
+            dirs::config_dir().map(|dir| dir.join("autostart").join("windsend.desktop"));
+        if let Some(desktop_file_path) = desktop_file_path {
+            std::fs::remove_file(desktop_file_path).ok();
+        }
+    }
+
     #[cfg(not(feature = "disable-systray-support"))]
     {
         let show_systray_icon = config::GLOBAL_CONFIG.read().unwrap().show_systray_icon;
         if !show_systray_icon {
-            return RUNTIME.get().unwrap().block_on(async_main());
+            return RUNTIME.block_on(async_main());
         }
 
         let main_handle = std::thread::spawn(|| {
-            RUNTIME.get().unwrap().block_on(async_main());
+            RUNTIME.block_on(async_main());
         });
 
         let (tx1, rx1) = crossbeam_channel::bounded(1);
@@ -96,12 +103,20 @@ fn main() {
     }
     #[cfg(feature = "disable-systray-support")]
     {
-        RUNTIME.get().unwrap().block_on(async_main());
+        RUNTIME.block_on(async_main());
     }
 }
 
 async fn async_main() {
     trace!("async_main");
+
+    {
+        let config = config::read_config();
+        if config.enable_relay && !config.relay_server_address.is_empty() {
+            relay::run::tick_relay();
+        }
+    }
+
     let server_port = config::GLOBAL_CONFIG
         .read()
         .unwrap()
@@ -114,14 +129,18 @@ async fn async_main() {
         if let Err(e) = socket_ref.set_only_v6(false) {
             warn!("set_only_v6 error: {}", e);
         }
+        // Enable SO_REUSEADDR
+        // if let Err(e) = socket_ref.set_reuse_address(true) {
+        //     error!("Failed to set SO_REUSEADDR: {}", e);
+        //     return;
+        // }
     }
     socket
         .bind((std::net::Ipv6Addr::UNSPECIFIED, server_port).into())
         .expect("bind error");
     let listener = socket.listen(1024).expect("listen error");
     info!("program listening on {}", listener.local_addr().unwrap());
-    let tls_acceptor = config::get_tls_acceptor()
-        .expect("get tls acceptor error, please check your tls config file");
+    let tls_acceptor = config::TLS_ACCEPTOR.clone();
     loop {
         let result = listener.accept().await;
         if let Err(e) = result {
@@ -134,15 +153,12 @@ async fn async_main() {
         let tls_stream = match tls_acceptor.accept(stream).await {
             Ok(tls_stream) => tls_stream,
             Err(err) => {
-                error!("tls accept error: {}", err);
+                error!("unknown connection({}), tls accept error: {}", addr, err);
                 // panic!("tls accept error: {}", err);
                 continue;
             }
         };
         debug!("tls accept success");
-        RUNTIME
-            .get()
-            .unwrap()
-            .spawn(route::main_process(tls_stream));
+        RUNTIME.spawn(route::main_process(tls_stream));
     }
 }

@@ -29,7 +29,7 @@ flutterAndroidName="WindSend-flutter"
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_FLUTTER_PATH" || exit
 
-if ! flutter build apk --split-per-abi; then
+if ! flutter build apk --split-per-abi --release; then
     echo "Build APK Failed!"
     exit 1
 fi

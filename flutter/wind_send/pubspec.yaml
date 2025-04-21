@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.4.10
+version: 1.5.1
 
 environment:
   sdk: ^3.6.0
@@ -50,10 +50,6 @@ dependencies:
   dio_cookie_manager: ^3.1.1
   dio: ^5.6.0
   crypto: ^3.0.5
-  aes_crypt_null_safe:
-    git:
-      url: https://github.com/doraemonkeys/aes_crypt_null_safe
-      ref: master
   path: ^1.8.3
   intl: 0.19.0
   logger: ^2.4.0
@@ -73,13 +69,16 @@ dependencies:
       ref: master
   media_scanner:
     git:
-      url: https://github.com/mbfakourii/media_scanner
-      ref: support_gradle_8
+      url: https://github.com/Lzyct/media_scanner
+      ref: master
+  pointycastle: ^4.0.0
+  cryptography_plus: ^2.7.1
+  cryptography_flutter_plus: ^2.3.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  test: ^1.25.15
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your

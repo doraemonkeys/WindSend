@@ -30,16 +30,16 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
-  bool followSystemTheme = AppSharedCnfService.followSystemTheme;
+  bool followSystemTheme = LocalConfig.followSystemTheme;
   bool autoSelectShareDeviceByBssid =
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid;
-  Locale language = AppSharedCnfService.locale;
-  String deviceName = AppConfigModel().deviceName;
-  String defaultSyncDevice = AppConfigModel().defaultSyncDevice ?? '';
-  String defaultShareDevice = AppConfigModel().defaultShareDevice ?? '';
-  String fileSavePath = AppConfigModel().fileSavePath;
-  String imageSavePath = AppConfigModel().imageSavePath;
-  List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
+      LocalConfig.autoSelectShareSyncDeviceByBssid;
+  Locale language = LocalConfig.locale;
+  String deviceName = globalLocalDeviceName;
+  String defaultSyncDevice = LocalConfig.defaultSyncDevice ?? '';
+  String defaultShareDevice = LocalConfig.defaultShareDevice ?? '';
+  String fileSavePath = LocalConfig.fileSavePath;
+  String imageSavePath = LocalConfig.imageSavePath;
+  List<Device> devices = LocalConfig.devices;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +113,7 @@ class _SettingPageState extends State<SettingPage> {
         setState(() {
           autoSelectShareDeviceByBssid = value;
         });
-        AppSharedCnfService.autoSelectShareSyncDeviceByBssid = value;
+        LocalConfig.setAutoSelectShareSyncDeviceByBssid(value);
       },
       onPressed: (context) {
         // show auto select share device by bssid dialog
@@ -122,7 +122,7 @@ class _SettingPageState extends State<SettingPage> {
           builder: (context) => AlertDialog(
             title: Text(
                 context.formatString(AppLocale.autoSelectShareSyncDevice, [])),
-            content: Text(jsonEncode(AppSharedCnfService.bssidDeviceNameMap)),
+            content: Text(jsonEncode(LocalConfig.bssidDeviceNameMap)),
           ),
         );
       },
@@ -142,7 +142,7 @@ class _SettingPageState extends State<SettingPage> {
           setState(() {
             imageSavePath = result;
           });
-          AppConfigModel().imageSavePath = result;
+          LocalConfig.setImageSavePath(result);
         }
       },
     );
@@ -161,7 +161,7 @@ class _SettingPageState extends State<SettingPage> {
           setState(() {
             fileSavePath = result;
           });
-          AppConfigModel().fileSavePath = result;
+          LocalConfig.setFileSavePath(result);
         }
       },
     );
@@ -189,7 +189,7 @@ class _SettingPageState extends State<SettingPage> {
               setState(() {
                 deviceName = controller.text;
               });
-              AppConfigModel().deviceName = controller.text;
+              LocalConfig.setDeviceName(controller.text);
             }
           },
         );
@@ -254,7 +254,7 @@ class _SettingPageState extends State<SettingPage> {
           setState(() {
             defaultSyncDevice = result;
           });
-          AppConfigModel().defaultSyncDevice = result;
+          LocalConfig.setDefaultSyncDevice(result);
         }
       },
     );
@@ -306,7 +306,7 @@ class _SettingPageState extends State<SettingPage> {
           setState(() {
             defaultShareDevice = result;
           });
-          AppConfigModel().defaultShareDevice = result;
+          LocalConfig.setDefaultShareDevice(result);
         }
       },
     );

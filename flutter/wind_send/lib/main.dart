@@ -4,7 +4,10 @@ import 'dart:async';
 // import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
+import 'dart:isolate';
+import 'dart:developer' as dev;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -27,9 +30,9 @@ const String appName = 'WindSend';
 final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
 
 Future<void> init() async {
-  // 初始化插件前需调用初始化代码 runApp()函数之前
+  // Ensure the binding is initialized before calling any Flutter plugins
   WidgetsFlutterBinding.ensureInitialized();
-  await AppSharedCnfService.initInstance();
+  await LocalConfig.initInstance();
   await SharedLogger.initFileLogger(appName);
 }
 
@@ -48,9 +51,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
-  AppColorSeed colorSelected = AppSharedCnfService.themeColor;
-  // late StreamSubscription _intentDataStreamSubscription;
-  // List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
+  late AppColorSeed colorSelected;
 
   @override
   void initState() {
@@ -70,11 +71,13 @@ class _MyAppState extends State<MyApp> {
           fontFamily: 'Font ZH',
         ),
       ],
-      initLanguageCode: AppSharedCnfService.locale.languageCode,
+      initLanguageCode: LocalConfig.locale.languageCode,
     );
     _localization.onTranslatedLanguage = _onTranslatedLanguage;
     // ThemeMode
     themeMode = getThemeMode();
+    // colorSelected
+    colorSelected = LocalConfig.themeColor;
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
@@ -93,10 +96,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   ThemeMode getThemeMode() {
-    if (AppSharedCnfService.followSystemTheme) {
+    if (LocalConfig.followSystemTheme) {
       return ThemeMode.system;
     } else {
-      return AppSharedCnfService.brightness == Brightness.light
+      return LocalConfig.brightness == Brightness.light
           ? ThemeMode.light
           : ThemeMode.dark;
     }
@@ -109,15 +112,15 @@ class _MyAppState extends State<MyApp> {
   void _handleBrightnessChange(bool useLightMode) {
     setState(() {
       themeMode = useLightMode ? ThemeMode.light : ThemeMode.dark;
-      AppSharedCnfService.brightness =
-          useLightMode ? Brightness.light : Brightness.dark;
+      LocalConfig.setBrightness(
+          useLightMode ? Brightness.light : Brightness.dark);
     });
   }
 
   void _handleColorSelect(int index) {
     setState(() {
       colorSelected = AppColorSeed.values[index];
-      AppSharedCnfService.themeColor = colorSelected;
+      LocalConfig.setThemeColor(colorSelected);
     });
   }
 
@@ -149,12 +152,13 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             _localization.translate(language.languageCode);
           });
-          AppSharedCnfService.locale = language;
+          LocalConfig.setLocale(language);
         },
         onFollowSystemThemeChanged: (followSystemTheme) {
-          AppSharedCnfService.followSystemTheme = followSystemTheme;
-          setState(() {
-            themeMode = getThemeMode();
+          LocalConfig.setFollowSystemTheme(followSystemTheme).then((_) {
+            setState(() {
+              themeMode = getThemeMode();
+            });
           });
         },
       ),
@@ -187,11 +191,20 @@ class MyHomePage extends StatefulWidget {
 }
 
 class MyHomePageState extends State<MyHomePage> {
-  List<Device> devices = AppSharedCnfService.devices ?? <Device>[];
+  List<Device> devices = LocalConfig.devices;
 
-  void devicesRebuild() {
-    setState(() {});
-    AppSharedCnfService.devices = devices;
+  // Do not depend on LocalConfig.devices,
+  // because the modification of LocalConfig may be asynchronous
+  void devicesRebuild([List<Device>? ds]) {
+    // print('devicesRebuild');
+    // for (var device in devices) {
+    //   print('device3333: ${device.targetDeviceName}');
+    // }
+    setState(() {
+      if (ds != null) {
+        devices = ds;
+      }
+    });
   }
 
   @override
@@ -213,9 +226,7 @@ class MyHomePageState extends State<MyHomePage> {
             onLanguageChanged: widget.onLanguageChanged,
             onFollowSystemThemeChanged: widget.onFollowSystemThemeChanged,
             devices: devices,
-            devicesRebuild: () {
-              devicesRebuild();
-            },
+            devicesRebuild: devicesRebuild,
           ),
         ],
       ),
@@ -226,10 +237,11 @@ class MyHomePageState extends State<MyHomePage> {
             builder: (context) {
               return AddNewDeviceDialog(
                 devices: devices,
-                onAddDevice: () {
+                onAddDevice: () async {
+                  // print('onAddDevice');
                   if (devices.length == 1) {
-                    AppConfigModel().defaultShareDevice =
-                        devices.first.targetDeviceName;
+                    await LocalConfig.setDefaultShareDevice(
+                        devices.first.targetDeviceName);
                   }
                   devicesRebuild();
                 },
@@ -245,7 +257,7 @@ class MyHomePageState extends State<MyHomePage> {
       ),
       body: MainBody(
         devices: devices,
-        devicesRebuild: devicesRebuild,
+        onDevicesChange: devicesRebuild,
       ),
     );
   }
@@ -398,7 +410,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
         return _formKey.currentState!.validate();
       },
       onConfirmed: () {
-        var device = Device(
+        var newDevice = Device(
           targetDeviceName: deviceName.isEmpty
               ? Random().nextInt(10000).toString()
               : deviceName,
@@ -407,15 +419,21 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           autoSelect: autoSelect,
           trustedCertificate: trustedCertificateController.text,
         );
-        if (device.iP.toLowerCase() == Device.webIP) {
-          device.iP = Device.webIP;
-          device.actionCopy = false;
-          device.actionPasteText = false;
-          device.actionPasteFile = false;
-          device.actionWebCopy = true;
-          device.actionWebPaste = true;
+        if (newDevice.iP.toLowerCase() == Device.webIP) {
+          newDevice.iP = Device.webIP;
+          newDevice.actionCopy = false;
+          newDevice.actionPasteText = false;
+          newDevice.actionPasteFile = false;
+          newDevice.actionWebCopy = true;
+          newDevice.actionWebPaste = true;
         }
-        widget.devices.add(device);
+        if (widget.devices.any((element) =>
+            element.targetDeviceName == newDevice.targetDeviceName)) {
+          throw Exception('save device failed, targetDeviceName is duplicate');
+        }
+        newDevice.uniqueId = generateRandomString(16);
+        widget.devices.add(newDevice);
+        LocalConfig.setDevice(newDevice);
         widget.onAddDevice();
       },
     );
@@ -424,13 +442,13 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
 
 class MainBody extends StatefulWidget {
   final List<Device> devices;
-  final void Function() devicesRebuild;
+  final void Function() onDevicesChange;
   static const double maxBodyWidth = 600.0;
 
   const MainBody({
     super.key,
     required this.devices,
-    required this.devicesRebuild,
+    required this.onDevicesChange,
   });
 
   @override
@@ -439,11 +457,52 @@ class MainBody extends StatefulWidget {
 
 class _MainBodyState extends State<MainBody> {
   // bool _showRefreshCompleteIndicator = false;
-  final GlobalKey<_MainBodyState> mainBodyKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+
+    // ping device to scan device ip
+    resolveTargetDevice(defaultShareDevice: true).then((value) {
+      if (widget.devices.isEmpty) {
+        return;
+      }
+      var defaultDevice = value ??= widget.devices.first;
+      var defaultDeviceIndex = widget.devices.indexWhere(
+        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
+      );
+      dev.log('defaultDevice: ${defaultDevice.targetDeviceName} '
+          'autoSelect: ${defaultDevice.autoSelect} '
+          'enableRelay: ${defaultDevice.enableRelay}');
+
+      // Only ping when using relay, lazy load when not using relay
+      if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
+        // print('ping device: ${defaultDevice.targetDeviceName}');
+        defaultDevice.pingDevice().then((_) {}).catchError((e) async {
+          dev.log(
+              'The default device ${defaultDevice.targetDeviceName} is using relay, and the direct connection failed, try to refresh ip');
+          try {
+            final ip = await compute(
+              (Device d) async {
+                return await d.findServer();
+              },
+              defaultDevice,
+            );
+            dev.log(
+                'refresh default device result ${defaultDevice.targetDeviceName} ip: $ip');
+            if (ip != null) {
+              final d = widget.devices[defaultDeviceIndex];
+              d.iP = ip;
+              d.refState().tryDirectConnectErr = Future.value(null);
+              widget.onDevicesChange();
+            }
+          } catch (e, s) {
+            SharedLogger().logger.e('unexpected error, find server failed',
+                error: e, stackTrace: s);
+          }
+        });
+      }
+    });
 
     // -------------------------------- share --------------------------------
     if (!Platform.isAndroid && !Platform.isIOS) {
@@ -471,13 +530,14 @@ class _MainBodyState extends State<MainBody> {
       if (defaultDeviceIndex == -1) {
         throw 'unexpect error, default device not found';
       }
+      ReceivePort rp = ReceivePort();
       await DeviceCard.commonActionFuncWithToastr(
-        mainBodyKey.currentContext!,
+        appWidgetKey.currentContext!,
         defaultDevice,
         (Device d) {
-          widget.devices[defaultDeviceIndex] = d;
-          AppSharedCnfService.devices = widget.devices;
-          widget.devicesRebuild();
+          widget.devices[defaultDeviceIndex].iP = d.iP;
+          // widget.cnf.setDevices(widget.devices);
+          widget.onDevicesChange();
         },
         () async {
           List<String> fileList = [];
@@ -510,7 +570,8 @@ class _MainBodyState extends State<MainBody> {
             throw 'Unsupported operation, web device only support text';
           }
           if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(fileList);
+            await defaultDevice.doSendAction(fileList,
+                progressSendPort: rp.sendPort);
           }
           if (text != null) {
             if (defaultDevice.iP == Device.webIP) {
@@ -525,6 +586,7 @@ class _MainBodyState extends State<MainBody> {
                 'share success',
           );
         },
+        progressReceivePort: rp,
       );
     }
 
@@ -549,7 +611,6 @@ class _MainBodyState extends State<MainBody> {
   @override
   Widget build(BuildContext context) {
     return Center(
-      key: mainBodyKey,
       child: SizedBox(
         width: MediaQuery.of(context).size.width > MainBody.maxBodyWidth
             ? MainBody.maxBodyWidth
@@ -601,8 +662,8 @@ class _MainBodyState extends State<MainBody> {
         );
       },
       onRefresh: () async {
-        if (AppConfigModel().defaultSyncDevice == null ||
-            AppConfigModel().defaultSyncDevice!.isEmpty) {
+        if (LocalConfig.defaultSyncDevice == null ||
+            LocalConfig.defaultSyncDevice!.isEmpty) {
           // disable sync
           return;
         }
@@ -616,7 +677,16 @@ class _MainBodyState extends State<MainBody> {
         return DeviceCard.commonActionFuncWithToastr(
           context,
           defaultDevice,
-          (_) => widget.devicesRebuild(),
+          (newDevice) {
+            for (var i = 0; i < widget.devices.length; i++) {
+              if (widget.devices[i].targetDeviceName ==
+                  newDevice.targetDeviceName) {
+                widget.devices[i] = newDevice;
+                break;
+              }
+            }
+            widget.onDevicesChange();
+          },
           () async {
             var (respText, sentText) = await defaultDevice.doSyncTextAction();
             if (respText.isNotEmpty && sentText.isEmpty) {
@@ -649,29 +719,30 @@ class _MainBodyState extends State<MainBody> {
         child: ListView.builder(
           itemCount: widget.devices.length,
           itemBuilder: (context, index) {
-            // print('build MainBody,index: $index');
+            // print('build MainBody DeviceCard,index: $index');
             return DeviceCard(
+              key: ValueKey(widget.devices[index].uniqueId),
               device: widget.devices[index],
               devices: widget.devices,
-              saveChange: (device) {
-                widget.devices[index] = device;
-                AppSharedCnfService.devices = widget.devices;
-              },
-              onDelete: () {
+              // saveChange: (device) async {
+              //   widget.devices[index] = device;
+              //   LocalConfig.setDevices(widget.devices);
+              // },
+              onDelete: () async {
                 var removed = widget.devices.removeAt(index);
-                if (AppConfigModel().defaultShareDevice != null &&
-                    AppConfigModel().defaultShareDevice ==
+                LocalConfig.removeDevice(removed.uniqueId);
+                if (LocalConfig.defaultShareDevice != null &&
+                    LocalConfig.defaultShareDevice ==
                         removed.targetDeviceName) {
-                  AppConfigModel().defaultShareDevice = widget.devices.isEmpty
+                  await LocalConfig.setDefaultShareDevice(widget.devices.isEmpty
                       ? null
-                      : widget.devices.first.targetDeviceName;
+                      : widget.devices.first.targetDeviceName);
                 }
-                if (AppConfigModel().defaultSyncDevice != null &&
-                    AppConfigModel().defaultSyncDevice ==
-                        removed.targetDeviceName) {
-                  AppConfigModel().defaultSyncDevice = null;
+                if (LocalConfig.defaultSyncDevice != null &&
+                    LocalConfig.defaultSyncDevice == removed.targetDeviceName) {
+                  await LocalConfig.setDefaultSyncDevice(null);
                 }
-                widget.devicesRebuild();
+                widget.onDevicesChange();
               },
             );
           },
@@ -710,7 +781,7 @@ class _BuildPopupMenuButton extends StatelessWidget {
   final List<Device> devices;
   final Function(Locale) onLanguageChanged;
   final Function(bool) onFollowSystemThemeChanged;
-  final Function() devicesRebuild;
+  final Function(List<Device>) devicesRebuild;
   static const _sizedBoxW10 = SizedBox(width: 10);
 
   const _BuildPopupMenuButton({
@@ -790,9 +861,12 @@ class _BuildPopupMenuButton extends StatelessWidget {
               ),
             );
             if (result != null) {
-              devices.clear();
-              devices.addAll(result as List<Device>);
-              devicesRebuild();
+              final newDevices = result as List<Device>;
+              LocalConfig.setAllDeviceId(
+                      newDevices.map((e) => e.uniqueId).toList())
+                  .then((value) {
+                devicesRebuild(newDevices);
+              });
             }
             break;
           case 2:

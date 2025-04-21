@@ -69,6 +69,8 @@ pub enum LanguageKey {
     DirCreatedSuccessfully,
     RelayConnected,
     RelayServerNotConnected,
+    RelayDisabled,
+    SettingSuccess,
 }
 
 impl LanguageKey {
@@ -149,14 +151,13 @@ lazy_static! {
             LanguageKey::DirCreatedSuccessfully,
             String::from("Directory created successfully")
         ),
-        (
-            LanguageKey::RelayConnected,
-            String::from("Server Connected")
-        ),
+        (LanguageKey::RelayConnected, String::from("Relay Connected")),
         (
             LanguageKey::RelayServerNotConnected,
-            String::from("Server Disconnected")
-        )
+            String::from("Relay Disconnected")
+        ),
+        (LanguageKey::RelayDisabled, String::from("Relay Disabled")),
+        (LanguageKey::SettingSuccess, String::from("Setting Success")),
     ]
     .into_iter()
     .collect();
@@ -217,7 +218,9 @@ lazy_static! {
         (
             LanguageKey::RelayServerNotConnected,
             String::from("中转未连接")
-        )
+        ),
+        (LanguageKey::RelayDisabled, String::from("中转未启用")),
+        (LanguageKey::SettingSuccess, String::from("设置成功")),
     ]
     .into_iter()
     .collect();
@@ -253,4 +256,9 @@ impl LanguageManager {
             Language::EN => EN_US.get(&key).unwrap(),
         }
     }
+}
+
+#[warn(dead_code)]
+pub fn translate(key: LanguageKey) -> &'static String {
+    LANGUAGE_MANAGER.read().unwrap().translate(key)
 }

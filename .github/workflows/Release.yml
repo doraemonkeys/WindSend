@@ -303,6 +303,8 @@ jobs:
           name: WindSend-Archives-macos
           path: |
             ./bin/*.zip
+            ./bin/*.dmg
+            ./bin/*.zip.temp
           if-no-files-found: error
 
   release:
@@ -343,4 +345,5 @@ jobs:
           files: |
             ./Downloaded-Archives/*.zip
             ./Downloaded-Archives/*.apk
+            ./Downloaded-Archives/*.dmg
           draft: true

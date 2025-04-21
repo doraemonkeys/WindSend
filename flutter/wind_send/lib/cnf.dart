@@ -12,6 +12,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+// import 'package:path/path.dart' as p;
 
 import 'theme.dart';
 import 'language.dart';
@@ -19,78 +20,75 @@ import 'device.dart';
 import 'utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
+var globalLocalDeviceName = 'uninitialized';
 
-class AppSharedCnfService {
+class LocalConfig {
   static const String _fileSavePathKey = 'FileSavePath';
   static const String _imageSavePathKey = 'ImageSavePath';
   static const String _defaultShareDeviceKey = 'DefaultShareDevice';
   static const String _defaultSyncDeviceKey = 'DefaultSyncDevice';
+  static const String _deviceNameKey = 'DeviceName';
 
-  //保持一个SharedPreferences的引用
   static late final SharedPreferences _sp;
-  static late final AppSharedCnfService? _instance;
+  static bool initialized = false;
 
-  AppSharedCnfService._internal();
-
-  //单例公开访问点
-  factory AppSharedCnfService() {
-    _instance ??= AppSharedCnfService._internal();
-    return _instance!;
-  }
-
-  //初始化方法，只需要调用一次。
   static Future<void> initInstance() async {
-    // print('AppSharedCnfService initInstance');
+    if (initialized) {
+      return;
+    }
+    initialized = true;
     _sp = await SharedPreferences.getInstance();
     final deviceInfoPlugin = DeviceInfoPlugin();
-    if (deviceName == null) {
+    if (_sp.getString(_deviceNameKey) == null) {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
           final androidInfo = await deviceInfoPlugin.androidInfo;
-          deviceName = androidInfo.model;
+          await setDeviceName(androidInfo.model);
           break;
         case TargetPlatform.iOS:
           final iosInfo = await deviceInfoPlugin.iosInfo;
-          deviceName = iosInfo.name;
+          await setDeviceName(iosInfo.name);
           break;
         case TargetPlatform.windows:
           final windowsInfo = await deviceInfoPlugin.windowsInfo;
-          deviceName = windowsInfo.computerName;
+          await setDeviceName(windowsInfo.computerName);
           break;
         case TargetPlatform.linux:
           final linuxInfo = await deviceInfoPlugin.linuxInfo;
-          deviceName = linuxInfo.prettyName;
+          await setDeviceName(linuxInfo.prettyName);
           break;
         case TargetPlatform.macOS:
           final macOSInfo = await deviceInfoPlugin.macOsInfo;
-          deviceName = macOSInfo.computerName;
+          await setDeviceName(macOSInfo.computerName);
           break;
         default:
-          deviceName = 'Unknown${Random().nextInt(1000)}';
+          await setDeviceName('Unknown${Random().nextInt(1000)}');
           break;
       }
     }
+    globalLocalDeviceName = _sp.getString(_deviceNameKey)!;
     if (_sp.getString(_fileSavePathKey) == null) {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          fileSavePath = '/storage/emulated/0/Download/WindSend';
+          await setFileSavePath('/storage/emulated/0/Download/WindSend');
           // await Directory(fileSavePath).create(recursive: true); // 可能没有权限
           break;
         default:
-          fileSavePath = "./";
+          await setFileSavePath("./");
           loop:
           for (var i = 0; i < 3; i++) {
             try {
               switch (i) {
                 case 0:
-                  fileSavePath = (await getDownloadsDirectory())!.path;
+                  await setFileSavePath((await getDownloadsDirectory())!.path);
                   break loop;
                 case 1:
-                  fileSavePath =
-                      (await getApplicationDocumentsDirectory()).path;
+                  await setFileSavePath(
+                      (await getApplicationDocumentsDirectory()).path);
                   break loop;
                 case 2:
-                  fileSavePath = (await getApplicationSupportDirectory()).path;
+                  await setFileSavePath(
+                      (await getApplicationSupportDirectory()).path);
                   break loop;
               }
               break;
@@ -104,24 +102,25 @@ class AppSharedCnfService {
     if (_sp.getString(_imageSavePathKey) == null) {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          imageSavePath = '/storage/emulated/0/Pictures/WindSend';
+          await setImageSavePath('/storage/emulated/0/Pictures/WindSend');
           // await Directory(imageSavePath).create(recursive: true);
           break;
         default:
-          imageSavePath = "./";
+          await setImageSavePath("./");
           loop:
           for (var i = 0; i < 3; i++) {
             try {
               switch (i) {
                 case 0:
-                  imageSavePath = (await getDownloadsDirectory())!.path;
+                  await setImageSavePath((await getDownloadsDirectory())!.path);
                   break loop;
                 case 1:
-                  imageSavePath =
-                      (await getApplicationDocumentsDirectory()).path;
+                  await setImageSavePath(
+                      (await getApplicationDocumentsDirectory()).path);
                   break loop;
                 case 2:
-                  imageSavePath = (await getApplicationSupportDirectory()).path;
+                  await setImageSavePath(
+                      (await getApplicationSupportDirectory()).path);
                   break loop;
               }
               break;
@@ -134,126 +133,112 @@ class AppSharedCnfService {
     }
   }
 
-  ///写入数据
-  static void set<T>(String key, T value) {
-    Type type = value.runtimeType;
-    switch (type) {
-      case const (String):
-        _sp.setString(key, value as String);
-        break;
-      case const (int):
-        _sp.setInt(key, value as int);
-        break;
-      case const (bool):
-        _sp.setBool(key, value as bool);
-        break;
-      case const (double):
-        _sp.setDouble(key, value as double);
-        break;
-      case const (List<String>):
-        _sp.setStringList(key, value as List<String>);
-        break;
-    }
-
-    ///Map类型有些特殊，不能直接判断Type的类型
-    ///因为他是一个_InternalLinkedHashMap
-    ///是一个私有的类型，我没有办法引用出来。
-    if (value is Map) {
-      _sp.setString(key, json.encode(value));
-      return;
-    }
-  }
-
-  ///返回数据
-  static Object? get<T>(String key) {
-    var value = _sp.get(key);
-    if (value is String) {
-      try {
-        return const JsonDecoder().convert(value) as Map<String, dynamic>;
-      } on FormatException catch (_) {
-        return value;
-      }
-    }
-    return value;
-  }
-
-  /// 获取数据中所有的key
   static Set<String> getKeys() {
     return _sp.getKeys();
   }
 
-  /// 判断数据中是否包含某个key
   static bool containsKey(String key) {
     return _sp.containsKey(key);
   }
 
-  /// 删除数据中某个key
   static Future<bool> remove(String key) async {
     return await _sp.remove(key);
   }
 
-  /// 清除所有数据
+  /// Completes with true once the user preferences for the app has been cleared.
   static Future<bool> clear() async {
     return await _sp.clear();
   }
 
-  /// 重新加载
+  /// Fetches the latest values from the host platform.
+  ///
+  /// Use this method to observe modifications that were made in native code
+  /// (without using the plugin) while the app is running.
   static Future<void> reload() async {
-    return await _sp.reload();
+    return _sp.reload();
   }
 
   //-------------------------
 
-  /// 设备名称
-  static String? get deviceName => _sp.getString('DeviceName');
-  static set deviceName(String? value) => _sp.setString('DeviceName', value!);
+  /// Device name
+  static String get deviceName => _sp.getString(_deviceNameKey)!;
+  // set deviceName(String? value) => _sp.setString('DeviceName', value!);
+  static Future<bool> setDeviceName(String value) async {
+    globalLocalDeviceName = value;
+    return await _sp.setString(_deviceNameKey, value);
+  }
 
-  /// 默认选择设备
+  /// Default selected device
   static String? get defaultSelectDevice =>
       _sp.getString('DefaultSelectDevice');
-  static set defaultSelectDevice(String? value) =>
-      _sp.setString('DefaultSelectDevice', value!);
+  // set defaultSelectDevice(String? value) =>
+  //     _sp.setString('DefaultSelectDevice', value!);
+  static Future<bool> setDefaultSelectDevice(String value) async {
+    return await _sp.setString('DefaultSelectDevice', value);
+  }
 
-  /// 默认同步设备
+  /// Default sync device
   static String? get defaultSyncDevice => _sp.getString(_defaultSyncDeviceKey);
-  static set defaultSyncDevice(String? value) => value == null
-      ? _sp.remove(_defaultSyncDeviceKey)
-      : _sp.setString(_defaultSyncDeviceKey, value);
+  // set defaultSyncDevice(String? value) => value == null
+  //     ? _sp.remove(_defaultSyncDeviceKey)
+  //     : _sp.setString(_defaultSyncDeviceKey, value);
+  static Future<bool> setDefaultSyncDevice(String? value) async {
+    if (value == null) {
+      return await _sp.remove(_defaultSyncDeviceKey);
+    } else {
+      return await _sp.setString(_defaultSyncDeviceKey, value);
+    }
+  }
 
-  /// 默认分享设备
+  /// Default share device
   static String? get defaultShareDevice {
     var value = _sp.getString(_defaultShareDeviceKey);
     if (value != null) {
       return value;
     }
-    if (devices != null && devices!.isNotEmpty) {
-      _sp.setString(_defaultShareDeviceKey, devices!.first.targetDeviceName);
-      return devices!.first.targetDeviceName;
+    if (devices.isNotEmpty) {
+      _sp.setString(_defaultShareDeviceKey, devices.first.targetDeviceName);
+      return devices.first.targetDeviceName;
     }
     return null;
   }
 
-  static set defaultShareDevice(String? value) => value == null
-      ? _sp.remove(_defaultShareDeviceKey)
-      : _sp.setString(_defaultShareDeviceKey, value);
+  // set defaultShareDevice(String? value) => value == null
+  //     ? _sp.remove(_defaultShareDeviceKey)
+  //     : _sp.setString(_defaultShareDeviceKey, value);
+  static Future<bool> setDefaultShareDevice(String? value) async {
+    if (value == null) {
+      return await _sp.remove(_defaultShareDeviceKey);
+    } else {
+      return await _sp.setString(_defaultShareDeviceKey, value);
+    }
+  }
 
-  /// 文件保存路径
+  /// File save path
   static String get fileSavePath => _sp.getString(_fileSavePathKey)!;
-  static set fileSavePath(String? value) =>
-      _sp.setString('FileSavePath', value!);
+  // set fileSavePath(String? value) => _sp.setString('FileSavePath', value!);
+  static Future<bool> setFileSavePath(String value) async {
+    return await _sp.setString(_fileSavePathKey, value);
+  }
 
-  /// 图片保存路径
+  /// Image save path
   static String get imageSavePath => _sp.getString(_imageSavePathKey)!;
-  static set imageSavePath(String? value) =>
-      _sp.setString('ImageSavePath', value!);
+  // set imageSavePath(String? value) => _sp.setString('ImageSavePath', value!);
+  static Future<bool> setImageSavePath(String value) async {
+    return await _sp.setString(_imageSavePathKey, value);
+  }
 
-  /// 亮度
+  /// Brightness
   static Brightness get brightness =>
       _sp.getString('Theme') == 'dark' ? Brightness.dark : Brightness.light;
-  static set brightness(Brightness value) =>
-      _sp.setString('Theme', value == Brightness.dark ? 'dark' : 'light');
+  // set brightness(Brightness value) =>
+  //     _sp.setString('Theme', value == Brightness.dark ? 'dark' : 'light');
+  static Future<bool> setBrightness(Brightness value) async {
+    return await _sp.setString(
+        'Theme', value == Brightness.dark ? 'dark' : 'light');
+  }
 
-  /// 主题颜色
+  /// Theme color
   static AppColorSeed get themeColor {
     final String? colorLable = _sp.getString('ThemeColor');
     if (colorLable == null) {
@@ -262,19 +247,27 @@ class AppSharedCnfService {
     return AppColorSeed.getSeedByLabel(colorLable);
   }
 
-  static set themeColor(AppColorSeed value) =>
-      _sp.setString('ThemeColor', value.label);
+  // set themeColor(AppColorSeed value) =>
+  //     _sp.setString('ThemeColor', value.label);
+  static Future<bool> setThemeColor(AppColorSeed value) async {
+    return await _sp.setString('ThemeColor', value.label);
+  }
 
-  /// 跟随系统主题
+  /// Follow system theme
   static bool get followSystemTheme => _sp.getBool('FollowSystemTheme') ?? true;
-  static set followSystemTheme(bool value) =>
-      _sp.setBool('FollowSystemTheme', value);
+  // set followSystemTheme(bool value) => _sp.setBool('FollowSystemTheme', value);
+  static Future<bool> setFollowSystemTheme(bool value) async {
+    return await _sp.setBool('FollowSystemTheme', value);
+  }
 
   /// Auto select share device by wifi bssid
   static bool get autoSelectShareSyncDeviceByBssid =>
       _sp.getBool('AutoSelectShareSyncDeviceByBssid') ?? true;
-  static set autoSelectShareSyncDeviceByBssid(bool value) =>
-      _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
+  // set autoSelectShareSyncDeviceByBssid(bool value) =>
+  //     _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
+  static Future<bool> setAutoSelectShareSyncDeviceByBssid(bool value) async {
+    return await _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
+  }
 
   /// bssid:device name
   static Map<String, String?> get bssidDeviceNameMap {
@@ -285,15 +278,21 @@ class AppSharedCnfService {
     return (jsonDecode(value) as Map<String, dynamic>).cast<String, String?>();
   }
 
+  // set bssidDeviceNameMap(Map<String, String?> value) =>
+  //     _sp.setString('BssidDeviceNameMap', json.encode(value));
+  static Future<bool> setBssidDeviceNameMap(Map<String, String?> value) async {
+    return await _sp.setString('BssidDeviceNameMap', json.encode(value));
+  }
+
   static bool get isLocationPermissionDialogShown =>
       _sp.getBool('IsLocationPermissionDialogShown') ?? false;
-  static set isLocationPermissionDialogShown(bool value) =>
-      _sp.setBool('IsLocationPermissionDialogShown', value);
+  // set isLocationPermissionDialogShown(bool value) =>
+  //     _sp.setBool('IsLocationPermissionDialogShown', value);
+  static Future<bool> setIsLocationPermissionDialogShown(bool value) async {
+    return await _sp.setBool('IsLocationPermissionDialogShown', value);
+  }
 
-  static set bssidDeviceNameMap(Map<String, String?> value) =>
-      _sp.setString('BssidDeviceNameMap', json.encode(value));
-
-  // 语言
+  /// Language
   static Locale get locale {
     String? language = _sp.getString('Language');
     if (language == null) {
@@ -309,25 +308,73 @@ class AppSharedCnfService {
     return Locale(languageCode, countryCode);
   }
 
-  static set locale(Locale value) {
-    _sp.setString('Language', '${value.languageCode}_${value.countryCode}');
+  // set locale(Locale value) {
+  //   _sp.setString('Language', '${value.languageCode}_${value.countryCode}');
+  // }
+  static Future<bool> setLocale(Locale value) async {
+    return await _sp.setString(
+        'Language', '${value.languageCode}_${value.countryCode}');
   }
 
-  /// 设备
-  static List<Device>? get devices {
-    var listObject = _sp.get('Device') as List<dynamic>?;
-    final List<String>? list = listObject?.cast<String>();
+  static const String _oldDevicesKey = 'Device';
+  static const String _deviceStorePrefix = 'Device__';
 
-    if (list == null || list.isEmpty) {
-      // print('null geneDummyDeviceList');
-      // // return null;
-      // var list = geneDummyDeviceList();
-      // // 输出list的内容
-      // for (var i = 0; i < list.length; i++) {
-      //   print("list[$i] = ${list[i]}");
-      //   print(list[i].toJson());
-      // }
-      // return list;
+  /// Single device
+  static Device? getDevice(String id) {
+    final jsonString = _sp.getString('$_deviceStorePrefix$id');
+    if (jsonString == null || jsonString.isEmpty) {
+      return null;
+    }
+    return Device.fromJson(const JsonDecoder().convert(jsonString));
+  }
+
+  static Device? getDeviceByName(String name) {
+    final allDeviceIds = _getDeviceIds();
+    for (final id in allDeviceIds) {
+      final device = getDevice(id);
+      if (device?.targetDeviceName == name) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  static Future<bool> setDevice(Device device) async {
+    // print(
+    //     'setDevice ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
+    if (device.uniqueId.isEmpty) {
+      throw Exception('save device failed, uniqueId is empty');
+    }
+    final allDeviceIds = _getDeviceIds();
+    if (allDeviceIds.add(device.uniqueId)) {
+      await setAllDeviceId(allDeviceIds.toList());
+    }
+
+    return await _sp.setString(
+        '$_deviceStorePrefix${device.uniqueId}', json.encode(device.toJson()));
+  }
+
+  static Future<bool> removeDevice(String id) async {
+    final allDeviceIds = _getDeviceIds();
+    if (allDeviceIds.remove(id)) {
+      await setAllDeviceId(allDeviceIds.toList());
+    }
+    return await _sp.remove('$_deviceStorePrefix$id');
+  }
+
+  static Set<String> _getDeviceIds() {
+    return _sp.getStringList("AllDeviceId")?.toSet() ?? {};
+  }
+
+  static Future<bool> setAllDeviceId(List<String> ids) async {
+    // print('setAllDeviceId: $ids');
+    return await _sp.setStringList("AllDeviceId", ids);
+  }
+
+  @Deprecated('Remove this code at 2026-04-16.')
+  static List<Device>? get _devicesOld {
+    var list = _sp.getStringList(_oldDevicesKey);
+    if (list == null) {
       return null;
     }
     final List<Device> result = [];
@@ -337,12 +384,63 @@ class AppSharedCnfService {
     return result;
   }
 
-  static set devices(List<Device>? value) {
-    final List<String> list = [];
-    for (final element in value!) {
-      list.add(json.encode(element.toJson()));
+  /// All devices
+  static List<Device> get devices {
+    var devicesOld = _devicesOld;
+    if (devicesOld != null) {
+      // Compatible with old versions.
+      // convert _devices_old to devices.
+      // TODO: Remove this code at 2026-04-16.
+      if (devicesOld.isEmpty) {
+        _sp.remove(_oldDevicesKey);
+        return [];
+      }
+      for (final element in devicesOld) {
+        if (element.uniqueId.isEmpty) {
+          element.uniqueId = generateRandomString(16);
+        }
+      }
+      () async {
+        final randMs = Random().nextInt(5000);
+        await Future.delayed(Duration(milliseconds: randMs));
+        if (_sp.getStringList(_oldDevicesKey) == null) {
+          return;
+        }
+        await _sp.remove(_oldDevicesKey);
+
+        final ids = devicesOld.map((e) => e.uniqueId).toList();
+        await setAllDeviceId(ids);
+        for (final element in devicesOld) {
+          await _sp.setString('$_deviceStorePrefix${element.uniqueId}',
+              json.encode(element.toJson()));
+        }
+      }();
+      return devicesOld;
     }
-    _sp.setStringList('Device', list);
+
+    final ids = _getDeviceIds();
+    final List<Device> result = [];
+    for (final id in ids) {
+      // print('device id: $id');
+      var d = getDevice(id);
+      // print("device name:${d?.targetDeviceName}");
+      result.add(d!);
+    }
+
+    // TODO: Remove this code at 2026-04-16.
+    {
+      Map<String, Device> nameUniqueCheck = {};
+      for (final device in result) {
+        if (nameUniqueCheck.containsKey(device.targetDeviceName)) {
+          removeDevice(device.uniqueId);
+          continue;
+        }
+        nameUniqueCheck[device.targetDeviceName] = device;
+      }
+      return nameUniqueCheck.values.toList();
+    }
+
+    // return result;
   }
 }
 
@@ -370,63 +468,6 @@ class AppSharedCnfService {
 //     ),
 //   ];
 // }
-
-// class AppConfigModel with ChangeNotifier
-class AppConfigModel {
-  // static const String webIP = 'web';
-  String _deviceName = AppSharedCnfService.deviceName!;
-  String? _defaultSyncDevice = AppSharedCnfService.defaultSyncDevice;
-  String? _defaultShareDevice = AppSharedCnfService.defaultShareDevice;
-  String _fileSavePath = AppSharedCnfService.fileSavePath;
-  String _imageSavePath = AppSharedCnfService.imageSavePath;
-
-  String get deviceName => _deviceName;
-  String? get defaultSyncDevice => _defaultSyncDevice;
-  String? get defaultShareDevice {
-    if (_defaultShareDevice == null &&
-        AppSharedCnfService.devices != null &&
-        AppSharedCnfService.devices!.isNotEmpty) {
-      _defaultShareDevice = AppSharedCnfService.devices!.first.targetDeviceName;
-    }
-    return _defaultShareDevice;
-  }
-
-  String get fileSavePath => _fileSavePath;
-  String get imageSavePath => _imageSavePath;
-
-  set deviceName(String value) {
-    _deviceName = value;
-    AppSharedCnfService.deviceName = value;
-  }
-
-  set defaultSyncDevice(String? value) {
-    _defaultSyncDevice = value;
-    AppSharedCnfService.defaultSyncDevice = value;
-  }
-
-  set defaultShareDevice(String? value) {
-    _defaultShareDevice = value;
-    AppSharedCnfService.defaultShareDevice = value;
-  }
-
-  set fileSavePath(String value) {
-    _fileSavePath = value;
-    AppSharedCnfService.fileSavePath = value;
-  }
-
-  set imageSavePath(String value) {
-    _imageSavePath = value;
-    AppSharedCnfService.imageSavePath = value;
-  }
-
-  static final AppConfigModel _instance = AppConfigModel._internal();
-
-  AppConfigModel._internal();
-
-  factory AppConfigModel() {
-    return _instance;
-  }
-}
 
 class ShareDataModel {
   late Stream<List<SharedMediaFile>> sharedStream;
@@ -456,42 +497,44 @@ class ShareDataModel {
 
 Future<void> showFirstTimeLocationPermissionDialog(
     BuildContext context, Device device) async {
-  if (AppSharedCnfService.isLocationPermissionDialogShown) {
+  if (LocalConfig.isLocationPermissionDialogShown) {
     return;
   }
-  AppSharedCnfService.isLocationPermissionDialogShown = true;
+  LocalConfig.setIsLocationPermissionDialogShown(true);
 
   // location permission dialog
   if ((Platform.isIOS || Platform.isAndroid) &&
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
-    await alertDialogFunc(
-        context, Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
-        content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
-        onConfirmed: () async {
-      try {
-        await checkOrRequestNetworkPermission();
-        await saveDeviceWifiBssid(device);
-      } catch (e) {
-        AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
-      }
-    });
+      LocalConfig.autoSelectShareSyncDeviceByBssid) {
+    if (context.mounted) {
+      await alertDialogFunc(
+          context, Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
+          content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
+          onConfirmed: () async {
+        try {
+          await checkOrRequestNetworkPermission();
+          await saveDeviceWifiBssid(device);
+        } catch (e) {
+          LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
+        }
+      });
+    }
   }
 }
 
 bool networkPermissionChecked = false;
 
 Future<void> saveDeviceWifiBssid(Device device) async {
-  if (!AppSharedCnfService.isLocationPermissionDialogShown) {
+  if (!LocalConfig.isLocationPermissionDialogShown) {
     // The first network permission request is completed in the dialog
     return;
   }
   if (!networkPermissionChecked &&
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
+      LocalConfig.autoSelectShareSyncDeviceByBssid) {
     try {
       networkPermissionChecked = true;
       await checkOrRequestNetworkPermission();
     } catch (e) {
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
+      LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
     }
   }
   final info = NetworkInfo();
@@ -503,14 +546,14 @@ Future<void> saveDeviceWifiBssid(Device device) async {
   // if (wifiBSSID == '02:00:00:00:00:00' || wifiBSSID == '00:00:00:00:00:00') {
   //   return;
   // }
-  var bssidDeviceNameMap = AppSharedCnfService.bssidDeviceNameMap;
+  var bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
   // print('bssidDeviceNameMap: $bssidDeviceNameMap');
   if (bssidDeviceNameMap[wifiBSSID] == device.targetDeviceName) {
     return;
   }
   bssidDeviceNameMap[wifiBSSID] = device.targetDeviceName;
 
-  AppSharedCnfService.bssidDeviceNameMap = bssidDeviceNameMap;
+  LocalConfig.setBssidDeviceNameMap(bssidDeviceNameMap);
 }
 
 Future<Device?> resolveTargetDevice({
@@ -518,20 +561,20 @@ Future<Device?> resolveTargetDevice({
   bool defaultSyncDevice = false,
 }) async {
   if (!networkPermissionChecked &&
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
+      LocalConfig.autoSelectShareSyncDeviceByBssid) {
     try {
       networkPermissionChecked = true;
       await checkOrRequestNetworkPermission();
     } catch (e) {
-      AppSharedCnfService.autoSelectShareSyncDeviceByBssid = false;
+      LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
     }
   }
-  if (AppSharedCnfService.autoSelectShareSyncDeviceByBssid) {
+  if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
     final info = NetworkInfo();
     final wifiBSSID = await info.getWifiBSSID();
     if (wifiBSSID != null) {
-      final bssidDeviceNameMap = AppSharedCnfService.bssidDeviceNameMap;
-      Device? device = AppSharedCnfService.devices?.firstWhereOrNull(
+      final bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
+      Device? device = LocalConfig.devices.firstWhereOrNull(
         (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
       );
       if (device != null) {
@@ -540,12 +583,54 @@ Future<Device?> resolveTargetDevice({
     }
   }
   if (defaultShareDevice) {
-    return AppSharedCnfService.devices?.firstWhereOrNull(
-        (e) => e.targetDeviceName == AppConfigModel().defaultShareDevice);
+    return LocalConfig.devices.firstWhereOrNull(
+        (e) => e.targetDeviceName == LocalConfig.defaultShareDevice);
   }
   if (defaultSyncDevice) {
-    return AppSharedCnfService.devices?.firstWhereOrNull(
-        (e) => e.targetDeviceName == AppConfigModel().defaultSyncDevice);
+    return LocalConfig.devices.firstWhereOrNull(
+        (e) => e.targetDeviceName == LocalConfig.defaultSyncDevice);
   }
   return null;
 }
+
+class RelayKdfCache {
+  String pwd;
+  String saltB64;
+  String kdfSecretB64;
+
+  RelayKdfCache(
+      {required this.pwd, required this.saltB64, required this.kdfSecretB64});
+}
+
+// class RelayKdfInfoCache {
+//   // key: pwd$saltb64, value: kdfSecretB64
+//   Map<String, String> cache = {};
+//   static final RelayKdfInfoCache _instance = RelayKdfInfoCache();
+
+//   factory RelayKdfInfoCache() {
+//     return _instance;
+//   }
+
+//   Future<Directory> cacheDir(String pwd, String salt) async {
+//     final dir = await getApplicationDocumentsDirectory(); //TODO isolate
+//     return Directory(p.join(dir.path, 'RelayKdfCache'));
+//   }
+
+//   Future<Uint8List> getSecret(String pwd, String saltb64) async {
+//     if (cache[pwd + saltb64] != null) {
+//       return base64.decode(cache[pwd + saltb64]!);
+//     }
+//     final cacheDir = await this.cacheDir(pwd, saltb64);
+//     final cacheFile = File(p.join(cacheDir.path, '$pwd$saltb64'));
+//     if (await cacheFile.exists()) {
+//       final kdfSecretB64 = await cacheFile.readAsString();
+//       cache[pwd + saltb64] = kdfSecretB64;
+//       return base64.decode(kdfSecretB64);
+//     }
+//     final kdfSecret = Device.aes192KeyKdf(pwd, base64.decode(saltb64));
+//     final kdfSecretB64 = base64.encode(kdfSecret);
+//     cache[pwd + saltb64] = kdfSecretB64;
+//     await cacheFile.writeAsString(kdfSecretB64);
+//     return kdfSecret;
+//   }
+// }

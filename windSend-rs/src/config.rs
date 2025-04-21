@@ -2,21 +2,63 @@ use crate::utils;
 use image::EncodableLayout;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::sync::{Mutex, RwLock};
-use std::{path::Path, str::FromStr};
 use tracing::{debug, error, warn};
 use utils::clipboard::ClipboardManager;
 
-static CONFIG_FILE_PATH: &str = "config.yaml";
-static TLS_DIR: &str = "./tls";
-static TLS_CERT_FILE: &str = "cert.pem";
-static TLS_KEY_FILE: &str = "key.pem";
-static TLS_CA_CERT_FILE: &str = "ca_cert.pem";
-static TLS_CA_KEY_FILE: &str = "ca_key.pem";
-static APP_ICON_NAME: &str = "icon-192.png";
-pub const DEFAULT_LOG_DIR: &str = "./logs";
+use std::path::PathBuf;
 
-pub static APP_ICON_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+pub static TLS_CERT_FILE: &str = "cert.pem";
+pub static TLS_KEY_FILE: &str = "key.pem";
+pub static TLS_CA_CERT_FILE: &str = "ca_cert.pem";
+pub static TLS_CA_KEY_FILE: &str = "ca_key.pem";
+static APP_ICON_NAME: &str = "icon-192.png";
+
+lazy_static! {
+    pub static ref CONFIG_FILE_PATH: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::data_local_dir()
+                .map(|path| path.join("WindSend/config.yaml"))
+                .unwrap_or_else(|| PathBuf::from("config.yaml"))
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("config.yaml")
+        }
+    };
+}
+
+lazy_static! {
+    pub static ref TLS_DIR: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::data_local_dir()
+                .map(|path| path.join("WindSend/tls"))
+                .unwrap_or_else(|| PathBuf::from("./tls"))
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("./tls")
+        }
+    };
+}
+
+lazy_static! {
+    pub static ref DEFAULT_LOG_DIR: PathBuf = {
+        #[cfg(target_os = "macos")]
+        {
+            dirs::home_dir()
+                .map(|path| path.join("Library/Logs/WindSend/logs"))
+                .unwrap_or_else(|| PathBuf::from("./logs"))
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            PathBuf::from("./logs")
+        }
+    };
+}
 
 lazy_static! {
     static ref START_HELPER: utils::StartHelper =
@@ -37,18 +79,42 @@ lazy_static! {
     pub static ref ALLOW_TO_BE_SEARCHED: Mutex<bool> = Mutex::new(false);
 }
 
-pub fn get_cryptor() -> Result<utils::encrypt::AESCbcFollowedCrypt, Box<dyn std::error::Error>> {
-    let cryptor = utils::encrypt::AESCbcFollowedCrypt::new(
-        hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
-    )?;
-    Ok(cryptor)
-}
 lazy_static! {
     pub static ref CLIPBOARD: ClipboardManager = ClipboardManager::new()
         .inspect_err(|err| {
             error!("init clipboard error: {}", err);
         })
         .unwrap();
+}
+
+#[cfg(not(target_os = "macos"))]
+pub static APP_ICON_PATH: std::sync::LazyLock<String> = std::sync::LazyLock::new(app_icon_path);
+
+#[cfg(not(target_os = "macos"))]
+fn app_icon_path() -> String {
+    let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
+    let icon_path = current_dir.join(APP_ICON_NAME);
+    debug!("icon_path: {:?}", icon_path);
+    // APP_ICON_PATH.set(icon_path.display().to_string()).unwrap();
+    icon_path.display().to_string()
+}
+
+pub static TLS_ACCEPTOR: std::sync::LazyLock<tokio_rustls::TlsAcceptor> =
+    std::sync::LazyLock::new(|| get_tls_acceptor().expect("get_tls_acceptor error"));
+
+pub fn get_cipher() -> Result<utils::encrypt::AesGcmCipher, Box<dyn std::error::Error>> {
+    let cipher = utils::encrypt::AesGcmCipher::new(
+        hex::decode(GLOBAL_CONFIG.read()?.secret_key_hex.clone())?.as_bytes(),
+    )?;
+    Ok(cipher)
+}
+
+pub fn read_config() -> std::sync::RwLockReadGuard<'static, Config> {
+    GLOBAL_CONFIG.read().unwrap()
+}
+
+pub fn write_config() -> std::sync::RwLockWriteGuard<'static, Config> {
+    GLOBAL_CONFIG.write().unwrap()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -77,6 +143,12 @@ pub struct Config {
     /// Trusted remote host
     #[serde(rename = "trustedRemoteHosts", default)]
     pub trusted_remote_hosts: Option<Vec<String>>,
+    #[serde(rename = "relayServerAddress", default)]
+    pub relay_server_address: String,
+    #[serde(rename = "relaySecretKey", default)]
+    pub relay_secret_key: Option<String>,
+    #[serde(rename = "enableRelay", default)]
+    pub enable_relay: bool,
 }
 
 #[cfg(not(feature = "disable-systray-support"))]
@@ -101,7 +173,7 @@ impl Config {
     }
     pub fn save(&self) -> Result<(), String> {
         self.empty_check()?;
-        let file = std::fs::File::create(CONFIG_FILE_PATH)
+        let file = std::fs::File::create(&*CONFIG_FILE_PATH)
             .map_err(|err| format!("create config file error: {}", err))?;
         serde_yaml::to_writer(file, self)
             .map_err(|err| format!("write config file error: {}", err))?;
@@ -131,12 +203,21 @@ impl Config {
         Ok(())
     }
 
+    pub fn get_device_id(&self) -> String {
+        let r_key = self.secret_key_hex.as_bytes();
+        let r_key = crate::utils::encrypt::compute_sha256(r_key);
+        let r_key = crate::utils::encrypt::compute_sha256(&r_key);
+        let mut r_key_hex = hex::encode(r_key);
+        r_key_hex.truncate(16);
+        r_key_hex
+    }
+
     fn generate_default() -> Self {
         let lang = crate::utils::get_system_lang();
         let lang = crate::language::Language::from_str(&lang);
         Self {
             server_port: "6779".to_string(),
-            secret_key_hex: utils::encrypt::generate_secret_key_hex(32),
+            secret_key_hex: utils::encrypt::generate_rand_bytes_hex(32),
             show_systray_icon: true,
             auto_start: false,
             save_path: utils::get_desktop_path().unwrap_or_else(|err| {
@@ -152,19 +233,31 @@ impl Config {
                 "localhost".to_string(),
                 "::1".to_string(),
             ]),
+            relay_server_address: "".to_string(),
+            relay_secret_key: Some("".to_string()),
+            enable_relay: false,
         }
     }
 }
 
 fn init_global_config() -> Config {
-    if !std::path::Path::new(CONFIG_FILE_PATH).exists() {
+    debug!("Ensuring config directory exists: {:?}", &*CONFIG_FILE_PATH);
+    if let Some(parent_dir) = CONFIG_FILE_PATH.parent() {
+        if !parent_dir.exists() {
+            if let Err(err) = std::fs::create_dir_all(parent_dir) {
+                panic!("Failed to create config directory: {}", err);
+            }
+        }
+    }
+
+    if !CONFIG_FILE_PATH.exists() {
         let cnf = Config::generate_default();
         if let Err(err) = cnf.save_and_set() {
             panic!("init_global_config error: {}", err);
         }
         return cnf;
     }
-    let file = std::fs::File::open(CONFIG_FILE_PATH).unwrap();
+    let file = std::fs::File::open(&*CONFIG_FILE_PATH).unwrap();
     let cnf = serde_yaml::from_reader(file);
     if let Err(err) = cnf {
         panic!("deserialize config file error: {}", err);
@@ -210,18 +303,12 @@ impl std::io::Write for LogWriter {
 
 pub fn init() {
     init_global_logger(*LOG_LEVEL);
-
-    let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("./"));
-    let icon_path = current_dir.join(APP_ICON_NAME);
-    debug!("icon_path: {:?}", icon_path);
-    APP_ICON_PATH.set(icon_path.display().to_string()).unwrap();
-
     init_tls_config();
 }
 
 fn init_global_logger(log_level: tracing::Level) {
     let file_appender =
-        tracing_appender::rolling::never(DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
+        tracing_appender::rolling::never(&*DEFAULT_LOG_DIR, format!("{}.log", crate::PROGRAM_NAME));
     let log_writer = LogWriter::new(file_appender);
     let (non_blocking_appender, writer_guard) = tracing_appender::non_blocking(log_writer);
     // let subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -260,13 +347,13 @@ fn init_global_logger(log_level: tracing::Level) {
 
 fn init_tls_config() {
     // mkdir tls
-    if !Path::new(TLS_DIR).exists() {
-        std::fs::create_dir(TLS_DIR).unwrap();
+    if !TLS_DIR.exists() {
+        std::fs::create_dir(&*TLS_DIR).unwrap();
     }
-    let cert_path = Path::new(TLS_DIR).join(TLS_CERT_FILE);
-    let key_path = Path::new(TLS_DIR).join(TLS_KEY_FILE);
-    let ca_cert_path = Path::new(TLS_DIR).join(TLS_CA_CERT_FILE);
-    let ca_key_path = Path::new(TLS_DIR).join(TLS_CA_KEY_FILE);
+    let cert_path = TLS_DIR.join(TLS_CERT_FILE);
+    let key_path = TLS_DIR.join(TLS_KEY_FILE);
+    let ca_cert_path = TLS_DIR.join(TLS_CA_CERT_FILE);
+    let ca_key_path = TLS_DIR.join(TLS_CA_KEY_FILE);
     // Remove them, for easy debugging
     // std::fs::remove_file(&cert_path).ok();
     // std::fs::remove_file(&key_path).ok();
@@ -286,13 +373,13 @@ fn init_tls_config() {
 }
 
 pub fn read_ca_certificate_pem() -> std::io::Result<String> {
-    std::fs::read_to_string(Path::new(TLS_DIR).join(TLS_CA_CERT_FILE))
+    std::fs::read_to_string(TLS_DIR.join(TLS_CA_CERT_FILE))
 }
 
 pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::error::Error>> {
     use tokio_rustls::rustls;
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
-    let private_key_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_KEY_FILE))?;
+    let private_key_bytes = std::fs::read(TLS_DIR.join(TLS_KEY_FILE))?;
     let mut private_key: Option<PrivateKeyDer<'static>> = None;
 
     let pkcs8_private_key =
@@ -308,7 +395,7 @@ pub fn get_tls_acceptor() -> Result<tokio_rustls::TlsAcceptor, Box<dyn std::erro
     }
     let private_key = private_key.unwrap();
 
-    let ca_cert_bytes = std::fs::read(Path::new(TLS_DIR).join(TLS_CERT_FILE))?;
+    let ca_cert_bytes = std::fs::read(TLS_DIR.join(TLS_CERT_FILE))?;
     let ca_cert = rustls_pemfile::certs(&mut ca_cert_bytes.as_slice())
         .next()
         .ok_or("ca_cert is none")??;

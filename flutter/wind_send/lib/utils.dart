@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:developer';
+import 'dart:developer' as dev;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -270,6 +271,7 @@ Future<T?> alertDialogFunc<T>(
   void Function()? onConfirmed,
   void Function()? onCanceled,
   bool Function()? canConfirm,
+  List<Widget>? actions,
 }) {
   return showDialog(
     context: context,
@@ -281,6 +283,7 @@ Future<T?> alertDialogFunc<T>(
         onConfirmed: onConfirmed,
         onCanceled: onCanceled,
         canConfirm: canConfirm,
+        actions: actions,
       );
     },
   );
@@ -293,6 +296,7 @@ AlertDialog alertDialogDefault(
   void Function()? onConfirmed,
   void Function()? onCanceled,
   bool Function()? canConfirm,
+  List<Widget>? actions,
 }) {
   canConfirm ??= () => true;
   return AlertDialog(
@@ -301,6 +305,7 @@ AlertDialog alertDialogDefault(
     title: title,
     content: content,
     actions: [
+      if (actions != null) ...actions,
       TextButton(
         onPressed: () {
           if (onCanceled != null) {
@@ -413,7 +418,7 @@ class SharedLogger {
       logDir.createSync(recursive: true);
     }
     var logFile = File(filepathpkg.join(logDir.path, '$programName.log'));
-    log('log file: ${logFile.path}');
+    dev.log('log file: ${logFile.path}');
     if (!logFile.existsSync()) {
       logFile.createSync();
     }
@@ -517,4 +522,112 @@ Future<bool> directoryIsEmpty(String path) async {
     return false;
   }
   return true;
+}
+
+(String host, int port) parseHostAndPort(String hostAndPort,
+    {int? defaultPort}) {
+  final hostAndPortList = hostAndPort.split(':');
+  if (hostAndPortList.length == 2) {
+    return (hostAndPortList[0], int.parse(hostAndPortList[1]));
+  }
+  if (hostAndPort.startsWith('https://')) {
+    return (hostAndPort.substring(8), 443);
+  }
+  if (hostAndPort.startsWith('http://')) {
+    return (hostAndPort.substring(7), 80);
+  }
+  if (defaultPort != null) {
+    return (hostAndPort, defaultPort);
+  }
+  throw Exception('invalid hostAndPort: $hostAndPort');
+}
+
+String generateRandomString(int length) {
+  final random = Random();
+  const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  return List.generate(length, (index) => chars[random.nextInt(chars.length)])
+      .join();
+}
+
+class DebugBox extends StatelessWidget {
+  final Widget child;
+  const DebugBox({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        // color: Colors.transparent,
+        border: Border.all(color: Colors.red),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Converts a number of bytes into a human-readable string.
+///
+/// Example:
+/// ```dart
+/// formatBytes(1024) == "1.0 KiB"
+/// formatBytes(1500) == "1.5 KiB"
+/// formatBytes(1024 * 1024 * 5) == "5.0 MiB"
+/// formatBytes(1000 * 1000, base1000: true) == "1.0 MB"
+/// formatBytes(1234567, decimals: 2) == "1.18 MiB"
+/// ```
+///
+/// Args:
+///
+///   bytes (int): The number of bytes.
+///
+///   decimals (int): The number of decimal places to display (default: 1).
+///
+///   base1000 (bool): If true, uses base 1000 (KB, MB), otherwise uses
+///                    base 1024 (KiB, MiB) (default: false).
+///
+/// Returns:
+///
+///   String: A human-readable string representation of the bytes.
+String formatBytes(int bytes, {int decimals = 1, bool base1000 = false}) {
+  // Handle non-positive values, returning "0 Bytes"
+  if (bytes <= 0) return "0 Bytes";
+
+  // Determine the base and units based on the flag
+  final base = base1000 ? 1000 : 1024;
+  final units = base1000
+      // SI units (base 1000)
+      ? ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+      // IEC units (base 1024) - More common for OS file sizes
+      : ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+
+  // Calculate the exponent/index 'i' to determine the correct unit
+  // using logarithms. This is efficient and avoids loops for large numbers.
+  // Example: log(1500) / log(1024) ≈ 1.05 -> floor is 1, so KiB
+  // Example: log(500) / log(1024) ≈ 0.89 -> floor is 0, so Bytes
+  int i = (log(bytes) / log(base)).floor();
+
+  // Ensure index 'i' doesn't exceed the units list bounds
+  // (handles extremely large numbers beyond YB/YiB)
+  i = min(i, units.length - 1);
+
+  // Calculate the scaled value by dividing bytes by base^i
+  // e.g., 1500 / 1024^1 = 1.46...
+  // e.g., 500 / 1024^0 = 500
+  double value = bytes / pow(base, i);
+
+  // Format the value to the specified number of decimal places
+  String formattedValue = value.toStringAsFixed(decimals);
+
+  // Optional: Remove trailing '.0' for whole numbers if decimals > 0
+  if (decimals > 0 && formattedValue.endsWith('.${'0' * decimals}')) {
+    formattedValue = value.toStringAsFixed(0); // Re-format as integer string
+  }
+  // Alternative for removing only trailing '.0' specifically:
+  // if (decimals == 1 && formattedValue.endsWith('.0')) {
+  //   formattedValue = formattedValue.substring(0, formattedValue.length - 2);
+  // }
+
+  // Return the formatted value followed by the appropriate unit
+  return '$formattedValue ${units[i]}';
 }

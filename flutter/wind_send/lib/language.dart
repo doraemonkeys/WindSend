@@ -60,6 +60,20 @@ mixin AppLocale {
   static const String getWIFIBSSIDTip = 'getWIFIBSSIDTip';
   static const String trustedCertificate = 'trustedCertificate';
   static const String trustedCertificateHint = 'trustedCertificateHint';
+  static const String useRelay = 'useRelay';
+  static const String useRelayTip = 'useRelayTip';
+  static const String relayServerAddress = 'relayServerAddress';
+  static const String accessKey = 'accessKey';
+  static const String checkConnection = 'checkConnection';
+  static const String useSecretKey = 'useSecretKey';
+  static const String invalidHost = 'invalidHost';
+  static const String configureRelayServer = 'configureRelayServer';
+  static const String secretKey = 'secretKey';
+  static const String invalidSecretKey = 'invalidSecretKey';
+  static const String pushRelayConfigToDevice = 'pushRelayConfigToDevice';
+  static const String invalidSecretKeyError = 'invalidSecretKeyError';
+  static const String fileTooLargeTip = 'fileTooLargeTip';
+  static const String fileTooLargeTitle = 'fileTooLargeTitle';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -94,7 +108,7 @@ mixin AppLocale {
     openSource: '应用是开源的',
     donateAuthor: '捐赠作者',
     deviceSetting: '设备设置',
-    autoSelectIp: '自动选择ip地址',
+    autoSelectIp: '自动扫描设备IP',
     downloadThread: '下载线程数',
     uploadThread: '上传线程数',
     deviceNameEmptyHint: '设备名称不能为空',
@@ -124,6 +138,20 @@ mixin AppLocale {
         'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择分享与同步的设备，此功能授予精确定位权限才能使用',
     trustedCertificate: '证书',
     trustedCertificateHint: '证书内容可以从 tls/ca_cert.pem 文件中复制',
+    useRelay: '使用中转服务',
+    relayServerAddress: '中转服务器地址',
+    accessKey: '访问密钥',
+    checkConnection: '检测连接',
+    useSecretKey: '使用密钥',
+    invalidHost: '无效的主机',
+    useRelayTip: 'WindSend 使用 TLS 证书进行身份验证并加密中继流量，中转服务器无法解析你的数据，可以放心使用',
+    configureRelayServer: '配置中转服务器',
+    secretKey: '密钥',
+    invalidSecretKey: '无效的密钥',
+    pushRelayConfigToDevice: '推送中转配置到此设备',
+    invalidSecretKeyError: '无效的密钥',
+    fileTooLargeTip: '文件过大(%a)，使用中转服务会花费较多时间，是否允许使用？',
+    fileTooLargeTitle: '或许即将使用中转服务',
   };
 
   static const Map<String, dynamic> en = {
@@ -159,7 +187,7 @@ mixin AppLocale {
     openSource: 'The app is open source',
     donateAuthor: 'Donate author',
     deviceSetting: 'Device setting',
-    autoSelectIp: 'Auto select ip',
+    autoSelectIp: 'Auto scan device IP',
     downloadThread: 'Download thread',
     uploadThread: 'Upload thread',
     deviceNameEmptyHint: 'Device name cannot be empty',
@@ -190,6 +218,22 @@ mixin AppLocale {
     trustedCertificate: 'Certificate Authority',
     trustedCertificateHint:
         'The certificate content can be copied from tls/ca_cert.pem file',
+    useRelay: 'Use relay service',
+    relayServerAddress: 'Relay server address',
+    accessKey: 'Access key',
+    checkConnection: 'Check',
+    useSecretKey: 'Use secret key',
+    invalidHost: 'Invalid host',
+    useRelayTip:
+        'WindSend uses TLS certificates for authentication and encrypts the relay traffic. Relay server cannot parse your data, it is safe to use',
+    configureRelayServer: 'Configure relay server',
+    secretKey: 'Secret key',
+    invalidSecretKey: 'Invalid secret key',
+    pushRelayConfigToDevice: 'Push relay config to this device',
+    invalidSecretKeyError: 'Invalid secret key',
+    fileTooLargeTip:
+        'The file is too large (%a), using relay service will take more time, allow?',
+    fileTooLargeTitle: 'Maybe using relay service soon',
   };
 
   static List<String> getSupportLanguageCode() {

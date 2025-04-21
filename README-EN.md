@@ -20,7 +20,7 @@ A set of applications for quickly and securely transferring clipboards, transfer
 
 ## How to use
 
-> **Note**: During the configuration phase, make sure that the computer and mobile phone are on the same network.
+> **Note**: During the configuration phase, make sure that the computer and mobile phone are on the same network. You can also use the relay server to configure.
 
 
 
@@ -39,7 +39,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 #### Linux
 
-1. Unzip **WindSend-linux-x64-S-Rust-v\*.zip** to any directory (minimum version 1.3.0).
+1. Unzip **WindSend-linux-x64-S-Rust-v\*.zip** to any directory.
 
    ```shell
     sudo apt install libxdo3
@@ -54,7 +54,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 1. Unzip **WindSend-windows-x64-S-Rust-v\*.zip** to any directory (Take Windows).
 
 2. Double-click the exe file to run:
-   Please click to allow windows firewall, **Note** check the public network (bold check, all content is encrypted).
+   Please click to allow windows firewall, **Note** check the public network.
 
    ![image-20240124214446056](https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242148675.png)
 
@@ -84,7 +84,7 @@ github：[Releases · WindSend](https://github.com/doraemonkeys/WindSend/release
 
 ### Failed pairing? Manually add the device key
 
-Open the default configuration file `config.yaml`, copy secretKeyHex, and fill in the app configuration manually.
+Open the default configuration file `config.yaml`, copy secretKeyHex, copy the entire content of `tls/ca_cert.pem`, and fill in the app configuration manually.
 
 <img src="https://raw.githubusercontent.com/Doraemonkeys/picture/master/1/202306212049362.png" alt="image-20230621192929505" style="zoom: 67%;" />
 
@@ -94,29 +94,63 @@ Open the default configuration file `config.yaml`, copy secretKeyHex, and fill i
 
 ### Note
 
-- The time difference between the two devices cannot exceed 5 minutes, otherwise the pairing will fail.
 - Notification delivery on Windows relies on PowerShell, if you don't see notifications, check that PowerShell is in the environment variable.
-- APP's location permission is used to obtain WIFI information.
+- APP's location permission is used to obtain WIFI information. It is strongly recommended to grant precise location permission.
+
 
 ## Tips
 
 - **Long press to upload mobile phone folder**
   
-  ![image-20240124214021079](https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242149396.png)
+  ![image-20250406234520332](https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406234529173.png)
 
 - **Quickly copy folders**
 
 <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/202401242149133.png" alt="image-20240124205814355" style="zoom: 33%;" />
 
 
+## Solution when Devices Are Not on the Same Network
+
+### 1. Use Intranet Tunneling Software
+
+For example, with Tailscale, you just need to replace the computer's IP with the IP assigned by Tailscale. Please test other tools on your own.
+
+
+
+### 2. Use a Relay Server
+
+WindSend supports setting up your own relay server to handle different network environments. For the setup guide, please refer to [WindSend-Relay](https://github.com/doraemonkeys/WindSend-Relay).
+
+- **Usage:**
+
+  1. Run the relay service and set a connection secret key (optional).
+  2. Enter the relay server address in the device settings.
+  3. Push the relay server configuration to the target device (or modify the configuration file manually).
+     <div>
+        <img src="https://raw.githubusercontent.com/doraemonkeys/picture/master/1/20250406234536830.png" alt="relay config" width="58%" />
+     </div>
+
+- **If you need to modify the configuration file manually:**
+
+  Open the default configuration file `config.yaml`, add the following configuration, and then restart the application.
+
+  ```yaml
+  # Relay server address
+  relayServerAddress: your_relay_server_address:16779
+  # Connection secret key
+  # if there is one, change null to the key string
+  relaySecretKey: null
+  # Enable relay
+  enableRelay: true
+  ```
+
+
+
+
 
 ## Cross-platform situation
 
-Since the author only has Android and Windows devices, it is not guaranteed that the software will function normally on other platforms.
-
-
-
-The server-side code is available in both Go and Rust, and the main libraries are cross-platform, so additional platform support and optimizations are only a matter of changing the source code slightly.The author's ability is  still shallow, and experts are welcome to PR.
+Since the author only has Android and Windows devices, it is not guaranteed that the software will function normally on other platforms. Welcome to submit PR or Issue.
 
 
 
@@ -148,13 +182,29 @@ The server-side code is available in both Go and Rust, and the main libraries ar
 
 ## Build
 
+The [Release.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/Release.yml) file contains the detailed process of automatic build, which can be referred to.
+
+You can also download the original file of the workflow from [Actions](https://github.com/doraemonkeys/WindSend/actions).
+
 ### Flutter
+
+[Flutter](https://flutter-ko.dev/get-started/install)
 
 version: channel stable
 
 #### Requirements
 
 [Install Rust](https://www.rust-lang.org/tools/install)
+
+#### Build
+
+```shell
+cd flutter/wind_send
+flutter build apk --split-per-abi --release
+flutter build linux --release
+flutter build macos --release
+flutter build windows --release
+```
 
 ### Rust
 
@@ -184,8 +234,6 @@ version: channel stable
 
 [AWS Libcrypto for Rust User Guide](https://aws.github.io/aws-lc-rs/requirements/index.html)
 
-[.github/workflows/rust_build.yml](https://github.com/doraemonkeys/WindSend/blob/main/.github/workflows/rust_build.yml)
-
 
 **Linux**
 
@@ -195,7 +243,16 @@ sudo apt install -y pkg-config libssl-dev build-essential linux-libc-dev
 sudo apt install -y musl-dev musl-tools
 ```
 
+#### Build
 
-### Go
+```shell
+cd windSend-rs
+cargo build --release
+```
 
-version: 1.21+
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests or open issues on the [GitHub repository](https://github.com/doraemonkeys/WindSend).
+
+The author is not good at mobile UI design and development, so if you are interested in redesigning the UI or adding a floating window for Android or adding new features, please contact me, and I will do my best to help.

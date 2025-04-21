@@ -1,17 +1,22 @@
 use crate::language::LanguageKey;
-use crate::route::resp::{resp_common_error_msg, send_msg, send_msg_with_body};
-use crate::route::{RouteDataType, RouteRecvHead};
+use crate::route::protocol::{RouteDataType, RouteRecvHead};
+use crate::route::transfer::{resp_common_error_msg, send_msg, send_msg_with_body};
+use regex::bytes::Regex;
 use std::borrow::Cow;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{debug, error, info, warn};
 
+static URL_REGEX: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"https?://[^ \r\n]+").unwrap());
+
 pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
     let mut body_buf = vec![0u8; head.data_len as usize];
     let r = conn.read_exact(&mut body_buf).await;
     if let Err(e) = r {
         error!("read body failed, err: {}", e);
+        return;
     }
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
@@ -25,11 +30,16 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     }
     send_msg(conn, &"Paste success".to_string()).await.ok();
 
-    if body.trim().starts_with("http") {
-        crate::utils::inform(&body, &head.device_name, Some(&body));
-    } else {
-        crate::utils::inform(&body, &head.device_name, None);
+    let mut notification_url: Option<&str> = None;
+    const URL_SEARCH_LIMIT: usize = 300;
+
+    if body.trim_start().starts_with("http") || body.len() <= URL_SEARCH_LIMIT {
+        if let Some(m) = URL_REGEX.find(body.as_bytes()) {
+            notification_url = std::str::from_utf8(m.as_bytes()).ok();
+        }
     }
+
+    crate::utils::inform(&body, &head.device_name, notification_url);
 }
 
 pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
@@ -78,7 +88,7 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
 
 /// return whether should continue loop(like no socket error)
 pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
-    if let crate::route::UploadType::UploadInfo = head.upload_type {
+    if let crate::route::protocol::UploadType::UploadInfo = head.upload_type {
         return paste_file_operation_handler(conn, head).await;
     }
 
@@ -233,13 +243,14 @@ async fn paste_file_operation_handler(
         error!("read body failed, err: {}", e);
         return false;
     }
-    let op_info: crate::route::UploadOperationInfo = match serde_json::from_slice(&data_buf) {
-        Ok(info) => info,
-        Err(e) => {
-            error!("parse upload operation info failed, err: {}", e);
-            return false;
-        }
-    };
+    let op_info: crate::route::protocol::UploadOperationInfo =
+        match serde_json::from_slice(&data_buf) {
+            Ok(info) => info,
+            Err(e) => {
+                error!("parse upload operation info failed, err: {}", e);
+                return false;
+            }
+        };
     info!(
         "paste file operation, total size: {}, total count: {}",
         op_info.files_size_in_this_op, op_info.files_count_in_this_op

@@ -174,7 +174,7 @@ impl FileReceiveSessionManager {
 
     pub async fn setup_file_reception(
         self: &Arc<Self>,
-        head: &crate::route::RouteRecvHead,
+        head: &crate::route::protocol::RouteRecvHead,
     ) -> std::io::Result<tokio::fs::File> {
         let file_id = head.file_id;
         let file_size = head.file_size;
@@ -241,7 +241,7 @@ impl FileReceiveSessionManager {
 
         let manager = Arc::clone(self);
         let op_id = head.op_id;
-        crate::RUNTIME.get().unwrap().spawn(async move {
+        crate::RUNTIME.spawn(async move {
             manager
                 .monitor_single_file_reception(file_id, op_id, actual_save_path, rx)
                 .await
@@ -251,8 +251,8 @@ impl FileReceiveSessionManager {
 
     pub async fn create_op_info(
         &self,
-        head: &crate::route::RouteRecvHead,
-        upload_info: &crate::route::UploadOperationInfo,
+        head: &crate::route::protocol::RouteRecvHead,
+        upload_info: &crate::route::protocol::UploadOperationInfo,
     ) -> Result<(), String> {
         let ops_map = self.operation_sessions.lock().await;
         self.create_op_info_inner(head, upload_info, ops_map)
@@ -260,8 +260,8 @@ impl FileReceiveSessionManager {
 
     fn create_op_info_inner(
         &self,
-        head: &crate::route::RouteRecvHead,
-        upload_info: &crate::route::UploadOperationInfo,
+        head: &crate::route::protocol::RouteRecvHead,
+        upload_info: &crate::route::protocol::UploadOperationInfo,
         mut ops_map: tokio::sync::MutexGuard<HashMap<u32, OpInfo>>,
     ) -> Result<(), String> {
         // create new opertion
@@ -317,7 +317,7 @@ impl FileReceiveSessionManager {
                 },
             );
             let notify_lock = Arc::clone(&self.notify_lock);
-            RUNTIME.get().unwrap().spawn(async move {
+            RUNTIME.spawn(async move {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
                 let total = op_info.total_expectation;
                 let mut useless_times = 0;
@@ -526,7 +526,7 @@ impl FileReceiveSessionManager {
             if let Err(e) = image {
                 error!("write to clipboard failed:{}", e);
             } else {
-                RUNTIME.get().unwrap().spawn(async move {
+                RUNTIME.spawn(async move {
                     let _ = crate::config::CLIPBOARD.write_image_from_bytes(&image.unwrap());
                 });
             }

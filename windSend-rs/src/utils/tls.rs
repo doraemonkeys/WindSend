@@ -37,9 +37,9 @@ pub fn generate_signed_certificate(
         //     192, 168, 1, 7,
         // ))),
     ];
-    // 当前时间
+    // current time
     params.not_before = OffsetDateTime::now_utc();
-    // 当前时间 + 3650 , 即有效期10年
+    // current time + 3650 days
     params.not_after = params
         .not_before
         .checked_add(3650.days())

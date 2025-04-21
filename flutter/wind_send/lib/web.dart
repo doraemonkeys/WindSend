@@ -3,9 +3,8 @@ import 'dart:async';
 
 import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
-
+import 'crypto/aes.dart';
 import 'package:flutter/services.dart';
-import 'package:aes_crypt_null_safe/aes_crypt_null_safe.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -55,7 +54,7 @@ class WebSync {
     var encryptedata = hex.decode(content);
     var encryptedataUint8List = Uint8List.fromList(encryptedata);
     // decrypt
-    var cryptor = CbcAESCrypt.fromHex(secretKeyHex);
+    var cryptor = AesGcm.fromHex(secretKeyHex);
     var decrypted = cryptor.decrypt(encryptedataUint8List);
     return decrypted;
   }
@@ -81,7 +80,7 @@ class WebSync {
   Future<void> postContentToWeb(String content) async {
     String csrfmiddlewaretoken =
         await _getCsrfmiddlewaretoken(myUrl, userAgent);
-    var crypter = CbcAESCrypt.fromHex(secretKeyHex);
+    var crypter = AesGcm.fromHex(secretKeyHex);
     var contentList = utf8.encode(content);
     var encryptedata = crypter.encrypt(Uint8List.fromList(contentList));
     var encryptedataHex = hex.encode(encryptedata);
