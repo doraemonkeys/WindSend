@@ -1,17 +1,22 @@
 use crate::language::LanguageKey;
 use crate::route::protocol::{RouteDataType, RouteRecvHead};
 use crate::route::transfer::{resp_common_error_msg, send_msg, send_msg_with_body};
+use regex::bytes::Regex;
 use std::borrow::Cow;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::{debug, error, info, warn};
 
+static URL_REGEX: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"https?://[^ \r\n]+").unwrap());
+
 pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
     let mut body_buf = vec![0u8; head.data_len as usize];
     let r = conn.read_exact(&mut body_buf).await;
     if let Err(e) = r {
         error!("read body failed, err: {}", e);
+        return;
     }
     let body = String::from_utf8_lossy(&body_buf);
     debug!("paste text data: {}", body);
@@ -25,11 +30,16 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     }
     send_msg(conn, &"Paste success".to_string()).await.ok();
 
-    if body.trim().starts_with("http") {
-        crate::utils::inform(&body, &head.device_name, Some(&body));
-    } else {
-        crate::utils::inform(&body, &head.device_name, None);
+    let mut notification_url: Option<&str> = None;
+    const URL_SEARCH_LIMIT: usize = 300;
+
+    if body.trim_start().starts_with("http") || body.len() <= URL_SEARCH_LIMIT {
+        if let Some(m) = URL_REGEX.find(body.as_bytes()) {
+            notification_url = std::str::from_utf8(m.as_bytes()).ok();
+        }
     }
+
+    crate::utils::inform(&body, &head.device_name, notification_url);
 }
 
 pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
