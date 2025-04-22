@@ -56,15 +56,18 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
         use std::io::Write;
         let _ = writeln!(f, "{}", panic_log_message);
     }
-    use rfd::{MessageDialog, MessageLevel::Error};
-    _ = MessageDialog::new()
-        .set_title("WindSend-S-Rust")
+    #[cfg(not(feature = "disable-systray-support"))]
+    {
+        use rfd::{MessageDialog, MessageLevel::Error};
+        _ = MessageDialog::new()
+            .set_title("WindSend-S-Rust")
         .set_description(format!(
             "WindSend-S-Rust has crashed. Please check the log file for more information.\n\n{}",
             panic_message
         ))
-        .set_level(Error)
-        .show();
+            .set_level(Error)
+            .show();
+    }
     std::process::abort();
 }
 
