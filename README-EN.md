@@ -9,7 +9,7 @@ A set of applications for quickly and securely transferring clipboards, transfer
 
 ## Why choose WindSend
 
-- **Security** - All data is transmitted encrypted (even if it is a LAN, some people want to be more secure, such as me)
+- **Security** - All data is transmitted encrypted (TLS), even if it is a LAN, some people want to be more secure, such as me
 - **Simple** - The interface is simple and easy to use, open source, free of advertising, and focuses on information transmission
 - **Comprehensive** - Automatically match the computer with the same key in the LAN, and don't worry about switching wifi
 - **Worry-free** - Don't worry about the connection status with the computer anymore, as long as the computer is online, the mobile phone can send
