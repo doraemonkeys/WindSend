@@ -46,15 +46,24 @@ fn init() {
 fn panic_hook(info: &std::panic::PanicHookInfo) {
     error!("panic: {}", info);
     let backtrace = backtrace::Backtrace::new();
-    let panic_message = format!("Panic: {}\n{:?}\n\nBacktrace:\n{:?}", info, info, backtrace);
+    let panic_message = format!("Panic: {}\n{:?}", info, info);
+    let panic_log_message = format!("{}\n\nBacktrace:\n{:?}", panic_message, backtrace);
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
         .open(std::path::Path::new(&*config::DEFAULT_LOG_DIR).join("panic.log"))
     {
         use std::io::Write;
-        let _ = writeln!(f, "{}", panic_message);
+        let _ = writeln!(f, "{}", panic_log_message);
     }
+    use rfd::MessageDialog;
+    _ = MessageDialog::new()
+        .set_title("WindSend-S-Rust")
+        .set_description(format!(
+            "WindSend-S-Rust has crashed. Please check the log file for more information.\n\n{}",
+            panic_message
+        ))
+        .show();
     std::process::abort();
 }
 
