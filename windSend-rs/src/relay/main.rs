@@ -3,21 +3,10 @@ use crate::utils::encrypt::aes192_key_kdf;
 /// return true if connect to relay  success
 pub async fn relay_main() -> bool {
     use crate::config;
-
     use tracing::{debug, error};
 
-    debug!("try to connect to relay server");
-
-    let relay_server_address = match config::read_config()
-        .relay_server_address
-        .parse::<std::net::SocketAddr>()
-    {
-        Ok(address) => address,
-        Err(e) => {
-            error!("parse relay server address error: {}", e);
-            return false;
-        }
-    };
+    let relay_server_address = config::read_config().relay_server_address.clone();
+    debug!("try to connect to relay server: {}", relay_server_address);
 
     let mut tcp_stream = match tokio::net::TcpStream::connect(relay_server_address).await {
         Ok(tcp_stream) => tcp_stream,
