@@ -12,6 +12,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:developer' as dev;
 // import 'package:path/path.dart' as p;
 
 import 'theme.dart';
@@ -341,8 +342,8 @@ class LocalConfig {
   }
 
   static Future<bool> setDevice(Device device) async {
-    // print(
-    //     'setDevice ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
+    dev.log(
+        'setDevice ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
     if (device.uniqueId.isEmpty) {
       throw Exception('save device failed, uniqueId is empty');
     }

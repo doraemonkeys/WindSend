@@ -437,7 +437,8 @@ class Device {
   Future<Device> pingRelay2(String host, int port, String? secretKey,
       {Duration? timeout}) async {
     final d = clone();
-    d.relayServerAddress = '$host:$port';
+    d.relayServerAddress = hostPortToAddress(host, port);
+
     if (secretKey != relaySecretKey) {
       await d.setRelaySecretKey(secretKey);
     }

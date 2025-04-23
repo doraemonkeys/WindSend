@@ -94,7 +94,8 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               changeRelayConfig: (host, port, password) {
                 setState(() {
                   // print('changeRelayConfig: $host $port $password');
-                  widget.device.relayServerAddress = '$host:$port';
+                  widget.device.relayServerAddress =
+                      hostPortToAddress(host, port);
                   final cache = saltCache['$host-$port-$password'];
                   if (cache != null) {
                     // print('setRelayKdfCache: ${cache.kdfSecretB64}');

@@ -527,8 +527,16 @@ Future<bool> directoryIsEmpty(String path) async {
 (String host, int port) parseHostAndPort(String hostAndPort,
     {int? defaultPort}) {
   final hostAndPortList = hostAndPort.split(':');
-  if (hostAndPortList.length == 2) {
-    return (hostAndPortList[0], int.parse(hostAndPortList[1]));
+  if (hostAndPortList.length >= 2) {
+    var host = hostAndPortList.sublist(0, hostAndPortList.length - 1).join(':');
+    final port = int.parse(hostAndPortList.last);
+    if (host.startsWith('[')) {
+      host = host.replaceFirst('[', '').replaceFirst(']', '');
+      if (!isIPv6Address(host)) {
+        throw Exception('invalid host: $host');
+      }
+    }
+    return (host, port);
   }
   if (hostAndPort.startsWith('https://')) {
     return (hostAndPort.substring(8), 443);
@@ -630,4 +638,16 @@ String formatBytes(int bytes, {int decimals = 1, bool base1000 = false}) {
 
   // Return the formatted value followed by the appropriate unit
   return '$formattedValue ${units[i]}';
+}
+
+bool isIPv6Address(String address) {
+  return address.contains(':');
+}
+
+String hostPortToAddress(String host, int port) {
+  if (isIPv6Address(host)) {
+    host = host.replaceFirst('[', '').replaceFirst(']', '');
+    return '[$host]:$port';
+  }
+  return '$host:$port';
 }
