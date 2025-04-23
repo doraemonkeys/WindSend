@@ -256,9 +256,14 @@ async fn set_relay_server_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
 
     use crate::language::{LanguageKey, translate};
     use crate::utils::inform;
-    inform("", translate(LanguageKey::SettingSuccess), None);
 
-    if req.enable_relay {
-        crate::relay::run::tick_relay();
+    if req.enable_relay && crate::relay::run::tick_relay() {
+        inform("", translate(LanguageKey::SettingSuccess), None);
+    } else {
+        inform(
+            translate(LanguageKey::EffectiveAfterProgramRestart),
+            translate(LanguageKey::SettingSuccess),
+            None,
+        );
     }
 }

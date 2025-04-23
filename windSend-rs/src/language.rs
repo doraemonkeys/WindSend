@@ -71,6 +71,7 @@ pub enum LanguageKey {
     RelayServerNotConnected,
     RelayDisabled,
     SettingSuccess,
+    EffectiveAfterProgramRestart,
 }
 
 impl LanguageKey {
@@ -158,6 +159,10 @@ lazy_static! {
         ),
         (LanguageKey::RelayDisabled, String::from("Relay Disabled")),
         (LanguageKey::SettingSuccess, String::from("Setting Success")),
+        (
+            LanguageKey::EffectiveAfterProgramRestart,
+            String::from("Effective after program restart")
+        ),
     ]
     .into_iter()
     .collect();
@@ -221,6 +226,10 @@ lazy_static! {
         ),
         (LanguageKey::RelayDisabled, String::from("中转未启用")),
         (LanguageKey::SettingSuccess, String::from("设置成功")),
+        (
+            LanguageKey::EffectiveAfterProgramRestart,
+            String::from("程序重启后生效")
+        ),
     ]
     .into_iter()
     .collect();

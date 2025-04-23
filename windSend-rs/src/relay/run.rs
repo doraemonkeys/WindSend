@@ -47,13 +47,19 @@ use std::sync::OnceLock;
 static RUN_RELAY_LISTENER_ONCE: std::sync::Once = std::sync::Once::new();
 static TRY_TO_CONNECT_RELAY_SERVER: OnceLock<tokio::sync::watch::Sender<()>> = OnceLock::new();
 
-pub fn tick_relay() {
-    RUN_RELAY_LISTENER_ONCE.call_once(move || {
+pub fn tick_relay() -> bool {
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::Ordering;
+    let is_first_run = AtomicBool::new(false);
+
+    RUN_RELAY_LISTENER_ONCE.call_once(|| {
         let (tx, rx) = tokio::sync::watch::channel(());
         crate::RUNTIME.spawn(run_relay_listener(rx));
         TRY_TO_CONNECT_RELAY_SERVER.set(tx).unwrap();
+        is_first_run.store(true, Ordering::Relaxed);
     });
 
     let tx = TRY_TO_CONNECT_RELAY_SERVER.get().unwrap();
     tx.send(()).ok();
+    is_first_run.load(Ordering::Relaxed)
 }
