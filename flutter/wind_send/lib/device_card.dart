@@ -146,13 +146,11 @@ class DeviceCard extends StatefulWidget {
 }
 
 class _DeviceCardState extends State<DeviceCard> {
-  late Device _device;
-
   @override
   void initState() {
-    _device = widget.device;
+    // print('DeviceCard initState: ${widget.device.targetDeviceName}');
     super.initState();
-    _device.initConnectionState();
+    widget.device.initConnectionState();
   }
 
   @override
@@ -163,27 +161,28 @@ class _DeviceCardState extends State<DeviceCard> {
       // shadowColor: Theme.of(context).colorScheme.secondaryContainer,
       margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
       child: ExpansionTile(
-        key: ValueKey('${_device.targetDeviceName}${_device.unFold}'),
+        key: ValueKey(
+            '${widget.device.targetDeviceName}${widget.device.unFold}'),
         title: GestureDetector(
           onLongPress: () {
-            deviceItemLongPressDialog(context, _device.targetDeviceName);
+            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
           },
           child: Text(
-            _device.targetDeviceName,
+            widget.device.targetDeviceName,
             textAlign: TextAlign.center,
           ),
         ),
         leading: const Icon(Icons.computer),
         subtitle: GestureDetector(
           onLongPress: () {
-            deviceItemLongPressDialog(context, _device.targetDeviceName);
+            deviceItemLongPressDialog(context, widget.device.targetDeviceName);
           },
-          child: Text(_device.iP, textAlign: TextAlign.center),
+          child: Text(widget.device.iP, textAlign: TextAlign.center),
         ),
-        initiallyExpanded: _device.unFold,
+        initiallyExpanded: widget.device.unFold,
         onExpansionChanged: (value) {
-          _device.unFold = value;
-          LocalConfig.setDevice(_device);
+          widget.device.unFold = value;
+          LocalConfig.setDevice(widget.device);
           // widget.saveChange(widget.device);
         },
         shape: RoundedRectangleBorder(
@@ -203,10 +202,10 @@ class _DeviceCardState extends State<DeviceCard> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => TextEditPage(
-                      device: _device,
+                      device: widget.device,
                       onChanged: () => setState(() {
                         // widget.saveChange(widget.device);
-                        LocalConfig.setDevice(_device);
+                        LocalConfig.setDevice(widget.device);
                       }),
                     ),
                   ),
@@ -215,7 +214,7 @@ class _DeviceCardState extends State<DeviceCard> {
             ),
           ],
         ),
-        children: deviceItemChilden(context, _device, (Device d) {
+        children: deviceItemChilden(context, widget.device, (Device d) {
           setState(() {
             // widget.saveChange(d);
             LocalConfig.setDevice(d);
@@ -239,7 +238,7 @@ class _DeviceCardState extends State<DeviceCard> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => DeviceSettingPage(
-                      device: _device,
+                      device: widget.device,
                       deviceNameValidator: (BuildContext context) =>
                           Device.deviceNameValidator(context, widget.devices),
                     ),
@@ -247,7 +246,7 @@ class _DeviceCardState extends State<DeviceCard> {
                 );
                 setState(() {
                   // widget.saveChange(widget.device);
-                  LocalConfig.setDevice(_device);
+                  LocalConfig.setDevice(widget.device);
                 });
               },
               // child: Text(context.formatString(AppLocale.editDeviceItem, [])),

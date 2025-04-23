@@ -723,7 +723,7 @@ class _MainBodyState extends State<MainBody> {
           itemBuilder: (context, index) {
             dev.log('build MainBody DeviceCard,index: $index');
             return DeviceCard(
-              key: ValueKey(widget.devices[index].toJson()),
+              key: ValueKey(widget.devices[index].uniqueId),
               device: widget.devices[index],
               devices: widget.devices,
               // saveChange: (device) async {

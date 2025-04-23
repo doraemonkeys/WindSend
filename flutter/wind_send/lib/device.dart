@@ -438,7 +438,8 @@ class Device {
       {Duration? timeout}) async {
     final d = clone();
     d.relayServerAddress = hostPortToAddress(host, port);
-
+    // print(
+    //     'pingRelay2: $host $port $secretKey relayServerAddress: ${d.relayServerAddress}');
     if (secretKey != relaySecretKey) {
       await d.setRelaySecretKey(secretKey);
     }
@@ -736,7 +737,7 @@ class Device {
     if (decryptedBodyStr != 'pong') {
       throw Exception('pong error');
     }
-    dev.log('device: $targetDeviceName, direct ping ok');
+    dev.log('device: $targetDeviceName,host: $iP, direct ping ok');
     refState().tryDirectConnectErr = Future.value(null);
   }
 

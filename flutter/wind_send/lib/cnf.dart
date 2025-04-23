@@ -343,7 +343,7 @@ class LocalConfig {
 
   static Future<bool> setDevice(Device device) async {
     dev.log(
-        'setDevice ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
+        'save Device ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
     if (device.uniqueId.isEmpty) {
       throw Exception('save device failed, uniqueId is empty');
     }
