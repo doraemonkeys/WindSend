@@ -211,11 +211,18 @@ version: channel stable
 
 ```shell
 cd flutter/wind_send
-flutter build apk --split-per-abi --release
+
+flutter build windows --release
 flutter build linux --release
 flutter build macos --release
-flutter build windows --release
 ```
+
+在 flutter/wind_send/android/app 目录下创建 key.properties 文件，添加app签名信息与 store.jks 文件路径。
+
+```shell
+flutter build apk --split-per-abi --release
+```
+
 
 ### Rust
 

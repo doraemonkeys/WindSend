@@ -200,10 +200,16 @@ version: channel stable
 
 ```shell
 cd flutter/wind_send
-flutter build apk --split-per-abi --release
+
+flutter build windows --release
 flutter build linux --release
 flutter build macos --release
-flutter build windows --release
+```
+
+Create a key.properties file in the flutter/wind_send/android/app directory, add app signing information and store.jks file path.
+
+```shell
+flutter build apk --split-per-abi --release
 ```
 
 ### Rust
