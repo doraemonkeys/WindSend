@@ -599,13 +599,13 @@ class _MainBodyState extends State<MainBody> {
         )
         .listen((_) {}, onError: handleOnError);
 
-    ShareDataModel()
-        .shared
-        .then(
-          handleSharedMediaFile,
-          onError: handleOnError,
-        )
-        .catchError(handleOnError);
+    ShareDataModel().shared?.then(
+      (items) {
+        ShareDataModel().shared = null;
+        handleSharedMediaFile(items);
+      },
+      onError: handleOnError,
+    ).catchError(handleOnError);
     // -------------------------------- share --------------------------------
   }
 
