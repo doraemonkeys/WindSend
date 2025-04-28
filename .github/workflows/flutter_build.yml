@@ -1,0 +1,126 @@
+name: WindSend Flutter Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    # runs-on: [ubuntu-latest, ubuntu-22.04]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags || true
+          git tag --sort=-creatordate | head -n 1
+
+      # 缓存 cargo 依赖
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-git-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: windSend-rs/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-unknown-linux-gnu
+      - name: rustup show
+        run: rustup show
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "adopt"
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Install dependencies on Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxdo-dev libappindicator3-dev
+          sudo apt-get install -y pkg-config libssl-dev build-essential linux-libc-dev
+          sudo apt-get install -y musl-dev musl-tools
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Print Flutter Info
+        run: |
+          flutter --version
+          flutter doctor
+
+      # download flutter dependencies(to generate pubspec.lock)
+      - name: Download Flutter Dependencies
+        working-directory: flutter/wind_send
+        run: flutter pub get
+      # cache flutter build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            flutter/wind_send/build/
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Cearate Key Store
+        run: echo "$SIGNING_KEY" | base64 -d >flutter/wind_send/android/app/key.jks
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+
+      - name: Run Build Script
+        env:
+          CI_RUNNING: true # for build script
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_PATH: key.jks
+        working-directory: ./
+        run: |
+          chmod +x ./*.sh
+          ./build_android.sh
+        # generate test zip file
+        # run: |
+        #   mkdir -p ./bin
+        #   echo "Hello, World!" > ./bin/test.txt
+        #   zip -r ./bin/test.zip ./bin/test.txt
+        #   echo "Hello, World!" > ./bin/test.apk
+
+      - name: Archive artifacts on Ubuntu latest
+        id: build_archive1
+        uses: actions/upload-artifact@v4
+        with:
+          name: WindSend-Archives-ubuntu-latest
+          path: |
+            ./bin/*.zip
+            ./bin/*.apk
+          if-no-files-found: error
