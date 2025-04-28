@@ -36,12 +36,12 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   shared_preferences: ^2.2.2
-  flutter_localization: ^0.2.0
+  flutter_localization: ^0.3.2
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
-  file_picker: 8.1.4
+  file_picker: ^10.1.2
   receive_sharing_intent: ^1.6.7
-  permission_handler: ^11.1.0
+  permission_handler: ^12.0.0+1
   convert: ^3.1.1
   settings_ui: ^2.0.2
   url_launcher: ^6.2.2
@@ -60,7 +60,7 @@ dependencies:
   super_clipboard: ^0.8.24
   network_info_plus: ^6.1.1
   collection: ^1.18.0
-  share_plus: ^10.1.3
+  share_plus: ^11.0.0
   fluttertoast: ^8.2.10
   # open_filex: ^4.6.0
   open_filex:
