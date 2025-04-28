@@ -473,7 +473,7 @@ class LocalConfig {
 
 class ShareDataModel {
   late Stream<List<SharedMediaFile>> sharedStream;
-  late Future<List<SharedMediaFile>> shared;
+  Future<List<SharedMediaFile>>? shared;
 
   static late ShareDataModel _instance;
 
