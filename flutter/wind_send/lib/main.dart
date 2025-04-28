@@ -600,9 +600,9 @@ class _MainBodyState extends State<MainBody> {
         .listen((_) {}, onError: handleOnError);
 
     ShareDataModel().shared?.then(
-      (items) {
+      (items) async {
         ShareDataModel().shared = null;
-        handleSharedMediaFile(items);
+        await handleSharedMediaFile(items);
       },
       onError: handleOnError,
     ).catchError(handleOnError);
