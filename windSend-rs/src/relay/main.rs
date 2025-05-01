@@ -251,12 +251,16 @@ async fn handle_request(
     use tokio::time::Duration;
     use tracing::{debug, error};
     const READ_TIMEOUT_DURATION: Duration = Duration::from_secs(180);
+    let mut last_req_is_relay = false;
 
     loop {
         debug!("waiting for relay server request");
 
         let read_future = CommonReqHead::read_from(&mut conn, cipher.as_ref());
-        let read_result = tokio::time::timeout(READ_TIMEOUT_DURATION, read_future).await;
+        let read_result = match last_req_is_relay {
+            false => tokio::time::timeout(READ_TIMEOUT_DURATION, read_future).await,
+            true => tokio::time::timeout(Duration::from_secs(3), read_future).await,
+        };
         let common_req_head = match read_result {
             Ok(Ok(head)) => head,
             Ok(Err(_)) => return,
@@ -266,8 +270,11 @@ async fn handle_request(
             }
         };
 
+        last_req_is_relay = false;
+
         match common_req_head.action {
             Action::Relay => {
+                last_req_is_relay = true;
                 conn = match handle_relay(conn, cipher.as_ref()).await {
                     Ok(conn) => conn,
                     Err(_) => return,
