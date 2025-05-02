@@ -475,13 +475,13 @@ class ShareDataModel {
   late Stream<List<SharedMediaFile>> sharedStream;
   Future<List<SharedMediaFile>>? shared;
 
-  static late ShareDataModel _instance;
+  static ShareDataModel? _instance;
 
   static void initInstance(
     Stream<List<SharedMediaFile>> sharedStream, {
     required Future<List<SharedMediaFile>> shared,
   }) {
-    _instance = ShareDataModel._internal(
+    _instance ??= ShareDataModel._internal(
       sharedStream,
       shared: shared,
     );
@@ -493,7 +493,7 @@ class ShareDataModel {
   });
 
   factory ShareDataModel() {
-    return _instance;
+    return _instance!;
   }
 }
 
