@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 // import 'dart:isolate';
@@ -553,6 +554,23 @@ class _MainBodyState extends State<MainBody> {
           final shareSuccessMsg = context.formatString(
               AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
 
+          var lastSharedMedia = LocalConfig.lastSharedMedia;
+          if (lastSharedMedia != null &&
+              lastSharedMedia.length == shared.length) {
+            var same = true;
+            for (var i = 0; i < lastSharedMedia.length; i++) {
+              if (lastSharedMedia[i] != jsonEncode(shared[i].toMap())) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              return ToastResult(
+                message: shareSuccessMsg,
+              );
+            }
+          }
+
           List<String> fileList = [];
           String? text;
           for (var element in shared) {
@@ -593,6 +611,7 @@ class _MainBodyState extends State<MainBody> {
               await defaultDevice.doPasteTextAction(text: text);
             }
           }
+          await LocalConfig.setLastSharedMedia(shared);
           return ToastResult(
             message: shareSuccessMsg,
           );

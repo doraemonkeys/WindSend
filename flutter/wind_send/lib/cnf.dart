@@ -229,6 +229,20 @@ class LocalConfig {
     return await _sp.setString(_imageSavePathKey, value);
   }
 
+  /// last shared media
+  static List<String>? get lastSharedMedia {
+    final values = _sp.getStringList('LastSharedMedia');
+    if (values == null) {
+      return null;
+    }
+    return values;
+  }
+
+  static Future<bool> setLastSharedMedia(List<SharedMediaFile> value) async {
+    return await _sp.setStringList(
+        'LastSharedMedia', value.map((e) => json.encode(e.toMap())).toList());
+  }
+
   /// Brightness
   static Brightness get brightness =>
       _sp.getString('Theme') == 'dark' ? Brightness.dark : Brightness.light;

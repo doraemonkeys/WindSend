@@ -43,7 +43,7 @@ dependencies:
   receive_sharing_intent: 
     git:
       url: https://github.com/Strime/receive_sharing_intent
-      ref: master
+      ref: 7880e3e28bcf1ec50c100f1d19b349fc9506768e
   permission_handler: ^11.1.0
   convert: ^3.1.1
   settings_ui: ^2.0.2
