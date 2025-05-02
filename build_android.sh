@@ -17,6 +17,8 @@ if [ -n "$WINDSEND_PROJECT_VERSION" ]; then
     ./version.sh
 fi
 
+echo "Building Android APK..."
+
 ######################################################################################
 
 # Press Enter to continue building WindSend Flutter for Android
