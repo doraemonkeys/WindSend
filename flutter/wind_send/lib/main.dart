@@ -52,21 +52,6 @@ class _MyAppState extends State<MyApp> {
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
   late AppColorSeed colorSelected;
-  List<Device> devices = LocalConfig.devices;
-
-  // Do not depend on LocalConfig.devices,
-  // because the modification of LocalConfig may be asynchronous
-  void devicesRebuild([List<Device>? ds]) {
-    dev.log('devicesRebuild');
-    // for (var device in devices) {
-    //   print('device3333: ${device.targetDeviceName}');
-    // }
-    setState(() {
-      if (ds != null) {
-        devices = ds;
-      }
-    });
-  }
 
   // Localization is not initialized here, so context.formatString cannot be used
   @override
@@ -177,14 +162,12 @@ class _MyAppState extends State<MyApp> {
             });
           });
         },
-        devices: devices,
-        devicesRebuild: devicesRebuild,
       ),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
   // final bool useLightMode;
   final AppColorSeed colorSelected;
 
@@ -193,8 +176,6 @@ class MyHomePage extends StatelessWidget {
   final List<Locale> languageCodes;
   final Function(Locale) onLanguageChanged;
   final Function(bool) onFollowSystemThemeChanged;
-  final List<Device> devices;
-  final void Function([List<Device>?]) devicesRebuild;
 
   const MyHomePage({
     super.key,
@@ -204,13 +185,31 @@ class MyHomePage extends StatelessWidget {
     required this.languageCodes,
     required this.onLanguageChanged,
     required this.onFollowSystemThemeChanged,
-    required this.devices,
-    required this.devicesRebuild,
   });
 
-  // @override
-  // State<MyHomePage> createState() => MyHomePageState();
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
 
+class _MyHomePageState extends State<MyHomePage> {
+  // Do not put List<Device> in _MyAppState
+  List<Device> devices = LocalConfig.devices;
+
+  // Do not depend on LocalConfig.devices,
+  // because the modification of LocalConfig may be asynchronous
+  void devicesRebuild([List<Device>? ds]) {
+    dev.log('devicesRebuild');
+    // for (var device in devices) {
+    //   print('device3333: ${device.targetDeviceName}');
+    // }
+    setState(() {
+      if (ds != null) {
+        devices = ds;
+      }
+    });
+  }
+
+  // @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -219,16 +218,16 @@ class MyHomePage extends StatelessWidget {
         title: Text(context.formatString(AppLocale.appBarTitle, [])),
         actions: [
           _BrightnessButton(
-            handleBrightnessChange: handleBrightnessChange,
+            handleBrightnessChange: widget.handleBrightnessChange,
           ),
           _ColorSeedButton(
-            handleColorSelect: handleColorSelect,
-            colorSelected: colorSelected,
+            handleColorSelect: widget.handleColorSelect,
+            colorSelected: widget.colorSelected,
           ),
           _BuildPopupMenuButton(
-            languageCodes: languageCodes,
-            onLanguageChanged: onLanguageChanged,
-            onFollowSystemThemeChanged: onFollowSystemThemeChanged,
+            languageCodes: widget.languageCodes,
+            onLanguageChanged: widget.onLanguageChanged,
+            onFollowSystemThemeChanged: widget.onFollowSystemThemeChanged,
             devices: devices,
             devicesRebuild: devicesRebuild,
           ),
