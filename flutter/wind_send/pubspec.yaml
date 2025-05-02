@@ -39,7 +39,7 @@ dependencies:
   flutter_localization: ^0.2.0
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
-  file_picker: 8.1.4
+  file_picker: ^10.1.2
   receive_sharing_intent: ^1.8.1
   permission_handler: ^11.1.0
   convert: ^3.1.1
@@ -60,7 +60,7 @@ dependencies:
   super_clipboard: ^0.8.24
   network_info_plus: ^6.1.1
   collection: ^1.18.0
-  share_plus: ^10.1.3
+  share_plus: ^11.0.0
   fluttertoast: ^8.2.10
   # open_filex: ^4.6.0
   open_filex:
