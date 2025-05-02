@@ -62,10 +62,11 @@ class CustomToast2 extends StatelessWidget {
                     icon: const Icon(Icons.share, color: Colors.white),
                     onPressed: () {
                       if (shareFile.isNotEmpty) {
-                        Share.shareXFiles(
-                            shareFile.map((e) => XFile(e)).toList());
+                        SharePlus.instance.share(ShareParams(
+                            files: shareFile.map((e) => XFile(e)).toList()));
                       } else if (shareContent.isNotEmpty) {
-                        Share.share(shareContent);
+                        SharePlus.instance
+                            .share(ShareParams(text: shareContent));
                       }
                     },
                   ),
