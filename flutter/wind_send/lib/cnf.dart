@@ -481,10 +481,6 @@ class ShareDataModel {
     Stream<List<SharedMediaFile>> sharedStream, {
     required Future<List<SharedMediaFile>> shared,
   }) {
-    if (_instance != null) {
-      _instance!.sharedStream = sharedStream;
-      return;
-    }
     _instance ??= ShareDataModel._internal(
       sharedStream,
       shared: shared,

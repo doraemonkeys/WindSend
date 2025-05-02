@@ -52,8 +52,6 @@ class _MyAppState extends State<MyApp> {
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
   late AppColorSeed colorSelected;
-  // Add a flag to track if the initial share has been handled
-  bool _initialShareHandled = false;
 
   // Localization is not initialized here, so context.formatString cannot be used
   @override
@@ -92,11 +90,6 @@ class _MyAppState extends State<MyApp> {
         shareStream,
         shared: shareFuture,
       );
-      if (_initialShareHandled) {
-        ShareDataModel().shared = null;
-      }
-
-      _initialShareHandled = true;
     }
     // -------------------------------- share --------------------------------
 

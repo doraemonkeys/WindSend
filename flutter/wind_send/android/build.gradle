@@ -14,10 +14,10 @@ subprojects {
                 || project.plugins.hasPlugin("com.android.library")) {
 
             if (project.name == "receive_sharing_intent") {
-                project.android.compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
-                }
+                // project.android.compileOptions {
+                //     sourceCompatibility = JavaVersion.VERSION_17
+                //     targetCompatibility = JavaVersion.VERSION_17
+                // }
             }
         }
     }
