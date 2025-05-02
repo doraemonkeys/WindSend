@@ -29,7 +29,7 @@ import 'web.dart';
 import 'cnf.dart';
 import 'protocol/protocol.dart';
 import 'file_picker_service.dart';
-import 'main.dart';
+// import 'main.dart';
 import 'protocol/relay/handshake.dart';
 import 'socket.dart';
 
@@ -380,7 +380,7 @@ class Device {
     var directConnectErr = await state.tryDirectConnectErr;
     var lastDirectConnectTime = state.lastTryDirectConnectTime!;
     dev.log(
-        'device: $targetDeviceName, directConnectErr: $directConnectErr, lastDirectConnectTime: $lastDirectConnectTime');
+        'connectAuto device: $targetDeviceName, directConnectErr: $directConnectErr, lastDirectConnectTime: $lastDirectConnectTime');
     // Within 50ms
     if (DateTime.now().difference(lastDirectConnectTime).inMilliseconds < 50) {
       if (directConnectErr == null) {
@@ -900,7 +900,8 @@ class Device {
   /// 1. Copied content
   /// 2. Downloaded file list
   /// 3. The actual save path of the files(if too many files, return empty list)
-  Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction({
+  Future<(String?, List<DownloadInfo>, List<String>)> doCopyAction(
+    BuildContext Function()? getContext, {
     Duration connectTimeout = const Duration(seconds: 2),
     SendPort? progressSendPort,
   }) async {
@@ -959,6 +960,7 @@ class Device {
       List<DownloadInfo> respPaths =
           respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();
       var realSavePaths = await _downloadFiles(
+        getContext,
         respPaths,
         respHead.totalFileSize!,
         progressSendPort: progressSendPort,
@@ -1072,6 +1074,7 @@ class Device {
   }
 
   Future<List<String>> _downloadFiles(
+    BuildContext Function()? getContext,
     List<DownloadInfo> targetItems,
     int totalFileSize, {
     SendPort? progressSendPort,
@@ -1085,7 +1088,7 @@ class Device {
         enableRelay &&
         stateStatic.tryDirectConnectErr != null) {
       directFirst = true;
-      var ctx = appWidgetKey.currentContext;
+      var ctx = getContext?.call();
       if (ctx != null && ctx.mounted) {
         await alertDialogFunc(
           ctx,
@@ -1220,6 +1223,7 @@ class Device {
 
   /// Send files or dirs.
   Future<void> doSendAction(
+    BuildContext Function()? getContext,
     List<String> paths, {
     // key: filePath value: relativeSavePath
     Map<String, String>? fileRelativeSavePath,
@@ -1306,7 +1310,7 @@ class Device {
 
       if (dirListError.isNotEmpty) {
         bool isCancel = false;
-        var ctx = appWidgetKey.currentContext;
+        var ctx = getContext?.call();
         if (ctx != null && ctx.mounted) {
           await alertDialogFunc(
               ctx, Text(ctx.formatString(AppLocale.continueWithError, [])),
@@ -1328,7 +1332,7 @@ class Device {
         enableRelay &&
         stateStatic.tryDirectConnectErr != null) {
       directFirst = true;
-      var ctx = appWidgetKey.currentContext;
+      var ctx = getContext?.call();
       if (ctx != null && ctx.mounted) {
         await alertDialogFunc(
           ctx,
@@ -1468,7 +1472,8 @@ class Device {
   // ============================ super_clipboard code  ============================
 
   /// return true indicates that the clipboard is text
-  Future<bool> doPasteClipboardAction({
+  Future<bool> doPasteClipboardAction(
+    BuildContext Function()? getContext, {
     Duration timeout = const Duration(seconds: 2),
   }) async {
     final clipboard = SystemClipboard.instance;
@@ -1497,7 +1502,7 @@ class Device {
     if (fileLists.isNotEmpty) {
       // clear clipboard
       await clipboard.write([]);
-      await doSendAction(fileLists);
+      await doSendAction(getContext, fileLists);
       return false;
     }
 

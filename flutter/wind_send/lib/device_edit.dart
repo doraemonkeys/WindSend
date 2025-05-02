@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter/services.dart';
-import 'package:wind_send/main.dart';
+// import 'package:wind_send/main.dart';
 // import 'package:filesaverz/filesaverz.dart';
 import 'dart:io' show Platform;
 import 'package:wind_send/protocol/relay/handshake.dart';
@@ -106,6 +106,8 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                 });
               },
               testRelayConnection: (host, port, password) async {
+                final invalidSecretKeyError =
+                    context.formatString(AppLocale.invalidSecretKeyError, []);
                 try {
                   final testD = await widget.device.pingRelay2(
                       host, port, password,
@@ -114,8 +116,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
                   return null;
                 } catch (e) {
                   if (e is HandshakeAuthFailedException) {
-                    return appWidgetKey.currentContext!
-                        .formatString(AppLocale.invalidSecretKeyError, []);
+                    return invalidSecretKeyError;
                   }
                   return '$e';
                 }

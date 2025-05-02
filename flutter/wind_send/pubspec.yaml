@@ -40,7 +40,7 @@ dependencies:
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
   file_picker: 8.1.4
-  receive_sharing_intent: ^1.6.7
+  receive_sharing_intent: ^1.8.1
   permission_handler: ^11.1.0
   convert: ^3.1.1
   settings_ui: ^2.0.2

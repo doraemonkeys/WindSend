@@ -27,7 +27,7 @@ import 'toast.dart';
 
 const String appName = 'WindSend';
 // bool _showRefreshCompleteIndicator = false;
-final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
+// final GlobalKey<MyAppState> appWidgetKey = GlobalKey();
 
 Future<void> init() async {
   // Ensure the binding is initialized before calling any Flutter plugins
@@ -53,6 +53,7 @@ class _MyAppState extends State<MyApp> {
   late ThemeMode themeMode;
   late AppColorSeed colorSelected;
 
+  // Localization is not initialized here, so context.formatString cannot be used
   @override
   void initState() {
     // language
@@ -187,10 +188,11 @@ class MyHomePage extends StatefulWidget {
   });
 
   @override
-  State<MyHomePage> createState() => MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> {
+  // Do not put List<Device> in _MyAppState
   List<Device> devices = LocalConfig.devices;
 
   // Do not depend on LocalConfig.devices,
@@ -207,10 +209,11 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  // @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: appWidgetKey,
+      // key: appWidgetKey,
       appBar: AppBar(
         title: Text(context.formatString(AppLocale.appBarTitle, [])),
         actions: [
@@ -517,6 +520,12 @@ class _MainBodyState extends State<MainBody> {
           content: Text(err.toString()));
     }
 
+    handleResetError(Object err) {
+      // print('handleOnErrorxxxxx: $err');
+      alertDialogFunc(context, const Text('Reset failed'),
+          content: Text(err.toString()));
+    }
+
     handleSharedMediaFile(List<SharedMediaFile> shared) async {
       if (shared.isEmpty) {
         return;
@@ -533,7 +542,7 @@ class _MainBodyState extends State<MainBody> {
       }
       ReceivePort rp = ReceivePort();
       await DeviceCard.commonActionFuncWithToastr(
-        appWidgetKey.currentContext!,
+        null,
         defaultDevice,
         (Device d) {
           widget.devices[defaultDeviceIndex].iP = d.iP;
@@ -541,6 +550,9 @@ class _MainBodyState extends State<MainBody> {
           widget.onDevicesChange();
         },
         () async {
+          final shareSuccessMsg = context.formatString(
+              AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
+
           List<String> fileList = [];
           String? text;
           for (var element in shared) {
@@ -571,7 +583,7 @@ class _MainBodyState extends State<MainBody> {
             throw 'Unsupported operation, web device only support text';
           }
           if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(fileList,
+            await defaultDevice.doSendAction(() => context, fileList,
                 progressSendPort: rp.sendPort);
           }
           if (text != null) {
@@ -582,12 +594,11 @@ class _MainBodyState extends State<MainBody> {
             }
           }
           return ToastResult(
-            message: appWidgetKey.currentContext?.formatString(
-                    AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
-                'share success',
+            message: shareSuccessMsg,
           );
         },
         progressReceivePort: rp,
+        getContext: () => context,
       );
     }
 
@@ -603,6 +614,7 @@ class _MainBodyState extends State<MainBody> {
       (items) async {
         ShareDataModel().shared = null;
         await handleSharedMediaFile(items);
+        ReceiveSharingIntent.instance.reset().catchError(handleResetError);
       },
       onError: handleOnError,
     ).catchError(handleOnError);

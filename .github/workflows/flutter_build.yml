@@ -103,7 +103,6 @@ jobs:
           KEY_PATH: key.jks
         working-directory: ./
         run: |
-          chmod +x ./*.sh
           ./build_android.sh
         # generate test zip file
         # run: |
