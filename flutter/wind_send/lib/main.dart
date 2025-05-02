@@ -27,7 +27,7 @@ import 'toast.dart';
 
 const String appName = 'WindSend';
 // bool _showRefreshCompleteIndicator = false;
-final GlobalKey<MyHomePageState> appWidgetKey = GlobalKey();
+// final GlobalKey<MyAppState> appWidgetKey = GlobalKey();
 
 Future<void> init() async {
   // Ensure the binding is initialized before calling any Flutter plugins
@@ -52,6 +52,21 @@ class _MyAppState extends State<MyApp> {
   final FlutterLocalization _localization = FlutterLocalization.instance;
   late ThemeMode themeMode;
   late AppColorSeed colorSelected;
+  List<Device> devices = LocalConfig.devices;
+
+  // Do not depend on LocalConfig.devices,
+  // because the modification of LocalConfig may be asynchronous
+  void devicesRebuild([List<Device>? ds]) {
+    dev.log('devicesRebuild');
+    // for (var device in devices) {
+    //   print('device3333: ${device.targetDeviceName}');
+    // }
+    setState(() {
+      if (ds != null) {
+        devices = ds;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -81,14 +96,113 @@ class _MyAppState extends State<MyApp> {
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
-      var shareStream = ReceiveSharingIntent.instance.getMediaStream();
+      handleOnError(Object err) {
+        // print('handleOnErrorxxxxx: $err');
+        alertDialogFunc(context, const Text('Share failed'),
+            content: Text(err.toString()));
+      }
 
-      var shareFuture = ReceiveSharingIntent.instance.getInitialMedia();
+      handleResetError(Object err) {
+        // print('handleOnErrorxxxxx: $err');
+        alertDialogFunc(context, const Text('Reset failed'),
+            content: Text(err.toString()));
+      }
 
-      ShareDataModel.initInstance(
-        shareStream,
-        shared: shareFuture,
-      );
+      handleSharedMediaFile(List<SharedMediaFile> shared) async {
+        if (shared.isEmpty) {
+          return;
+        }
+        var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
+        if (defaultDevice == null) {
+          return;
+        }
+        var defaultDeviceIndex = devices.indexWhere(
+          (element) =>
+              element.targetDeviceName == defaultDevice.targetDeviceName,
+        );
+        if (defaultDeviceIndex == -1) {
+          throw 'unexpect error, default device not found';
+        }
+        ReceivePort rp = ReceivePort();
+        return DeviceCard.commonActionFuncWithToastr(
+          null,
+          defaultDevice,
+          (Device d) {
+            devices[defaultDeviceIndex].iP = d.iP;
+            LocalConfig.setDevice(devices[defaultDeviceIndex]);
+            devicesRebuild();
+          },
+          () async {
+            final shareSuccessMsg = context.formatString(
+                AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
+
+            List<String> fileList = [];
+            String? text;
+            for (var element in shared) {
+              if (element.type == SharedMediaType.file ||
+                  element.type == SharedMediaType.image ||
+                  element.type == SharedMediaType.video) {
+                fileList.add(element.path);
+                continue;
+              }
+              if (element.mimeType == 'text/html') {
+                if (await File(element.path).exists()) {
+                  fileList.add(element.path);
+                } else {
+                  text = element.path;
+                }
+                continue;
+              }
+              if (Platform.isAndroid &&
+                  element.path.startsWith('/') &&
+                  element.path.contains(androidAppPackageName) &&
+                  await File(element.path).exists()) {
+                fileList.add(element.path);
+                continue;
+              }
+              text = element.path;
+            }
+            if (defaultDevice.iP == Device.webIP && text == null) {
+              throw 'Unsupported operation, web device only support text';
+            }
+            if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
+              await defaultDevice.doSendAction(() => context, fileList,
+                  progressSendPort: rp.sendPort);
+            }
+            if (text != null) {
+              if (defaultDevice.iP == Device.webIP) {
+                await defaultDevice.doPasteTextActionWeb(text: text);
+              } else {
+                await defaultDevice.doPasteTextAction(text: text);
+              }
+            }
+            return ToastResult(
+              message: shareSuccessMsg,
+            );
+          },
+          getContext: () => context,
+          progressReceivePort: rp,
+        );
+      }
+
+      ReceiveSharingIntent.instance
+          .getMediaStream()
+          .handleError(handleOnError)
+          .asyncMap(
+            handleSharedMediaFile,
+          )
+          .listen((_) {}, onError: handleOnError);
+
+      ReceiveSharingIntent.instance.getInitialMedia().then(
+        (items) async {
+          await handleSharedMediaFile(items);
+          ReceiveSharingIntent.instance
+              .reset()
+              .then((_) {})
+              .catchError(handleResetError);
+        },
+        onError: handleOnError,
+      ).catchError(handleOnError);
     }
     // -------------------------------- share --------------------------------
 
@@ -161,12 +275,14 @@ class _MyAppState extends State<MyApp> {
             });
           });
         },
+        devices: devices,
+        devicesRebuild: devicesRebuild,
       ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends StatelessWidget {
   // final bool useLightMode;
   final AppColorSeed colorSelected;
 
@@ -175,6 +291,8 @@ class MyHomePage extends StatefulWidget {
   final List<Locale> languageCodes;
   final Function(Locale) onLanguageChanged;
   final Function(bool) onFollowSystemThemeChanged;
+  final List<Device> devices;
+  final void Function([List<Device>?]) devicesRebuild;
 
   const MyHomePage({
     super.key,
@@ -184,47 +302,31 @@ class MyHomePage extends StatefulWidget {
     required this.languageCodes,
     required this.onLanguageChanged,
     required this.onFollowSystemThemeChanged,
+    required this.devices,
+    required this.devicesRebuild,
   });
 
-  @override
-  State<MyHomePage> createState() => MyHomePageState();
-}
-
-class MyHomePageState extends State<MyHomePage> {
-  List<Device> devices = LocalConfig.devices;
-
-  // Do not depend on LocalConfig.devices,
-  // because the modification of LocalConfig may be asynchronous
-  void devicesRebuild([List<Device>? ds]) {
-    dev.log('devicesRebuild');
-    // for (var device in devices) {
-    //   print('device3333: ${device.targetDeviceName}');
-    // }
-    setState(() {
-      if (ds != null) {
-        devices = ds;
-      }
-    });
-  }
+  // @override
+  // State<MyHomePage> createState() => MyHomePageState();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: appWidgetKey,
+      // key: appWidgetKey,
       appBar: AppBar(
         title: Text(context.formatString(AppLocale.appBarTitle, [])),
         actions: [
           _BrightnessButton(
-            handleBrightnessChange: widget.handleBrightnessChange,
+            handleBrightnessChange: handleBrightnessChange,
           ),
           _ColorSeedButton(
-            handleColorSelect: widget.handleColorSelect,
-            colorSelected: widget.colorSelected,
+            handleColorSelect: handleColorSelect,
+            colorSelected: colorSelected,
           ),
           _BuildPopupMenuButton(
-            languageCodes: widget.languageCodes,
-            onLanguageChanged: widget.onLanguageChanged,
-            onFollowSystemThemeChanged: widget.onFollowSystemThemeChanged,
+            languageCodes: languageCodes,
+            onLanguageChanged: onLanguageChanged,
+            onFollowSystemThemeChanged: onFollowSystemThemeChanged,
             devices: devices,
             devicesRebuild: devicesRebuild,
           ),
@@ -506,106 +608,7 @@ class _MainBodyState extends State<MainBody> {
     });
 
     // -------------------------------- share --------------------------------
-    if (!Platform.isAndroid && !Platform.isIOS) {
-      // unsupported platform
-      return;
-    }
 
-    handleOnError(Object err) {
-      // print('handleOnErrorxxxxx: $err');
-      alertDialogFunc(context, const Text('Share failed'),
-          content: Text(err.toString()));
-    }
-
-    handleSharedMediaFile(List<SharedMediaFile> shared) async {
-      if (shared.isEmpty) {
-        return;
-      }
-      var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
-      if (defaultDevice == null) {
-        return;
-      }
-      var defaultDeviceIndex = widget.devices.indexWhere(
-        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
-      );
-      if (defaultDeviceIndex == -1) {
-        throw 'unexpect error, default device not found';
-      }
-      ReceivePort rp = ReceivePort();
-      await DeviceCard.commonActionFuncWithToastr(
-        appWidgetKey.currentContext!,
-        defaultDevice,
-        (Device d) {
-          widget.devices[defaultDeviceIndex].iP = d.iP;
-          LocalConfig.setDevice(widget.devices[defaultDeviceIndex]);
-          widget.onDevicesChange();
-        },
-        () async {
-          List<String> fileList = [];
-          String? text;
-          for (var element in shared) {
-            if (element.type == SharedMediaType.file ||
-                element.type == SharedMediaType.image ||
-                element.type == SharedMediaType.video) {
-              fileList.add(element.path);
-              continue;
-            }
-            if (element.mimeType == 'text/html') {
-              if (await File(element.path).exists()) {
-                fileList.add(element.path);
-              } else {
-                text = element.path;
-              }
-              continue;
-            }
-            if (Platform.isAndroid &&
-                element.path.startsWith('/') &&
-                element.path.contains(androidAppPackageName) &&
-                await File(element.path).exists()) {
-              fileList.add(element.path);
-              continue;
-            }
-            text = element.path;
-          }
-          if (defaultDevice.iP == Device.webIP && text == null) {
-            throw 'Unsupported operation, web device only support text';
-          }
-          if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(fileList,
-                progressSendPort: rp.sendPort);
-          }
-          if (text != null) {
-            if (defaultDevice.iP == Device.webIP) {
-              await defaultDevice.doPasteTextActionWeb(text: text);
-            } else {
-              await defaultDevice.doPasteTextAction(text: text);
-            }
-          }
-          return ToastResult(
-            message: appWidgetKey.currentContext?.formatString(
-                    AppLocale.shareSuccess, [defaultDevice.targetDeviceName]) ??
-                'share success',
-          );
-        },
-        progressReceivePort: rp,
-      );
-    }
-
-    ShareDataModel()
-        .sharedStream
-        .handleError(handleOnError)
-        .asyncMap(
-          handleSharedMediaFile,
-        )
-        .listen((_) {}, onError: handleOnError);
-
-    ShareDataModel().shared?.then(
-      (items) async {
-        ShareDataModel().shared = null;
-        await handleSharedMediaFile(items);
-      },
-      onError: handleOnError,
-    ).catchError(handleOnError);
     // -------------------------------- share --------------------------------
   }
 

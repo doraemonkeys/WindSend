@@ -4,7 +4,7 @@ import 'dart:async';
 // import 'dart:typed_data';
 import 'dart:math';
 import 'dart:isolate';
-// import 'dart:developer' as dev;
+import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -83,14 +83,17 @@ class DeviceCard extends StatefulWidget {
   }
 
   static Future<void> commonActionFuncWithToastr(
-    BuildContext context,
+    BuildContext? context,
     Device device,
     void Function(Device device) onChanged,
     Future<ToastResult> Function() task, {
+    BuildContext Function()? getContext,
     bool showIndicator = true,
     ReceivePort? progressReceivePort,
     String? progressTotalMsg,
   }) async {
+    context ??= getContext!();
+
     ToastResult result;
     // bool isErrored = false;
     var indicatorExited = false;
@@ -148,7 +151,7 @@ class DeviceCard extends StatefulWidget {
 class _DeviceCardState extends State<DeviceCard> {
   @override
   void initState() {
-    // print('DeviceCard initState: ${widget.device.targetDeviceName}');
+    dev.log('DeviceCard initState: ${widget.device.targetDeviceName}');
     super.initState();
     widget.device.initConnectionState();
   }
@@ -320,8 +323,8 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
                 context, device, onChanged, () async {
-              var (copiedText, downloadInfos, realSavePaths) =
-                  await device.doCopyAction(progressSendPort: rp.sendPort);
+              var (copiedText, downloadInfos, realSavePaths) = await device
+                  .doCopyAction(() => context, progressSendPort: rp.sendPort);
               if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
                 saveDeviceWifiBssid(device);
               }
@@ -404,7 +407,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
                   context.formatString(AppLocale.pasteSuccess, []);
               String sendSuccess =
                   context.formatString(AppLocale.sendSuccess, []);
-              Future<bool> f = device.doPasteClipboardAction();
+              Future<bool> f = device.doPasteClipboardAction(() => context);
               return f.then((isText) async {
                 if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
                   saveDeviceWifiBssid(device);
@@ -443,7 +446,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               if (selectedFilePaths.isEmpty) {
                 selectedFilePaths = await device.pickFiles();
               }
-              await device.doSendAction(selectedFilePaths,
+              await device.doSendAction(() => context, selectedFilePaths,
                   progressSendPort: rp.sendPort);
               device.clearTemporaryFiles();
               if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
@@ -462,7 +465,7 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               if (selectedDirPath.isEmpty) {
                 selectedDirPath = await device.pickDir();
               }
-              await device.doSendAction([selectedDirPath],
+              await device.doSendAction(() => context, [selectedDirPath],
                   progressSendPort: rp.sendPort);
               return ToastResult(message: successMsg);
             }, progressReceivePort: rp);
