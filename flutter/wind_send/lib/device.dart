@@ -1475,6 +1475,7 @@ class Device {
   Future<bool> doPasteClipboardAction(
     BuildContext Function()? getContext, {
     Duration timeout = const Duration(seconds: 2),
+    SendPort? progressSendPort,
   }) async {
     final clipboard = SystemClipboard.instance;
     if (clipboard == null) {
@@ -1502,7 +1503,8 @@ class Device {
     if (fileLists.isNotEmpty) {
       // clear clipboard
       await clipboard.write([]);
-      await doSendAction(getContext, fileLists);
+      await doSendAction(getContext, fileLists,
+          progressSendPort: progressSendPort);
       return false;
     }
 

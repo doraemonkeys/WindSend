@@ -401,22 +401,29 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
             ],
           ),
           onTap: () async {
+            ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
-                context, device, onChanged, () {
-              String pasteSuccess =
-                  context.formatString(AppLocale.pasteSuccess, []);
-              String sendSuccess =
-                  context.formatString(AppLocale.sendSuccess, []);
-              Future<bool> f = device.doPasteClipboardAction(() => context);
-              return f.then((isText) async {
-                if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                  saveDeviceWifiBssid(device);
-                }
-                return ToastResult(
-                  message: isText ? pasteSuccess : sendSuccess,
-                );
-              });
-            });
+              context,
+              device,
+              onChanged,
+              () {
+                String pasteSuccess =
+                    context.formatString(AppLocale.pasteSuccess, []);
+                String sendSuccess =
+                    context.formatString(AppLocale.sendSuccess, []);
+                Future<bool> f = device.doPasteClipboardAction(() => context,
+                    progressSendPort: rp.sendPort);
+                return f.then((isText) async {
+                  if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
+                    saveDeviceWifiBssid(device);
+                  }
+                  return ToastResult(
+                    message: isText ? pasteSuccess : sendSuccess,
+                  );
+                });
+              },
+              progressReceivePort: rp,
+            );
           },
         ),
       );
