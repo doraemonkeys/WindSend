@@ -68,6 +68,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  // Localization is not initialized here, so context.formatString cannot be used
   @override
   void initState() {
     // language
@@ -96,113 +97,14 @@ class _MyAppState extends State<MyApp> {
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
-      handleOnError(Object err) {
-        // print('handleOnErrorxxxxx: $err');
-        alertDialogFunc(context, const Text('Share failed'),
-            content: Text(err.toString()));
-      }
+      var shareStream = ReceiveSharingIntent.instance.getMediaStream();
 
-      handleResetError(Object err) {
-        // print('handleOnErrorxxxxx: $err');
-        alertDialogFunc(context, const Text('Reset failed'),
-            content: Text(err.toString()));
-      }
+      var shareFuture = ReceiveSharingIntent.instance.getInitialMedia();
 
-      handleSharedMediaFile(List<SharedMediaFile> shared) async {
-        if (shared.isEmpty) {
-          return;
-        }
-        var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
-        if (defaultDevice == null) {
-          return;
-        }
-        var defaultDeviceIndex = devices.indexWhere(
-          (element) =>
-              element.targetDeviceName == defaultDevice.targetDeviceName,
-        );
-        if (defaultDeviceIndex == -1) {
-          throw 'unexpect error, default device not found';
-        }
-        ReceivePort rp = ReceivePort();
-        return DeviceCard.commonActionFuncWithToastr(
-          null,
-          defaultDevice,
-          (Device d) {
-            devices[defaultDeviceIndex].iP = d.iP;
-            LocalConfig.setDevice(devices[defaultDeviceIndex]);
-            devicesRebuild();
-          },
-          () async {
-            final shareSuccessMsg = context.formatString(
-                AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
-
-            List<String> fileList = [];
-            String? text;
-            for (var element in shared) {
-              if (element.type == SharedMediaType.file ||
-                  element.type == SharedMediaType.image ||
-                  element.type == SharedMediaType.video) {
-                fileList.add(element.path);
-                continue;
-              }
-              if (element.mimeType == 'text/html') {
-                if (await File(element.path).exists()) {
-                  fileList.add(element.path);
-                } else {
-                  text = element.path;
-                }
-                continue;
-              }
-              if (Platform.isAndroid &&
-                  element.path.startsWith('/') &&
-                  element.path.contains(androidAppPackageName) &&
-                  await File(element.path).exists()) {
-                fileList.add(element.path);
-                continue;
-              }
-              text = element.path;
-            }
-            if (defaultDevice.iP == Device.webIP && text == null) {
-              throw 'Unsupported operation, web device only support text';
-            }
-            if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-              await defaultDevice.doSendAction(() => context, fileList,
-                  progressSendPort: rp.sendPort);
-            }
-            if (text != null) {
-              if (defaultDevice.iP == Device.webIP) {
-                await defaultDevice.doPasteTextActionWeb(text: text);
-              } else {
-                await defaultDevice.doPasteTextAction(text: text);
-              }
-            }
-            return ToastResult(
-              message: shareSuccessMsg,
-            );
-          },
-          getContext: () => context,
-          progressReceivePort: rp,
-        );
-      }
-
-      ReceiveSharingIntent.instance
-          .getMediaStream()
-          .handleError(handleOnError)
-          .asyncMap(
-            handleSharedMediaFile,
-          )
-          .listen((_) {}, onError: handleOnError);
-
-      ReceiveSharingIntent.instance.getInitialMedia().then(
-        (items) async {
-          await handleSharedMediaFile(items);
-          ReceiveSharingIntent.instance
-              .reset()
-              .then((_) {})
-              .catchError(handleResetError);
-        },
-        onError: handleOnError,
-      ).catchError(handleOnError);
+      ShareDataModel.initInstance(
+        shareStream,
+        shared: shareFuture,
+      );
     }
     // -------------------------------- share --------------------------------
 
@@ -608,7 +510,115 @@ class _MainBodyState extends State<MainBody> {
     });
 
     // -------------------------------- share --------------------------------
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      // unsupported platform
+      return;
+    }
 
+    handleOnError(Object err) {
+      // print('handleOnErrorxxxxx: $err');
+      alertDialogFunc(context, const Text('Share failed'),
+          content: Text(err.toString()));
+    }
+
+    handleResetError(Object err) {
+      // print('handleOnErrorxxxxx: $err');
+      alertDialogFunc(context, const Text('Reset failed'),
+          content: Text(err.toString()));
+    }
+
+    handleSharedMediaFile(List<SharedMediaFile> shared) async {
+      if (shared.isEmpty) {
+        return;
+      }
+      var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
+      if (defaultDevice == null) {
+        return;
+      }
+      var defaultDeviceIndex = widget.devices.indexWhere(
+        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
+      );
+      if (defaultDeviceIndex == -1) {
+        throw 'unexpect error, default device not found';
+      }
+      ReceivePort rp = ReceivePort();
+      await DeviceCard.commonActionFuncWithToastr(
+        null,
+        defaultDevice,
+        (Device d) {
+          widget.devices[defaultDeviceIndex].iP = d.iP;
+          LocalConfig.setDevice(widget.devices[defaultDeviceIndex]);
+          widget.onDevicesChange();
+        },
+        () async {
+          final shareSuccessMsg = context.formatString(
+              AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
+
+          List<String> fileList = [];
+          String? text;
+          for (var element in shared) {
+            if (element.type == SharedMediaType.file ||
+                element.type == SharedMediaType.image ||
+                element.type == SharedMediaType.video) {
+              fileList.add(element.path);
+              continue;
+            }
+            if (element.mimeType == 'text/html') {
+              if (await File(element.path).exists()) {
+                fileList.add(element.path);
+              } else {
+                text = element.path;
+              }
+              continue;
+            }
+            if (Platform.isAndroid &&
+                element.path.startsWith('/') &&
+                element.path.contains(androidAppPackageName) &&
+                await File(element.path).exists()) {
+              fileList.add(element.path);
+              continue;
+            }
+            text = element.path;
+          }
+          if (defaultDevice.iP == Device.webIP && text == null) {
+            throw 'Unsupported operation, web device only support text';
+          }
+          if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
+            await defaultDevice.doSendAction(() => context, fileList,
+                progressSendPort: rp.sendPort);
+          }
+          if (text != null) {
+            if (defaultDevice.iP == Device.webIP) {
+              await defaultDevice.doPasteTextActionWeb(text: text);
+            } else {
+              await defaultDevice.doPasteTextAction(text: text);
+            }
+          }
+          return ToastResult(
+            message: shareSuccessMsg,
+          );
+        },
+        progressReceivePort: rp,
+        getContext: () => context,
+      );
+    }
+
+    ShareDataModel()
+        .sharedStream
+        .handleError(handleOnError)
+        .asyncMap(
+          handleSharedMediaFile,
+        )
+        .listen((_) {}, onError: handleOnError);
+
+    ShareDataModel().shared?.then(
+      (items) async {
+        ShareDataModel().shared = null;
+        await handleSharedMediaFile(items);
+        ReceiveSharingIntent.instance.reset().catchError(handleResetError);
+      },
+      onError: handleOnError,
+    ).catchError(handleOnError);
     // -------------------------------- share --------------------------------
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -469,6 +470,32 @@ class LocalConfig {
 //     ),
 //   ];
 // }
+
+class ShareDataModel {
+  late Stream<List<SharedMediaFile>> sharedStream;
+  Future<List<SharedMediaFile>>? shared;
+
+  static late ShareDataModel _instance;
+
+  static void initInstance(
+    Stream<List<SharedMediaFile>> sharedStream, {
+    required Future<List<SharedMediaFile>> shared,
+  }) {
+    _instance = ShareDataModel._internal(
+      sharedStream,
+      shared: shared,
+    );
+  }
+
+  ShareDataModel._internal(
+    this.sharedStream, {
+    required this.shared,
+  });
+
+  factory ShareDataModel() {
+    return _instance;
+  }
+}
 
 Future<void> showFirstTimeLocationPermissionDialog(
     BuildContext context, Device device) async {
