@@ -272,5 +272,5 @@ cargo build --release
 
 欢迎贡献！请随时在 [GitHub 仓库](https://github.com/doraemonkeys/WindSend) 提交拉取请求 (Pull Request) 或开启问题 (Issue)。
 
-作者不擅长移动端UI设计与开发，所以如果你有兴趣重构UI或者添加安卓悬浮窗或者添加新功能等，欢迎联系我，我会尽可能提供帮助。
+作者不擅长移动端UI设计与开发，所以如果你有兴趣重构UI或者添加安卓应用快捷开关或者添加新功能等，欢迎联系我，我会尽可能提供帮助。
 
