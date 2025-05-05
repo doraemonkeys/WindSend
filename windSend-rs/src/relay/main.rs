@@ -265,7 +265,11 @@ async fn handle_request(
             Ok(Ok(head)) => head,
             Ok(Err(_)) => return,
             Err(_) => {
-                error!("read relay server request timeout");
+                if last_req_is_relay {
+                    error!("Heartbeat timeout after waiting for the relay to finish");
+                } else {
+                    error!("read relay server request timeout");
+                }
                 return;
             }
         };
