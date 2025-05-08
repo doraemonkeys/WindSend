@@ -39,7 +39,8 @@ dependencies:
   flutter_localization: ^0.2.0
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
-  file_picker: ^10.1.2
+  file_picker: ^10.1.5
+  # https://github.com/ShoutSocial/share_handler/tree/main/share_handler
   receive_sharing_intent: 
     git:
       url: https://github.com/Strime/receive_sharing_intent

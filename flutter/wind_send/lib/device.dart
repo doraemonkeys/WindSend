@@ -1238,7 +1238,7 @@ class Device {
     for (var itemPath in paths) {
       var itemType = await FileSystemEntity.type(itemPath);
       if (itemType == FileSystemEntityType.notFound) {
-        throw Exception('File not found: $itemPath');
+        throw Exception('File or directory not found: $itemPath');
       }
       if (itemType != FileSystemEntityType.directory) {
         allFilePath.add(itemPath);
