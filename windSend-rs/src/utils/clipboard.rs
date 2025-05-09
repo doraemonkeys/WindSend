@@ -150,14 +150,12 @@ impl ClipboardManager {
             #[cfg(target_os = "linux")]
             let files = files
                 .into_iter()
-                .map(|f| {
-                    urlencoding::decode(&f)
-                        .map_err(|e| {
-                            tracing::error!("urlencoding::decode failed, err: {}", e);
-                            e
-                        })
-                        .unwrap_or_default()
-                        .into_owned()
+                .map(|f| match urlencoding::decode(&f) {
+                    Ok(decoded) => decoded.into_owned(),
+                    Err(e) => {
+                        tracing::error!("urlencoding::decode failed, err: {}", e);
+                        f
+                    }
                 })
                 .filter(|f| !f.is_empty())
                 .collect::<Vec<_>>();
@@ -175,5 +173,23 @@ impl ClipboardManager {
         } else {
             Err("Clipboard not initialized".into())
         }
+    }
+}
+
+mod tests {
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_urlencoding() {
+        let url = "file://test.txt中文";
+        let decoded = urlencoding::decode(&url).unwrap();
+        assert_eq!(decoded.into_owned(), "file://test.txt中文");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_urlencoding_decode_failed() {
+        let url = "file://test.txt%E4%B8%AD%E6%96%87";
+        let decoded = urlencoding::decode(&url).unwrap();
+        assert_eq!(decoded.into_owned(), "file://test.txt中文");
     }
 }
