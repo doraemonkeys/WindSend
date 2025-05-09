@@ -11,7 +11,8 @@ import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+// import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:listen_sharing_intent/listen_sharing_intent.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
@@ -515,14 +516,16 @@ class _MainBodyState extends State<MainBody> {
       return;
     }
 
-    handleOnError(Object err) {
+    handleOnError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
+      SharedLogger().logger.e('share failed', error: err, stackTrace: s);
       alertDialogFunc(context, const Text('Share failed'),
           content: Text(err.toString()));
     }
 
-    handleResetError(Object err) {
+    handleResetError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
+      SharedLogger().logger.e('reset failed', error: err, stackTrace: s);
       alertDialogFunc(context, const Text('Reset failed'),
           content: Text(err.toString()));
     }
