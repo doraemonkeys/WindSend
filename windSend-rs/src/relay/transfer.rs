@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+
 pub async fn read_head_from<R, T>(
     conn: &mut R,
     cipher: Option<&crate::utils::encrypt::AesGcmCipher>,
@@ -14,13 +15,26 @@ where
 
     // Read the length of the json
     let mut head_len = [0u8; 4];
-    conn.read_exact(&mut head_len).await.map_err(|e| {
-        error!(
-            "read head({:?}) len failed, err: {}",
-            std::any::type_name::<T>(),
-            e
-        )
-    })?;
+    if let Err(e) = conn.read_exact(&mut head_len).await {
+        match e.kind() {
+            std::io::ErrorKind::UnexpectedEof => {
+                error!(
+                    "read head({:?}) len failed, remote connection closed, err: {}",
+                    std::any::type_name::<T>(),
+                    e
+                );
+            }
+            _ => {
+                error!(
+                    "read head({:?}) len failed, err: {}",
+                    std::any::type_name::<T>(),
+                    e
+                )
+            }
+        }
+        return Err(());
+    }
+
     let head_len = i32::from_le_bytes(head_len);
     if head_len > MAX_HEAD_LEN as i32 || head_len <= 0 {
         error!(
