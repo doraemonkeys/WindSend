@@ -197,7 +197,7 @@ impl FileReceiveSessionManager {
         debug!("uploading file: {}", actual_save_path);
         let dir = std::path::Path::new(&actual_save_path)
             .parent()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path parent error"))?;
+            .ok_or_else(|| std::io::Error::other("path parent error"))?;
         tokio::fs::create_dir_all(dir).await?;
         let file = tokio::fs::OpenOptions::new()
             .create(true)

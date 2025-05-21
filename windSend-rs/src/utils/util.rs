@@ -300,16 +300,16 @@ pub fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::R
         let ret = path
             .as_ref()
             .to_str()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?;
+            .ok_or_else(|| std::io::Error::other("path to str error"))?;
         return Ok(ret.to_string());
     }
     let path = path.as_ref();
     let dir = path
         .parent()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path parent error"))?;
+        .ok_or_else(|| std::io::Error::other("path parent error"))?;
     let name = path
         .file_name()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path file_name error"))?;
+        .ok_or_else(|| std::io::Error::other("path file_name error"))?;
     let name: String = name.to_string_lossy().to_string();
     let file_ext = path
         .extension()
@@ -328,12 +328,11 @@ pub fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::R
         if !new_path.exists() {
             return Ok(new_path
                 .to_str()
-                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "path to str error"))?
+                .ok_or_else(|| std::io::Error::other("path to str error"))?
                 .to_string());
         }
     }
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
+    Err(std::io::Error::other(
         "generate unique filepath error, too many files",
     ))
 }
