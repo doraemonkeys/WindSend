@@ -214,9 +214,10 @@ class Device {
       return null;
     }
     return RelayKdfCache(
-        pwd: relaySecretKey!,
-        saltB64: relayKdfSaltB64!,
-        kdfSecretB64: relayKdfSecretB64!);
+      pwd: relaySecretKey!,
+      saltB64: relayKdfSaltB64!,
+      kdfSecretB64: relayKdfSecretB64!,
+    );
   }
 
   String? get relayKdfSecretB64 => _relayKdfSecretB64;
@@ -227,13 +228,11 @@ class Device {
     if (relaySecretKey != null) {
       // _relayKdfSecretB64 = base64Encode(
       //     aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)));
-      _relayKdfSecretB64 = await compute(
-        (_) {
-          return base64Encode(
-              aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)));
-        },
-        null,
-      );
+      _relayKdfSecretB64 = await compute((_) {
+        return base64Encode(
+          aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)),
+        );
+      }, null);
     }
   }
 
@@ -271,26 +270,27 @@ class Device {
     // Workaround: We cannot set the SNI directly when using SecureSocket.connect.
     // instead, we connect using a regular socket and then secure it. This allows
     // us to set the SNI to whatever we want.
-    return Socket.connect(
-      iP,
-      port,
-      timeout: timeout,
-    ).then((sock) {
-      return SecureSocket.secure(
-        sock,
-        context: context,
-        host: 'fake.windsend.com',
-      );
-    }).timeout(socketFutureTimeout);
+    return Socket.connect(iP, port, timeout: timeout)
+        .then((sock) {
+          return SecureSocket.secure(
+            sock,
+            context: context,
+            host: 'fake.windsend.com',
+          );
+        })
+        .timeout(socketFutureTimeout);
   }
 
   Future<(BroadcastSocket, AesGcm)> handshakeInner({Duration? timeout}) async {
     Duration socketFutureTimeout = resolveSocketFutureTimeout(timeout);
-    final (relayServerHost, relayServerPort) =
-        parseHostAndPort(relayServerAddress);
-    final sock =
-        await Socket.connect(relayServerHost, relayServerPort, timeout: timeout)
-            .timeout(socketFutureTimeout);
+    final (relayServerHost, relayServerPort) = parseHostAndPort(
+      relayServerAddress,
+    );
+    final sock = await Socket.connect(
+      relayServerHost,
+      relayServerPort,
+      timeout: timeout,
+    ).timeout(socketFutureTimeout);
     final sock2 = BroadcastSocket(sock, sock.asBroadcastStream());
     final sharedSecret = await handshake(this, sock2);
     final cipher = AesGcm(sharedSecret);
@@ -364,7 +364,8 @@ class Device {
     bool onlyRelay = false,
   }) async {
     dev.log(
-        'run connectAuto, relayEnabled: $enableRelay, forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout');
+      'run connectAuto, relayEnabled: $enableRelay, forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout',
+    );
     // return _connectAutoRoutine(timeout: timeout);
     if (onlyDirect) {
       return (await connect(timeout: timeout), false);
@@ -380,7 +381,8 @@ class Device {
     var directConnectErr = await state.tryDirectConnectErr;
     var lastDirectConnectTime = state.lastTryDirectConnectTime!;
     dev.log(
-        'connectAuto device: $targetDeviceName, directConnectErr: $directConnectErr, lastDirectConnectTime: $lastDirectConnectTime');
+      'connectAuto device: $targetDeviceName, directConnectErr: $directConnectErr, lastDirectConnectTime: $lastDirectConnectTime',
+    );
     // Within 50ms
     if (DateTime.now().difference(lastDirectConnectTime).inMilliseconds < 50) {
       if (directConnectErr == null) {
@@ -434,8 +436,12 @@ class Device {
     refState().tryRelayErr = Future.value(null);
   }
 
-  Future<Device> pingRelay2(String host, int port, String? secretKey,
-      {Duration? timeout}) async {
+  Future<Device> pingRelay2(
+    String host,
+    int port,
+    String? secretKey, {
+    Duration? timeout,
+  }) async {
     final d = clone();
     d.relayServerAddress = hostPortToAddress(host, port);
     // print(
@@ -532,7 +538,9 @@ class Device {
   }
 
   static String? Function(String?) deviceNameValidator(
-      BuildContext context, List<Device> devices) {
+    BuildContext context,
+    List<Device> devices,
+  ) {
     return (String? value) {
       if (value == null || value.isEmpty) {
         return context.formatString(AppLocale.deviceNameEmptyHint, []);
@@ -563,7 +571,9 @@ class Device {
   }
 
   static String? Function(String?) ipValidator(
-      BuildContext context, bool autoSelect) {
+    BuildContext context,
+    bool autoSelect,
+  ) {
     return (String? value) {
       if (autoSelect) {
         return null;
@@ -585,14 +595,16 @@ class Device {
   }
 
   static String? Function(String?) filePickerPackageNameValidator(
-      BuildContext context) {
+    BuildContext context,
+  ) {
     return (String? value) {
       return null;
     };
   }
 
   static String? Function(String?) certificateAuthorityValidator(
-      BuildContext context) {
+    BuildContext context,
+  ) {
     return (String? value) {
       if (value == null || value.isEmpty) {
         return context.formatString(AppLocale.cannotBeEmpty, ['Certificate']);
@@ -677,8 +689,10 @@ class Device {
   }
 
   Future<void> _pingDevice2(
-      StreamController<String> msgController, Device device,
-      {Duration timeout = const Duration(seconds: 2)}) async {
+    StreamController<String> msgController,
+    Device device, {
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     // print('start pingDevice2: ${device.iP}');
     bool ok;
     try {
@@ -692,9 +706,10 @@ class Device {
     msgController.add(ok ? device.iP : '');
   }
 
-  Future<void> pingDevice(
-      {Duration timeout = const Duration(seconds: 2),
-      String? localDeviceName}) async {
+  Future<void> pingDevice({
+    Duration timeout = const Duration(seconds: 2),
+    String? localDeviceName,
+  }) async {
     // print('checkServer: $ip:$port');
     // var body = utf8.encode('ping');
     // var bodyUint8List = Uint8List.fromList(body);
@@ -718,10 +733,13 @@ class Device {
     await conn.flush();
 
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn)
-        .timeout(timeout, onTimeout: () {
-      conn.destroy();
-      throw Exception('ping timeout');
-    });
+        .timeout(
+          timeout,
+          onTimeout: () {
+            conn.destroy();
+            throw Exception('ping timeout');
+          },
+        );
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       conn.destroy();
       throw UnauthorizedException(respHead.msg ?? '');
@@ -730,8 +748,10 @@ class Device {
       conn.destroy();
       throw Exception('${respHead.msg}');
     }
-    var decryptedBody =
-        cipher.decrypt(Uint8List.fromList(respBody), utf8.encode(aad));
+    var decryptedBody = cipher.decrypt(
+      Uint8List.fromList(respBody),
+      utf8.encode(aad),
+    );
     var decryptedBodyStr = utf8.decode(decryptedBody);
     conn.destroy();
     if (decryptedBodyStr != 'pong') {
@@ -805,14 +825,12 @@ class Device {
   }
 
   static Future<void> _matchDevice(
-      StreamController<Device> msgController, String ip,
-      {Duration timeout = const Duration(seconds: 2)}) async {
+    StreamController<Device> msgController,
+    String ip, {
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     // print('matchDevice: $ip');
-    var device = Device(
-      targetDeviceName: '',
-      iP: ip,
-      secretKey: '',
-    );
+    var device = Device(targetDeviceName: '', iP: ip, secretKey: '');
     SecureSocket conn;
     try {
       conn = await SecureSocket.connect(
@@ -829,7 +847,11 @@ class Device {
       return;
     }
     var headInfo = HeadInfo(
-        globalLocalDeviceName, DeviceAction.matchDevice, 'no need', '');
+      globalLocalDeviceName,
+      DeviceAction.matchDevice,
+      'no need',
+      '',
+    );
     await headInfo.writeToConn(conn);
     await conn.flush();
     // var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -957,8 +979,9 @@ class Device {
     if (respHead.dataType == RespHead.dataTypeFiles) {
       // print('respBody: ${utf8.decode(respBody)}');
       List<dynamic> respPathsMap = jsonDecode(utf8.decode(respBody));
-      List<DownloadInfo> respPaths =
-          respPathsMap.map((e) => DownloadInfo.fromJson(e)).toList();
+      List<DownloadInfo> respPaths = respPathsMap
+          .map((e) => DownloadInfo.fromJson(e))
+          .toList();
       var realSavePaths = await _downloadFiles(
         getContext,
         respPaths,
@@ -1060,8 +1083,10 @@ class Device {
     }
   }
 
-  Future<void> doSendEndConnection(SecureSocket conn,
-      {String? localDeviceName}) async {
+  Future<void> doSendEndConnection(
+    SecureSocket conn, {
+    String? localDeviceName,
+  }) async {
     // await Future.delayed(const Duration(milliseconds: 1000));
     final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
@@ -1094,12 +1119,9 @@ class Device {
           ctx,
           Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
           content: Text(
-            ctx.formatString(
-              AppLocale.fileTooLargeTip,
-              [
-                formatBytes(totalFileSize),
-              ],
-            ),
+            ctx.formatString(AppLocale.fileTooLargeTip, [
+              formatBytes(totalFileSize),
+            ]),
           ),
           onCanceled: () {
             forceDirect = true;
@@ -1157,8 +1179,9 @@ class Device {
         if (item.type == PathType.dir) {
           saveDir = saveDir.replaceAll('/', systemSeparator);
           saveDir = saveDir.replaceAll('\\', systemSeparator);
-          futures.add(Directory(filepath.join(saveDir, baseName))
-              .create(recursive: true));
+          futures.add(
+            Directory(filepath.join(saveDir, baseName)).create(recursive: true),
+          );
           continue;
         }
         // print('download: ${item.toJson()}, saveDir: $saveDir');
@@ -1189,10 +1212,7 @@ class Device {
 
     // Start a new isolate
     // Do not catch Exception, it will be thrown directly
-    final lastRealSavePath = await compute(
-      startDownload,
-      args,
-    );
+    final lastRealSavePath = await compute(startDownload, args);
 
     if (targetItems.length == 1) {
       final clipboard = SystemClipboard.instance;
@@ -1252,10 +1272,7 @@ class Device {
         continue;
       }
       // directory
-      pathInfoMap[itemPath] = PathInfo(
-        itemPath,
-        type: PathType.dir,
-      );
+      pathInfoMap[itemPath] = PathInfo(itemPath, type: PathType.dir);
       var itemPath2 = itemPath;
       if (itemPath2.endsWith('/') || itemPath2.endsWith('\\')) {
         itemPath2 = itemPath2.substring(0, itemPath2.length - 1);
@@ -1271,51 +1288,61 @@ class Device {
 
       final stream = Directory(itemPath2).list(recursive: true);
       List<dynamic> dirListError = [];
-      await stream.handleError((error) {
-        // Handle stream errors, such as permission denied, folder deletion, etc.
-        dirListError.add(error);
-      }).asyncMap((entity) async {
-        try {
-          if (entity is File) {
-            allFilePath.add(entity.path);
-            var itemSize = await entity.length();
-            totalSize += itemSize;
-            // safe check(should not happen,remove later)
-            if (!entity.path.startsWith(itemPath2)) {
-              throw Exception('unexpected file path: ${entity.path}');
+      await stream
+          .handleError((error) {
+            // Handle stream errors, such as permission denied, folder deletion, etc.
+            dirListError.add(error);
+          })
+          .asyncMap((entity) async {
+            try {
+              if (entity is File) {
+                allFilePath.add(entity.path);
+                var itemSize = await entity.length();
+                totalSize += itemSize;
+                // safe check(should not happen,remove later)
+                if (!entity.path.startsWith(itemPath2)) {
+                  throw Exception('unexpected file path: ${entity.path}');
+                }
+                String relativePath = filepath.dirname(
+                  entity.path.substring(itemPath2.length + 1),
+                );
+                fileRelativeSavePath![entity.path] = filepath.join(
+                  filepath.basename(itemPath2),
+                  relativePath == '.' ? '' : relativePath,
+                );
+              } else if (entity is Directory) {
+                // safe check(should not happen,remove later)
+                if (!entity.path.startsWith(itemPath2)) {
+                  throw Exception('unexpected file path: ${entity.path}');
+                }
+                if (await directoryIsEmpty(entity.path)) {
+                  String relativePath = entity.path.substring(
+                    itemPath2.length + 1,
+                  );
+                  emptyDirs.add(
+                    filepath.join(
+                      filepath.basename(itemPath2),
+                      relativePath == '.' ? '' : relativePath,
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              dirListError.add(e);
             }
-            String relativePath =
-                filepath.dirname(entity.path.substring(itemPath2.length + 1));
-            fileRelativeSavePath![entity.path] = filepath.join(
-              filepath.basename(itemPath2),
-              relativePath == '.' ? '' : relativePath,
-            );
-          } else if (entity is Directory) {
-            // safe check(should not happen,remove later)
-            if (!entity.path.startsWith(itemPath2)) {
-              throw Exception('unexpected file path: ${entity.path}');
-            }
-            if (await directoryIsEmpty(entity.path)) {
-              String relativePath = entity.path.substring(itemPath2.length + 1);
-              emptyDirs.add(filepath.join(
-                filepath.basename(itemPath2),
-                relativePath == '.' ? '' : relativePath,
-              ));
-            }
-          }
-        } catch (e) {
-          dirListError.add(e);
-        }
-      }).forEach((_) {});
+          })
+          .forEach((_) {});
 
       if (dirListError.isNotEmpty) {
         bool isCancel = false;
         var ctx = getContext?.call();
         if (ctx != null && ctx.mounted) {
           await alertDialogFunc(
-              ctx, Text(ctx.formatString(AppLocale.continueWithError, [])),
-              content: Text(dirListError.join('\n')),
-              onCanceled: () => isCancel = true);
+            ctx,
+            Text(ctx.formatString(AppLocale.continueWithError, [])),
+            content: Text(dirListError.join('\n')),
+            onCanceled: () => isCancel = true,
+          );
         }
         if (isCancel) {
           return;
@@ -1338,12 +1365,9 @@ class Device {
           ctx,
           Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
           content: Text(
-            ctx.formatString(
-              AppLocale.fileTooLargeTip,
-              [
-                formatBytes(totalSize),
-              ],
-            ),
+            ctx.formatString(AppLocale.fileTooLargeTip, [
+              formatBytes(totalSize),
+            ]),
           ),
           onCanceled: () {
             forceDirect = true;
@@ -1357,9 +1381,7 @@ class Device {
     // final _receivePort = ReceivePort();
     // final sendPort = _receivePort.sendPort;
 
-    void uploadFiles(
-      IsolateUploadArgs args,
-    ) async {
+    void uploadFiles(IsolateUploadArgs args) async {
       int opID = Random().nextInt(int.parse('FFFFFFFF', radix: 16));
 
       // var (device, state, filePaths, sendPort) = args;
@@ -1395,7 +1417,10 @@ class Device {
         }
         // print('uploading $filepath');
         await fileUploader.addTask(
-            filepath, args.fileRelativeSavePath![filepath] ?? '', opID);
+          filepath,
+          args.fileRelativeSavePath![filepath] ?? '',
+          opID,
+        );
       }
       await fileUploader.close();
     }
@@ -1463,8 +1488,10 @@ class Device {
     }
 
     if (selectedDirPath.endsWith('/') || selectedDirPath.endsWith('\\')) {
-      selectedDirPath =
-          selectedDirPath.substring(0, selectedDirPath.length - 1);
+      selectedDirPath = selectedDirPath.substring(
+        0,
+        selectedDirPath.length - 1,
+      );
     }
     return selectedDirPath;
   }
@@ -1495,21 +1522,26 @@ class Device {
         }
       }
     } catch (e) {
-      SharedLogger()
-          .logger
-          .e('doPasteClipboardAction read file clipboard error: $e');
+      SharedLogger().logger.e(
+        'doPasteClipboardAction read file clipboard error: $e',
+      );
     }
 
     if (fileLists.isNotEmpty) {
       // clear clipboard
       await clipboard.write([]);
-      await doSendAction(getContext, fileLists,
-          progressSendPort: progressSendPort);
+      await doSendAction(
+        getContext,
+        fileLists,
+        progressSendPort: progressSendPort,
+      );
       return false;
     }
 
-    String? pasteText =
-        await superClipboardReadText(reader, SharedLogger().logger.e);
+    String? pasteText = await superClipboardReadText(
+      reader,
+      SharedLogger().logger.e,
+    );
     if (pasteText != null) {
       await doPasteTextAction(text: pasteText, timeout: timeout);
       return true;
@@ -1534,8 +1566,9 @@ class Device {
         final timeName =
             'clipboard_image_${DateFormat('yyyy-MM-dd HH-mm-ss').format(DateTime.now().toLocal())}.png';
         await doPasteSingleSmallFileAction(
-            fileName: file.fileName ?? timeName,
-            data: Uint8List.fromList(bytes));
+          fileName: file.fileName ?? timeName,
+          data: Uint8List.fromList(bytes),
+        );
         done.add(null);
       });
       await done.stream.first;
@@ -1554,8 +1587,12 @@ class Device {
     Uint8List pasteTextUint8 = utf8.encode(text);
     final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
-        globalLocalDeviceName, DeviceAction.pasteText, headEncryptedHex, aad,
-        dataLen: pasteTextUint8.length);
+      globalLocalDeviceName,
+      DeviceAction.pasteText,
+      headEncryptedHex,
+      aad,
+      dataLen: pasteTextUint8.length,
+    );
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -1582,9 +1619,7 @@ class Device {
     await uploader.close();
   }
 
-  Future<void> doPasteTextActionWeb({
-    String? text,
-  }) async {
+  Future<void> doPasteTextActionWeb({String? text}) async {
     String pasteText;
     if (text != null && text.isNotEmpty) {
       pasteText = text;
@@ -1594,8 +1629,10 @@ class Device {
         throw Exception('Clipboard API is not supported on this platform');
       }
       final reader = await clipboard.read();
-      final value =
-          await superClipboardReadText(reader, SharedLogger().logger.e);
+      final value = await superClipboardReadText(
+        reader,
+        SharedLogger().logger.e,
+      );
       // final value = await Pasteboard.text;
       if (value == null) {
         throw Exception('no text in clipboard');
