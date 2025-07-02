@@ -70,7 +70,8 @@ dependencies:
   # open_filex: ^4.6.0
   open_filex:
     git:
-      url: https://github.com/mufassalhussain/open_filex
+      #url: https://github.com/mufassalhussain/open_filex
+      url: https://github.com/javaherisaber/open_filex
       ref: master
   media_scanner:
     git:
