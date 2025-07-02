@@ -90,10 +90,7 @@ class _MyAppState extends State<MyApp> {
 
       var shareFuture = ReceiveSharingIntent.instance.getInitialMedia();
 
-      ShareDataModel.initInstance(
-        shareStream,
-        shared: shareFuture,
-      );
+      ShareDataModel.initInstance(shareStream, shared: shareFuture);
     }
     // -------------------------------- share --------------------------------
 
@@ -118,7 +115,8 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       themeMode = useLightMode ? ThemeMode.light : ThemeMode.dark;
       LocalConfig.setBrightness(
-          useLightMode ? Brightness.light : Brightness.dark);
+        useLightMode ? Brightness.light : Brightness.dark,
+      );
     });
   }
 
@@ -248,7 +246,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   // print('onAddDevice');
                   if (devices.length == 1) {
                     await LocalConfig.setDefaultShareDevice(
-                        devices.first.targetDeviceName);
+                      devices.first.targetDeviceName,
+                    );
                   }
                   devicesRebuild();
                 },
@@ -257,15 +256,10 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },
         tooltip: context.formatString(AppLocale.addDevice, []),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: const Icon(Icons.add),
       ),
-      body: MainBody(
-        devices: devices,
-        onDevicesChange: devicesRebuild,
-      ),
+      body: MainBody(devices: devices, onDevicesChange: devicesRebuild),
     );
   }
 }
@@ -318,9 +312,11 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
               } catch (e, s) {
                 err = e;
                 failDoneMsg = e.toString();
-                SharedLogger()
-                    .logger
-                    .e('search device failed', error: e, stackTrace: s);
+                SharedLogger().logger.e(
+                  'search device failed',
+                  error: e,
+                  stackTrace: s,
+                );
               }
               if (err != null) {
                 setState(() {
@@ -328,11 +324,13 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
                 });
                 return;
               }
-              if (widget.devices.any((element) =>
-                      element.targetDeviceName ==
-                      newDevice!.targetDeviceName) ||
+              if (widget.devices.any(
+                    (element) =>
+                        element.targetDeviceName == newDevice!.targetDeviceName,
+                  ) ||
                   newDevice!.targetDeviceName.isEmpty) {
-                newDevice!.targetDeviceName = newDevice.targetDeviceName +
+                newDevice!.targetDeviceName =
+                    newDevice.targetDeviceName +
                     Random().nextInt(1000).toString();
               }
               setState(() {
@@ -346,19 +344,21 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
             },
             icon: switch (status) {
               TaskStatus.idle => Tooltip(
-                  message:
-                      context.formatString(AppLocale.findAvailableDevice, []),
-                  child: const Icon(Icons.search),
+                message: context.formatString(
+                  AppLocale.findAvailableDevice,
+                  [],
                 ),
+                child: const Icon(Icons.search),
+              ),
               TaskStatus.failDone => Tooltip(
-                  message: failDoneMsg,
-                  child: const Icon(Icons.error, color: Colors.red),
-                ),
+                message: failDoneMsg,
+                child: const Icon(Icons.error, color: Colors.red),
+              ),
               TaskStatus.pending => SizedBox(
-                  width: const IconThemeData.fallback().size,
-                  height: const IconThemeData.fallback().size,
-                  child: const CircularProgressIndicator(),
-                ),
+                width: const IconThemeData.fallback().size,
+                height: const IconThemeData.fallback().size,
+                child: const CircularProgressIndicator(),
+              ),
               TaskStatus.successDone => const Icon(Icons.check),
             },
           ),
@@ -388,7 +388,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
                   labelText: 'Host',
                 ),
                 validator: Device.ipValidator(context, autoSelect),
-              )
+              ),
             ],
             const Divider(color: Colors.transparent),
             TextFormField(
@@ -434,8 +434,9 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           newDevice.actionWebCopy = true;
           newDevice.actionWebPaste = true;
         }
-        if (widget.devices.any((element) =>
-            element.targetDeviceName == newDevice.targetDeviceName)) {
+        if (widget.devices.any(
+          (element) => element.targetDeviceName == newDevice.targetDeviceName,
+        )) {
           throw Exception('save device failed, targetDeviceName is duplicate');
         }
         newDevice.uniqueId = generateRandomString(16);
@@ -478,25 +479,26 @@ class _MainBodyState extends State<MainBody> {
       var defaultDeviceIndex = widget.devices.indexWhere(
         (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
       );
-      dev.log('defaultDevice: ${defaultDevice.targetDeviceName} '
-          'autoSelect: ${defaultDevice.autoSelect} '
-          'enableRelay: ${defaultDevice.enableRelay}');
+      dev.log(
+        'defaultDevice: ${defaultDevice.targetDeviceName} '
+        'autoSelect: ${defaultDevice.autoSelect} '
+        'enableRelay: ${defaultDevice.enableRelay}',
+      );
 
       // Only ping when using relay, lazy load when not using relay
       if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
         // print('ping device: ${defaultDevice.targetDeviceName}');
         defaultDevice.pingDevice().then((_) {}).catchError((e) async {
           dev.log(
-              'The default device ${defaultDevice.targetDeviceName} is using relay, and the direct connection failed, try to refresh ip');
+            'The default device ${defaultDevice.targetDeviceName} is using relay, and the direct connection failed, try to refresh ip',
+          );
           try {
-            final ip = await compute(
-              (Device d) async {
-                return await d.findServer();
-              },
-              defaultDevice,
-            );
+            final ip = await compute((Device d) async {
+              return await d.findServer();
+            }, defaultDevice);
             dev.log(
-                'refresh default device result ${defaultDevice.targetDeviceName} ip: $ip');
+              'refresh default device result ${defaultDevice.targetDeviceName} ip: $ip',
+            );
             if (ip != null) {
               final d = widget.devices[defaultDeviceIndex];
               d.iP = ip;
@@ -505,8 +507,11 @@ class _MainBodyState extends State<MainBody> {
               LocalConfig.setDevice(d);
             }
           } catch (e, s) {
-            SharedLogger().logger.e('unexpected error, find server failed',
-                error: e, stackTrace: s);
+            SharedLogger().logger.e(
+              'unexpected error, find server failed',
+              error: e,
+              stackTrace: s,
+            );
           }
         });
       }
@@ -521,15 +526,21 @@ class _MainBodyState extends State<MainBody> {
     handleOnError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
       SharedLogger().logger.e('share failed', error: err, stackTrace: s);
-      alertDialogFunc(context, const Text('Share failed'),
-          content: Text(err.toString()));
+      alertDialogFunc(
+        context,
+        const Text('Share failed'),
+        content: Text(err.toString()),
+      );
     }
 
     handleResetError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
       SharedLogger().logger.e('reset failed', error: err, stackTrace: s);
-      alertDialogFunc(context, const Text('Reset failed'),
-          content: Text(err.toString()));
+      alertDialogFunc(
+        context,
+        const Text('Reset failed'),
+        content: Text(err.toString()),
+      );
     }
 
     handleSharedMediaFile(List<SharedMediaFile> shared) async {
@@ -556,8 +567,9 @@ class _MainBodyState extends State<MainBody> {
           widget.onDevicesChange();
         },
         () async {
-          final shareSuccessMsg = context.formatString(
-              AppLocale.shareSuccess, [defaultDevice.targetDeviceName]);
+          final shareSuccessMsg = context.formatString(AppLocale.shareSuccess, [
+            defaultDevice.targetDeviceName,
+          ]);
 
           var lastSharedMedia = LocalConfig.lastSharedMedia;
           if (lastSharedMedia != null &&
@@ -570,9 +582,7 @@ class _MainBodyState extends State<MainBody> {
               }
             }
             if (same) {
-              return ToastResult(
-                message: shareSuccessMsg,
-              );
+              return ToastResult(message: shareSuccessMsg);
             }
           }
 
@@ -606,8 +616,11 @@ class _MainBodyState extends State<MainBody> {
             throw 'Unsupported operation, web device only support text';
           }
           if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(() => context, fileList,
-                progressSendPort: rp.sendPort);
+            await defaultDevice.doSendAction(
+              () => context,
+              fileList,
+              progressSendPort: rp.sendPort,
+            );
           }
           if (text != null) {
             if (defaultDevice.iP == Device.webIP) {
@@ -617,31 +630,25 @@ class _MainBodyState extends State<MainBody> {
             }
           }
           await LocalConfig.setLastSharedMedia(shared);
-          return ToastResult(
-            message: shareSuccessMsg,
-          );
+          return ToastResult(message: shareSuccessMsg);
         },
         progressReceivePort: rp,
         getContext: () => context,
       );
     }
 
-    ShareDataModel()
-        .sharedStream
+    ShareDataModel().sharedStream
         .handleError(handleOnError)
-        .asyncMap(
-          handleSharedMediaFile,
-        )
+        .asyncMap(handleSharedMediaFile)
         .listen((_) {}, onError: handleOnError);
 
-    ShareDataModel().shared?.then(
-      (items) async {
-        ShareDataModel().shared = null;
-        await handleSharedMediaFile(items);
-        ReceiveSharingIntent.instance.reset().catchError(handleResetError);
-      },
-      onError: handleOnError,
-    ).catchError(handleOnError);
+    ShareDataModel().shared
+        ?.then((items) async {
+          ShareDataModel().shared = null;
+          await handleSharedMediaFile(items);
+          ReceiveSharingIntent.instance.reset().catchError(handleResetError);
+        }, onError: handleOnError)
+        .catchError(handleOnError);
     // -------------------------------- share --------------------------------
   }
 
@@ -692,7 +699,9 @@ class _MainBodyState extends State<MainBody> {
             // 这里是滚动视图或列表
             Transform.translate(
               offset: Offset(
-                  0.0, 60.0 * controller.value), // 根据进度下移child，给顶部的进度指示器留出空间
+                0.0,
+                60.0 * controller.value,
+              ), // 根据进度下移child，给顶部的进度指示器留出空间
               child: child,
             ),
           ],
@@ -772,9 +781,11 @@ class _MainBodyState extends State<MainBody> {
                 if (LocalConfig.defaultShareDevice != null &&
                     LocalConfig.defaultShareDevice ==
                         removed.targetDeviceName) {
-                  await LocalConfig.setDefaultShareDevice(widget.devices.isEmpty
-                      ? null
-                      : widget.devices.first.targetDeviceName);
+                  await LocalConfig.setDefaultShareDevice(
+                    widget.devices.isEmpty
+                        ? null
+                        : widget.devices.first.targetDeviceName,
+                  );
                 }
                 if (LocalConfig.defaultSyncDevice != null &&
                     LocalConfig.defaultSyncDevice == removed.targetDeviceName) {
@@ -794,9 +805,7 @@ class _BrightnessButton extends StatelessWidget {
   final Function handleBrightnessChange;
   final bool showTooltipBelow = true;
 
-  const _BrightnessButton({
-    required this.handleBrightnessChange,
-  });
+  const _BrightnessButton({required this.handleBrightnessChange});
 
   @override
   Widget build(BuildContext context) {
@@ -835,9 +844,7 @@ class _BuildPopupMenuButton extends StatelessWidget {
     return PopupMenuButton(
       icon: const Icon(Icons.more_vert_outlined),
       tooltip: context.formatString(AppLocale.showMenu, []),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       itemBuilder: (context) {
         return [
           PopupMenuItem(
@@ -893,16 +900,14 @@ class _BuildPopupMenuButton extends StatelessWidget {
             var result = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => SortingPage(
-                  devices: devices,
-                ),
+                builder: (context) => SortingPage(devices: devices),
               ),
             );
             if (result != null) {
               final newDevices = result as List<Device>;
               LocalConfig.setAllDeviceId(
-                      newDevices.map((e) => e.uniqueId).toList())
-                  .then((value) {
+                newDevices.map((e) => e.uniqueId).toList(),
+              ).then((value) {
                 devicesRebuild(newDevices);
               });
             }
@@ -910,9 +915,7 @@ class _BuildPopupMenuButton extends StatelessWidget {
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const AboutPage(),
-              ),
+              MaterialPageRoute(builder: (context) => const AboutPage()),
             );
             break;
         }
