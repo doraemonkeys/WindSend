@@ -551,7 +551,7 @@ impl FileReceiveSessionManager {
                     save_path
                 );
                 if failure_count > 0 {
-                    msg = format!("{}\n{} files failed to save", msg, failure_count);
+                    msg = format!("{msg}\n{failure_count} files failed to save");
                 }
                 crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
             }
