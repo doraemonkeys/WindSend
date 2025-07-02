@@ -557,7 +557,7 @@ impl FileReceiveSessionManager {
             }
             #[cfg(target_os = "windows")]
             {
-                let progress_tag = format!("{}", op_id);
+                let progress_tag = format!("{op_id}");
                 let value_string = format!("{}/{} files", success_count, op_info.expected_count);
                 let _guard = self.notify_lock.lock().unwrap();
                 let _ = win_toast_notify::WinToastNotify::progress_complete(

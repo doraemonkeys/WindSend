@@ -46,15 +46,15 @@ fn init() {
 fn panic_hook(info: &std::panic::PanicHookInfo) {
     error!("panic: {}", info);
     let backtrace = backtrace::Backtrace::new();
-    let panic_message = format!("Panic: {}\n{:?}", info, info);
-    let panic_log_message = format!("{}\n\nBacktrace:\n{:?}", panic_message, backtrace);
+    let panic_message = format!("Panic: {info}\n{info:?}");
+    let panic_log_message = format!("{panic_message}\n\nBacktrace:\n{backtrace:?}");
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
         .open(std::path::Path::new(&*config::DEFAULT_LOG_DIR).join("panic.log"))
     {
         use std::io::Write;
-        let _ = writeln!(f, "{}", panic_log_message);
+        let _ = writeln!(f, "{panic_log_message}");
     }
     #[cfg(not(feature = "disable-systray-support"))]
     {
@@ -62,8 +62,7 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
         _ = MessageDialog::new()
             .set_title("WindSend-S-Rust")
         .set_description(format!(
-            "WindSend-S-Rust has crashed. Please check the log file for more information.\n\n{}",
-            panic_message
+            "WindSend-S-Rust has crashed. Please check the log file for more information.\n\n{panic_message}",
         ))
             .set_level(Error)
             .show();

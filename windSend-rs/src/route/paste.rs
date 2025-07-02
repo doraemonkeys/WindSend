@@ -23,7 +23,7 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
 
     if let Err(e) = crate::config::CLIPBOARD.write_text(Cow::clone(&body)) {
         error!("set clipboard text failed, err: {}", e);
-        resp_common_error_msg(conn, &format!("set clipboard failed, err: {}", e))
+        resp_common_error_msg(conn, &format!("set clipboard failed, err: {e}"))
             .await
             .ok();
         return;
@@ -58,7 +58,7 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
     let cur_clipboard_text = match crate::config::CLIPBOARD.read_text() {
         Ok(text) => text,
         Err(e) => {
-            let msg = format!("read clipboard text failed, err: {}", e);
+            let msg = format!("read clipboard text failed, err: {e}");
             info!("{}", msg);
             // let _ = resp_common_error_msg(conn, &msg).await;
             String::new()
@@ -68,7 +68,7 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
         if cur_clipboard_text != body {
             if let Err(e) = crate::config::CLIPBOARD.write_text(body) {
-                let msg = format!("set clipboard text failed, err: {}", e);
+                let msg = format!("set clipboard text failed, err: {e}");
                 error!("{}", msg);
                 let _ = resp_common_error_msg(conn, &msg).await;
                 return;
@@ -115,7 +115,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     if let Err(err) = file {
         error!("create file: {} error: {}", head.path, err);
         let _ = tokio::io::copy(&mut conn.take(head.data_len as u64), &mut tokio::io::sink()).await;
-        return resp_common_error_msg(conn, &format!("create file error: {}", err))
+        return resp_common_error_msg(conn, &format!("create file error: {err}"))
             .await
             .is_ok();
     }
@@ -124,7 +124,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         crate::file::FilePartWriter::new(file, head.start as usize, head.end as usize).await;
     if let Err(err) = file_writer {
         error!("new file writer failed, err: {}", err);
-        return resp_common_error_msg(conn, &format!("new file writer failed, err: {}", err))
+        return resp_common_error_msg(conn, &format!("new file writer failed, err: {err}"))
             .await
             .is_ok();
     }
@@ -177,7 +177,7 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     let n = tokio::io::copy(&mut conn_reader.take(data_len as u64), &mut file_buf_writer).await;
     // let n = tokio::io::copy_buf(&mut conn_buf_reader, &mut file_buf_writer).await;
     if let Err(err) = n {
-        let msg = format!("write file error: {}", err);
+        let msg = format!("write file error: {err}");
         error!("{}", msg);
         let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
         crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
@@ -190,13 +190,13 @@ pub async fn paste_file_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
         error!("flush file writer failed, err: {}", err);
         return resp_common_error_msg(
             &mut conn_writer,
-            &format!("flush file writer failed, err: {}", err),
+            &format!("flush file writer failed, err: {err}"),
         )
         .await
         .is_ok();
     }
     if n < data_len as u64 {
-        let msg = format!("write file error, n: {}, dataLen: {}", n, data_len);
+        let msg = format!("write file error, n: {n}, dataLen: {data_len}");
         error!("{}", msg);
         let resp_success = resp_common_error_msg(&mut conn_writer, &msg).await.is_ok();
         crate::file::GLOBAL_RECEIVER_SESSION_MANAGER

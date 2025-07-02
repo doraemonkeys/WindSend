@@ -319,10 +319,10 @@ pub fn generate_unique_filepath(path: impl AsRef<std::path::Path>) -> std::io::R
         .to_string();
     for i in 1..100 {
         let new_name = if !file_ext.is_empty() {
-            let name = name.trim_end_matches(&format!(".{}", file_ext));
-            format!("{}({}).{}", name, i, file_ext)
+            let name = name.trim_end_matches(&format!(".{file_ext}"));
+            format!("{name}({i}).{file_ext}")
         } else {
-            format!("{}({})", name, i)
+            format!("{name}({i})")
         };
         let new_path = dir.join(new_name);
         if !new_path.exists() {
@@ -376,7 +376,7 @@ where
     } else if bytes_f64 >= KB {
         format!("{:.2} KB", bytes_f64 / KB)
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }
 
