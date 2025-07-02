@@ -34,8 +34,10 @@ const String appName = 'WindSend';
 Future<void> init() async {
   // Ensure the binding is initialized before calling any Flutter plugins
   WidgetsFlutterBinding.ensureInitialized();
-  await LocalConfig.initInstance();
-  await SharedLogger.initFileLogger(appName);
+  final f1 = FlutterLocalization.instance.ensureInitialized();
+  final f2 = LocalConfig.initInstance();
+  final f3 = SharedLogger.initFileLogger(appName);
+  await Future.wait([f1, f2, f3]);
 }
 
 void main() async {
