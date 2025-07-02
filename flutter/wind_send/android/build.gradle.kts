@@ -5,7 +5,8 @@ allprojects {
     }
 }
 
-rootProject.buildDir = "../build"
+val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
 
 // see https://stackoverflow.com/questions/77317993/compiledebugjavawithjavac-task-current-target-is-1-8-and-compiledebugkotlin
 subprojects {
@@ -22,13 +23,15 @@ subprojects {
         }
     }
 }
+
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }
