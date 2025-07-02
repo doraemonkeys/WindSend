@@ -551,13 +551,13 @@ impl FileReceiveSessionManager {
                     save_path
                 );
                 if failure_count > 0 {
-                    msg = format!("{}\n{} files failed to save", msg, failure_count);
+                    msg = format!("{msg}\n{failure_count} files failed to save");
                 }
                 crate::utils::inform(&msg, &op_info.requested_device_name, Some(save_path));
             }
             #[cfg(target_os = "windows")]
             {
-                let progress_tag = format!("{}", op_id);
+                let progress_tag = format!("{op_id}");
                 let value_string = format!("{}/{} files", success_count, op_info.expected_count);
                 let _guard = self.notify_lock.lock().unwrap();
                 let _ = win_toast_notify::WinToastNotify::progress_complete(

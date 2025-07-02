@@ -47,7 +47,7 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
                 return Some(conn);
             }
             RouteAction::Unknown(action) => {
-                let msg = format!("unknown action: {:?}", action);
+                let msg = format!("unknown action: {action:?}");
                 let _ = crate::route::transfer::resp_common_error_msg(&mut conn, &msg).await;
                 error!("{}", msg);
             }
@@ -171,7 +171,7 @@ async fn match_handler(conn: &mut TlsStream<TcpStream>) -> Result<(), ()> {
     };
     let action_resp = serde_json::to_vec(&action_resp);
     if let Err(e) = &action_resp {
-        let err = format!("json marshal failed, err: {}", e);
+        let err = format!("json marshal failed, err: {e}");
         error!("{}", err);
         let _ = crate::route::transfer::resp_common_error_msg(conn, &err).await;
         return Err(());

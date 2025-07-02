@@ -27,7 +27,7 @@ impl TryFrom<i32> for StatusCode {
             -1 => Ok(StatusCode::Success),
             1 => Ok(StatusCode::AuthFailed),
             2 => Ok(StatusCode::KdfSaltMismatch),
-            _ => Err(format!("Invalid StatusCode value: {}", value)),
+            _ => Err(format!("Invalid StatusCode value: {value}")),
         }
     }
 }

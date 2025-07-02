@@ -57,7 +57,7 @@ pub async fn post_content_to_web(context: &[u8]) -> Result<(), Box<dyn std::erro
     let post_code = my_url
         .split('/')
         .next_back()
-        .ok_or_else(|| format!("invalid post url: {}", my_url))?
+        .ok_or_else(|| format!("invalid post url: {my_url}"))?
         .to_string();
     debug!("post_code: {}", post_code);
     payload = payload.text("csrfmiddlewaretoken", csrfmiddlewaretoken);

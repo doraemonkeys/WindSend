@@ -174,9 +174,9 @@ impl Config {
     pub fn save(&self) -> Result<(), String> {
         self.empty_check()?;
         let file = std::fs::File::create(&*CONFIG_FILE_PATH)
-            .map_err(|err| format!("create config file error: {}", err))?;
+            .map_err(|err| format!("create config file error: {err}"))?;
         serde_yaml::to_writer(file, self)
-            .map_err(|err| format!("write config file error: {}", err))?;
+            .map_err(|err| format!("write config file error: {err}"))?;
         Ok(())
     }
     pub fn save_and_set(&self) -> Result<(), String> {
@@ -189,10 +189,10 @@ impl Config {
         #[cfg(not(all(target_os = "linux", feature = "disable-systray-support")))]
         if self.auto_start {
             if let Err(e) = START_HELPER.set_auto_start() {
-                return Err(format!("set_auto_start error: {}", e));
+                return Err(format!("set_auto_start error: {e}"));
             }
         } else if let Err(e) = START_HELPER.unset_auto_start() {
-            return Err(format!("unset_auto_start error: {}", e));
+            return Err(format!("unset_auto_start error: {e}"));
         }
 
         crate::language::LANGUAGE_MANAGER
@@ -245,7 +245,7 @@ fn init_global_config() -> Config {
     if let Some(parent_dir) = CONFIG_FILE_PATH.parent() {
         if !parent_dir.exists() {
             if let Err(err) = std::fs::create_dir_all(parent_dir) {
-                panic!("Failed to create config directory: {}", err);
+                panic!("Failed to create config directory: {err}");
             }
         }
     }
@@ -253,18 +253,18 @@ fn init_global_config() -> Config {
     if !CONFIG_FILE_PATH.exists() {
         let cnf = Config::generate_default();
         if let Err(err) = cnf.save_and_set() {
-            panic!("init_global_config error: {}", err);
+            panic!("init_global_config error: {err}");
         }
         return cnf;
     }
     let file = std::fs::File::open(&*CONFIG_FILE_PATH).unwrap();
     let cnf = serde_yaml::from_reader(file);
     if let Err(err) = cnf {
-        panic!("deserialize config file error: {}", err);
+        panic!("deserialize config file error: {err}");
     }
     let cnf: Config = cnf.unwrap();
     if let Err(err) = cnf.set() {
-        panic!("init_global_config error: {}", err);
+        panic!("init_global_config error: {err}");
     }
 
     if cnf.allow_to_be_searched_once {
@@ -362,7 +362,7 @@ fn init_tls_config() {
     {
         let result = utils::tls::generate_ca_and_signed_certificate_pair();
         if let Err(err) = result {
-            panic!("init_tls_config error: {}", err);
+            panic!("init_tls_config error: {err}");
         }
         let ([cert_pem, priv_pem], [ca_cert_pem, ca_key_pem]) = result.unwrap();
         std::fs::write(cert_path, cert_pem).unwrap();

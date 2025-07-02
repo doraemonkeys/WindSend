@@ -20,7 +20,7 @@ impl std::str::FromStr for Language {
         match s {
             s if s.starts_with(&Language::ZH.to_str().to_lowercase()) => Ok(Language::ZH),
             s if s.starts_with(&Language::EN.to_str().to_lowercase()) => Ok(Language::EN),
-            _ => Err(format!("unknown language: {}", s)),
+            _ => Err(format!("unknown language: {s}")),
         }
     }
 }

@@ -154,7 +154,7 @@ async fn send_files<'a, T: IntoIterator<Item = &'a String> + std::fmt::Debug>(
     let body = match serde_json::to_vec(&resp_paths) {
         Ok(body) => body,
         Err(err) => {
-            let msg = format!("serde_json::to_vec failed, err: {}", err);
+            let msg = format!("serde_json::to_vec failed, err: {err}");
             error!("{}", &msg);
             let _ = resp_common_error_msg(conn, &msg).await;
             return Err(());
@@ -177,7 +177,7 @@ async fn send_clipboard_image(
     let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
     let raw_image = match crate::config::CLIPBOARD.read_image() {
         Ok(raw_image) => raw_image,
-        Err(err) => return Err(format!("read clipboard image failed, err: {}", err).into()),
+        Err(err) => return Err(format!("read clipboard image failed, err: {err}").into()),
     };
     let dyn_img: image::DynamicImage;
     let mut cursor_buf: std::io::Cursor<Vec<u8>>;
@@ -194,7 +194,7 @@ async fn send_clipboard_image(
         use clipboard_rs::common::RustImage;
         dyn_img = match image2.get_dynamic_image() {
             Ok(img) => img,
-            Err(err) => return Err(format!("image2.get_dynamic_image failed, err: {}", err).into()),
+            Err(err) => return Err(format!("image2.get_dynamic_image failed, err: {err}").into()),
         };
         cursor_buf = std::io::Cursor::new(Vec::with_capacity(1024 * 100));
     } else {
@@ -215,7 +215,7 @@ async fn send_clipboard_image(
 async fn send_clipboard_text(conn: &mut TlsStream<TcpStream>) -> Result<(), String> {
     let data_text = match crate::config::CLIPBOARD.read_text() {
         Ok(data_text) => data_text,
-        Err(err) => return Err(format!("read clipboard text failed, err: {}", err)),
+        Err(err) => return Err(format!("read clipboard text failed, err: {err}")),
     };
     send_msg_with_body(
         conn,
@@ -242,7 +242,7 @@ pub async fn download_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHe
     let file = tokio::fs::File::open(&head.path).await;
     if let Err(err) = file {
         error!("open file failed, err: {}", err);
-        let r = resp_common_error_msg(conn, &format!("open file failed, err: {}", err)).await;
+        let r = resp_common_error_msg(conn, &format!("open file failed, err: {err}")).await;
         return r.is_ok();
     }
     let resp = RouteRespHead {

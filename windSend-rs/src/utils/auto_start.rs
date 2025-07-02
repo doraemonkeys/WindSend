@@ -68,7 +68,7 @@ impl StartHelper {
 
         let content = String::from(r#"Set objShell = CreateObject("WScript.Shell")"#)
             + "\r\n"
-            + &format!(r#"objShell.CurrentDirectory = "{}""#, path)
+            + &format!(r#"objShell.CurrentDirectory = "{path}""#)
             + "\r\n"
             + &format!(r#"objShell.Run "powershell /c .\\{}""#, self.exe_name)
             + ",0";
