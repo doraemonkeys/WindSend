@@ -164,7 +164,9 @@ if ! flutter build macos --release; then
 fi
 
 mkdir -p ../../bin/"$flutterX86_64DirName"
-cp -r build/macos/Build/Products/Release/* ../../bin/"$flutterX86_64DirName"
+APP_BUNDLE=$(find build/macos/Build/Products/Release/ -maxdepth 1 -name "*.app")
+# cp -r build/macos/Build/Products/Release/* ../../bin/"$flutterX86_64DirName"
+cp -r "$APP_BUNDLE" ../../bin/"$flutterX86_64DirName"
 
 cd "$WINDSEND_PROJECT_PATH" || exit
 cp README.md ./bin/"$flutterX86_64DirName"
