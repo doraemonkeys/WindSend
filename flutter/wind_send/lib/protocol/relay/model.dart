@@ -1,7 +1,8 @@
-import 'dart:typed_data';
 import 'package:wind_send/protocol/protocol.dart';
 import 'dart:io';
 import 'package:wind_send/crypto/aes.dart';
+import 'package:wind_send/socket.dart';
+// import 'dart:typed_data';
 
 class StatusCode {
   static const error = 0;
@@ -52,10 +53,10 @@ class HandshakeReq with HeadWriter {
     };
   }
 
-  static Future<HandshakeReq> fromConn(Stream<Uint8List> conn) async {
-    var reader = MsgReader(HandshakeReq.fromJson);
-    return await reader.readReqHeadOnly(conn);
-  }
+  // static Future<HandshakeReq> fromConn(Stream<Uint8List> conn) async {
+  //   var reader = MsgReader(HandshakeReq.fromJson);
+  //   return await reader.readReqHeadOnly(conn);
+  // }
 
   Future<void> writeToConn(Socket conn) async {
     await writeHead(conn);
@@ -93,9 +94,11 @@ class HandshakeResp {
     };
   }
 
-  static Future<HandshakeResp> fromConn(Stream<Uint8List> conn) async {
+  static Future<HandshakeResp> fromConn(BroadcastSocket conn) async {
     var reader = MsgReader(HandshakeResp.fromJson);
-    return await reader.readReqHeadOnly(conn);
+    final (resp, nextStream) = await reader.readReqHeadOnly(conn.stream);
+    conn.updateStream(nextStream);
+    return resp;
   }
 }
 
@@ -124,17 +127,11 @@ class ReqHead with HeadWriter {
   final Action action;
   int dataLen;
 
-  ReqHead({
-    required this.action,
-    this.dataLen = 0,
-  });
+  ReqHead({required this.action, this.dataLen = 0});
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'action': action.name,
-      'dataLen': dataLen,
-    };
+    return {'action': action.name, 'dataLen': dataLen};
   }
 
   @override
@@ -187,36 +184,35 @@ class RespHead with HeadWriter {
     );
   }
 
-  static Future<RespHead> fromConn(Stream<Uint8List> conn,
-      {AesGcm? cipher}) async {
+  static Future<RespHead> fromConn(
+    BroadcastSocket conn, {
+    AesGcm? cipher,
+  }) async {
     var reader = MsgReader(RespHead.fromJson);
-    return await reader.readReqHeadOnly(conn, cipher: cipher);
+    final (head, nextStream) = await reader.readReqHeadOnly(
+      conn.stream,
+      cipher: cipher,
+    );
+    conn.updateStream(nextStream);
+    return head;
   }
 }
 
 class CommonReq with HeadWriter {
   final String id;
 
-  CommonReq({
-    required this.id,
-  });
+  CommonReq({required this.id});
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-    };
+    return {'id': id};
   }
 
   factory CommonReq.fromJson(Map<String, dynamic> json) {
-    return CommonReq(
-      id: json['id'],
-    );
+    return CommonReq(id: json['id']);
   }
 }
 
 class RelayReq extends CommonReq {
-  RelayReq({
-    required super.id,
-  });
+  RelayReq({required super.id});
 }

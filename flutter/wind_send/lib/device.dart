@@ -316,10 +316,7 @@ class Device {
       utf8.encode(jsonEncode(mainReq.toJson())),
       cipher: cipher,
     );
-    final respHead = await relay_model.RespHead.fromConn(
-      sock2.stream,
-      cipher: cipher,
-    );
+    final respHead = await relay_model.RespHead.fromConn(sock2, cipher: cipher);
     if (respHead.code != relay_model.StatusCode.success) {
       throw Exception('connect to relay device failed: ${respHead.msg}');
     }
@@ -426,10 +423,7 @@ class Device {
     final (sock2, cipher) = await handshakeInner(timeout: timeout);
     final reqHead = relay_model.ReqHead(action: relay_model.Action.ping);
     await reqHead.writeHeadOnly(sock2, cipher: cipher);
-    final respHead = await relay_model.RespHead.fromConn(
-      sock2.stream,
-      cipher: cipher,
-    );
+    final respHead = await relay_model.RespHead.fromConn(sock2, cipher: cipher);
     if (respHead.code != relay_model.StatusCode.success) {
       throw Exception('ping relay failed: ${respHead.msg}');
     }

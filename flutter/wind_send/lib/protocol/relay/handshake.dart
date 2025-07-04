@@ -26,18 +26,18 @@ class HandshakeException implements Exception {
 
 class HandshakeAuthFailedException extends HandshakeException {
   HandshakeAuthFailedException(String message)
-      : super(model.StatusCode.authFailed, message);
+    : super(model.StatusCode.authFailed, message);
 }
 
 class HandshakeKdfSaltMismatchException extends HandshakeException {
   HandshakeKdfSaltMismatchException(String message)
-      : super(model.StatusCode.unauthKdfSaltMismatch, message);
+    : super(model.StatusCode.unauthKdfSaltMismatch, message);
 }
 
 Future<Uint8List> handshake(Device device, BroadcastSocket sock) async {
   var (req, keyPair) = await resolveHandshakeReq(device);
   await req.writeToConn(sock.conn);
-  var resp = await model.HandshakeResp.fromConn(sock.stream);
+  var resp = await model.HandshakeResp.fromConn(sock);
   // print('resp: ${resp.toJson()}');
   if (resp.code == model.StatusCode.unauthKdfSaltMismatch) {
     await device.setRelayKdfSaltB64(resp.kdfSaltB64);
@@ -46,7 +46,7 @@ Future<Uint8List> handshake(Device device, BroadcastSocket sock) async {
     }
     (req, keyPair) = await resolveHandshakeReq(device);
     await req.writeToConn(sock.conn);
-    resp = await model.HandshakeResp.fromConn(sock.stream);
+    resp = await model.HandshakeResp.fromConn(sock);
   }
   if (resp.code != model.StatusCode.success) {
     if (resp.code == model.StatusCode.authFailed) {
@@ -120,6 +120,6 @@ Future<(model.HandshakeReq, SimpleKeyPair)> resolveHandshakeReq(
       ecdhPublicKeyB64: ecdhPublicKeyB64,
       kdfSaltB64: device.relayKdfSaltB64,
     ),
-    keyPair
+    keyPair,
   );
 }
