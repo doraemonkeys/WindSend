@@ -1559,13 +1559,21 @@ class Device {
         final bytes = await stream.expand((element) => element).toList();
         final timeName =
             'clipboard_image_${DateFormat('yyyy-MM-dd HH-mm-ss').format(DateTime.now().toLocal())}.png';
-        await doPasteSingleSmallFileAction(
-          fileName: file.fileName ?? timeName,
-          data: Uint8List.fromList(bytes),
-        );
+        try {
+          await doPasteSingleSmallFileAction(
+            fileName: file.fileName ?? timeName,
+            data: Uint8List.fromList(bytes),
+          );
+        } catch (e) {
+          done.add(e);
+          return;
+        }
         done.add(null);
       });
-      await done.stream.first;
+      final err = await done.stream.first;
+      if (err != null) {
+        throw err;
+      }
       done.close();
       return false;
     }
