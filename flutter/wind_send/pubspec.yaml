@@ -42,6 +42,7 @@ dependencies:
   file_picker: ^10.2.0
   # https://github.com/ShoutSocial/share_handler/tree/main/share_handler
   listen_sharing_intent: ^1.9.2
+  # share_handler 
   # receive_sharing_intent: 
   #   git:
   #     url: https://github.com/KasemJaffer/receive_sharing_intent
