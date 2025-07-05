@@ -651,3 +651,53 @@ String hostPortToAddress(String host, int port) {
   }
   return '$host:$port';
 }
+
+Stream<Uint8List> streamUnshift(Stream<Uint8List> s, Uint8List bytes) async* {
+  yield bytes;
+  yield* s;
+}
+
+/// Stream must be broadcast and can not be in listen mode
+Future<(Uint8List, Stream<Uint8List>?)> takeBytesInUint8ListStream(
+  Stream<Uint8List> stream,
+  int count,
+) async {
+  // var bytes = List.filled(count, 0);
+  var bytes = Uint8List(count);
+  var left = 0;
+  Uint8List? surplus;
+  await for (final chunk in stream) {
+    if (left + chunk.length == count) {
+      bytes.setRange(left, left + chunk.length, chunk);
+      return (bytes, null);
+    }
+    if (left + chunk.length < count) {
+      bytes.setRange(left, left + chunk.length, chunk);
+      left += chunk.length;
+      continue;
+    }
+    bytes.setRange(left, count, chunk);
+    surplus = chunk.sublist(count - left);
+    break;
+  }
+
+  if (surplus != null) {
+    return (bytes, streamUnshift(stream, surplus).asBroadcastStream());
+  } else {
+    throw Exception('stream bytes not enough');
+  }
+}
+
+/// Generate a secure random Uint8List of the specified length.
+///
+/// [length] : The length of the Uint8List to generate.
+///
+/// Returns a [Uint8List] containing cryptographically secure random bytes.
+Uint8List generateSecureRandomBytes(int length) {
+  final secureRandom = Random.secure();
+  final bytes = Uint8List(length);
+  for (int i = 0; i < length; i++) {
+    bytes[i] = secureRandom.nextInt(256);
+  }
+  return bytes;
+}

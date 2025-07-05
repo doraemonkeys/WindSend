@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:wind_send/crypto/aes.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'package:wind_send/utils.dart';
 
 // import 'package:pasteboard/pasteboard.dart';
 
@@ -213,7 +216,8 @@ class RespHead {
   };
 
   /// return [head, body]
-  /// 不适用于body过大的情况
+  ///
+  /// Do not use this function for large body, if there is still data after the body, these data may be lost
   static Future<(RespHead, List<int>)> readHeadAndBodyFromConn(
     Stream<Uint8List> conn,
   ) async {
@@ -252,7 +256,11 @@ class RespHead {
         }
       }
       if (bodyLen != 0 && respContentList.length >= bodyLen) {
-        var respBody = respContentList.sublist(0, bodyLen);
+        if (respContentList.length > bodyLen) {
+          throw Exception('unexpected: respContentList.length > bodyLen');
+        }
+        // var respBody = respContentList.sublist(0, bodyLen);
+        var respBody = respContentList;
         return (respHeadInfo!, respBody);
       }
     }
@@ -275,7 +283,16 @@ class MsgReader<T> {
     Stream<Uint8List> conn, {
     AesGcm? cipher,
   }) async {
-    final (headLenBytes, nextStream) = await takeBytesListInUint8ListStream(
+    void safeCheck(int dataLen) {
+      if (dataLen <= 0) {
+        throw Exception('dataLen <= 0');
+      }
+      if (dataLen > 1024 * 1024 * 1024) {
+        throw Exception('dataLen > 1024 * 1024 * 1024');
+      }
+    }
+
+    final (headLenBytes, nextStream) = await takeBytesInUint8ListStream(
       conn,
       4,
     );
@@ -283,7 +300,8 @@ class MsgReader<T> {
       conn = nextStream;
     }
     final headLen = headLenBytes.buffer.asByteData().getInt32(0, Endian.little);
-    var (headBytes, nextStream2) = await takeBytesListInUint8ListStream(
+    safeCheck(headLen);
+    var (headBytes, nextStream2) = await takeBytesInUint8ListStream(
       conn,
       headLen,
     );
@@ -297,6 +315,8 @@ class MsgReader<T> {
     return (head, conn);
   }
 
+  /// Stream must be broadcast and can not be in listen mode
+  ///test
   /// 4 bytes length | request Head data
   Future<(T, Stream<Uint8List>)> readReqHeadOnly(
     Stream<Uint8List> conn, {
@@ -326,12 +346,23 @@ class MsgReader<T> {
           safeCheck(dataLen);
           buffer = Uint8List(dataLen);
           if (lenBufOffset + chunk.length > 4) {
+            var tempSurplus = lenBufOffset + chunk.length - 4;
             buffer.setRange(
               0,
-              lenBufOffset + chunk.length - 4,
+              math.min(tempSurplus, dataLen),
               chunk,
               4 - lenBufOffset,
             );
+            if (tempSurplus >= dataLen) {
+              if (tempSurplus > dataLen) {
+                surplus = Uint8List.view(
+                  chunk.buffer,
+                  chunk.length - (tempSurplus - dataLen),
+                );
+              }
+              writeOffset = dataLen;
+              break;
+            }
             writeOffset = lenBufOffset + chunk.length - 4;
           }
         } else {
@@ -367,42 +398,6 @@ class MsgReader<T> {
     } else {
       return (item, conn);
     }
-  }
-}
-
-Stream<Uint8List> streamUnshift(Stream<Uint8List> s, Uint8List bytes) async* {
-  yield bytes;
-  yield* s;
-}
-
-/// Stream must be broadcast and can not be in listen mode
-Future<(Uint8List, Stream<Uint8List>?)> takeBytesListInUint8ListStream(
-  Stream<Uint8List> stream,
-  int count,
-) async {
-  // var bytes = List.filled(count, 0);
-  var bytes = Uint8List(count);
-  var left = 0;
-  Uint8List? surplus;
-  await for (final chunk in stream) {
-    if (left + chunk.length == count) {
-      bytes.setRange(left, left + chunk.length, chunk);
-      return (bytes, null);
-    }
-    if (left + chunk.length < count) {
-      bytes.setRange(left, left + chunk.length, chunk);
-      left += chunk.length;
-      continue;
-    }
-    bytes.setRange(left, count, chunk);
-    surplus = chunk.sublist(count - left);
-    break;
-  }
-
-  if (surplus != null) {
-    return (bytes, streamUnshift(stream, surplus).asBroadcastStream());
-  } else {
-    throw Exception('stream bytes not enough');
   }
 }
 
