@@ -235,7 +235,9 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
 }
 
 Future<String?> superClipboardReadText(
-    ClipboardReader reader, Function(String message) logErr) async {
+  ClipboardReader reader,
+  Function(String message) logErr,
+) async {
   String? ret;
   try {
     if (reader.canProvide(Formats.plainText)) {
@@ -331,20 +333,12 @@ AlertDialog alertDialogDefault(
 }
 
 Future<void> launchInBrowser(Uri url) async {
-  if (!await launchUrl(
-    url,
-    mode: LaunchMode.externalApplication,
-  )) {
+  if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
     throw Exception('Could not launch $url');
   }
 }
 
-enum TaskStatus {
-  idle,
-  pending,
-  successDone,
-  failDone,
-}
+enum TaskStatus { idle, pending, successDone, failDone }
 
 bool hasImageExtension(String name) {
   final ext = name.split('.').last;
@@ -357,7 +351,7 @@ bool hasImageExtension(String name) {
     'webp',
     'svg',
     'ico',
-    'tif'
+    'tif',
   ];
   return extList.contains(ext);
 }
@@ -375,7 +369,7 @@ bool hasVideoExtension(String name) {
     'wmv',
     'flv',
     'mkv',
-    'ts'
+    'ts',
   ];
   return extList.contains(ext);
 }
@@ -396,7 +390,8 @@ class SharedLogger {
   static late final Logger _logger;
 
   SharedLogger._internal([Logger? l]) {
-    _logger = l ??
+    _logger =
+        l ??
         Logger(
           printer: PrettyPrinter(
             methodCount: 0,
@@ -412,8 +407,9 @@ class SharedLogger {
 
   static Future<void> initFileLogger(String programName) async {
     var appDocDir = await getApplicationDocumentsDirectory();
-    var logDir =
-        Directory(filepathpkg.join(appDocDir.path, programName, 'logs'));
+    var logDir = Directory(
+      filepathpkg.join(appDocDir.path, programName, 'logs'),
+    );
     if (!logDir.existsSync()) {
       logDir.createSync(recursive: true);
     }
@@ -433,12 +429,7 @@ class SharedLogger {
         dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
       ),
       level: Level.trace,
-      output: MultiOutput([
-        ConsoleOutput(),
-        FileOutput(
-          file: logFile,
-        ),
-      ]),
+      output: MultiOutput([ConsoleOutput(), FileOutput(file: logFile)]),
     );
     _instance = SharedLogger._internal(l);
   }
@@ -524,8 +515,10 @@ Future<bool> directoryIsEmpty(String path) async {
   return true;
 }
 
-(String host, int port) parseHostAndPort(String hostAndPort,
-    {int? defaultPort}) {
+(String host, int port) parseHostAndPort(
+  String hostAndPort, {
+  int? defaultPort,
+}) {
   final hostAndPortList = hostAndPort.split(':');
   if (hostAndPortList.length >= 2) {
     var host = hostAndPortList.sublist(0, hostAndPortList.length - 1).join(':');
@@ -554,8 +547,10 @@ String generateRandomString(int length) {
   final random = Random();
   const chars =
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  return List.generate(length, (index) => chars[random.nextInt(chars.length)])
-      .join();
+  return List.generate(
+    length,
+    (index) => chars[random.nextInt(chars.length)],
+  ).join();
 }
 
 class DebugBox extends StatelessWidget {
