@@ -106,8 +106,9 @@ void main() {
       final wrongAad = Uint8List.fromList(utf8.encode('Wrong Associated Data'));
       expect(
         () => aesGcm.decrypt(encrypted, wrongAad),
-        throwsA(isA<
-            InvalidCipherTextException>()), // PointyCastle throws this on tag mismatch
+        throwsA(
+          isA<InvalidCipherTextException>(),
+        ), // PointyCastle throws this on tag mismatch
         reason: 'Decryption should fail with incorrect AAD',
       );
 
@@ -150,7 +151,7 @@ void main() {
       final tamperedEncrypted = Uint8List.fromList(encrypted);
       tamperedEncrypted[tamperedEncrypted.length - 1] =
           tamperedEncrypted[tamperedEncrypted.length - 1] ^
-              0x01; // Flip last bit
+          0x01; // Flip last bit
 
       expect(
         () => aesGcm.decrypt(tamperedEncrypted),
@@ -160,8 +161,10 @@ void main() {
     });
 
     test('Decrypt requires minimum length', () {
-      expect(() => aesGcm.decrypt(Uint8List(11)),
-          throwsA(isA<ArgumentError>())); // Less than nonce length
+      expect(
+        () => aesGcm.decrypt(Uint8List(11)),
+        throwsA(isA<ArgumentError>()),
+      ); // Less than nonce length
       // Needs nonce + tag at minimum (12 + 16 = 28) for empty plaintext
       expect(() => aesGcm.decrypt(Uint8List(27)), throwsA(isA<RangeError>()));
       // Test with just nonce + tag (should decrypt empty plaintext if original was empty)
@@ -176,8 +179,14 @@ void main() {
 
     test('Stream Encrypt/Decrypt - Empty Data', () async {
       final plainStream = _streamFromList([]);
-      final encryptedStream = aesGcm.encryptStream(plainStream, blockSize);
-      final decryptedStream = aesGcm.decryptStream(encryptedStream, blockSize);
+      final encryptedStream = aesGcm.encryptStream(
+        plainStream,
+        chunkSize: blockSize,
+      );
+      final decryptedStream = aesGcm.decryptStream(
+        encryptedStream,
+        chunkSize: blockSize,
+      );
 
       final finalPlaintext = await _listFromStream(decryptedStream);
       expect(finalPlaintext, isEmpty);
@@ -187,8 +196,14 @@ void main() {
       final originalPlaintext = _generateTestData(blockSize ~/ 2);
       final plainStream = _streamFromList([originalPlaintext]);
 
-      final encryptedStream = aesGcm.encryptStream(plainStream, blockSize);
-      final decryptedStream = aesGcm.decryptStream(encryptedStream, blockSize);
+      final encryptedStream = aesGcm.encryptStream(
+        plainStream,
+        chunkSize: blockSize,
+      );
+      final decryptedStream = aesGcm.decryptStream(
+        encryptedStream,
+        chunkSize: blockSize,
+      );
 
       final finalPlaintext = await _listFromStream(decryptedStream);
       expect(finalPlaintext, equals(originalPlaintext));
@@ -198,8 +213,14 @@ void main() {
       final originalPlaintext = _generateTestData(blockSize);
       final plainStream = _streamFromList([originalPlaintext]);
 
-      final encryptedStream = aesGcm.encryptStream(plainStream, blockSize);
-      final decryptedStream = aesGcm.decryptStream(encryptedStream, blockSize);
+      final encryptedStream = aesGcm.encryptStream(
+        plainStream,
+        chunkSize: blockSize,
+      );
+      final decryptedStream = aesGcm.decryptStream(
+        encryptedStream,
+        chunkSize: blockSize,
+      );
 
       final finalPlaintext = await _listFromStream(decryptedStream);
       expect(finalPlaintext, equals(originalPlaintext));
@@ -212,18 +233,28 @@ void main() {
       final chunk2 = Uint8List.view(originalPlaintext.buffer, 70);
       final plainStream = _streamFromList([chunk1, chunk2]);
 
-      final encryptedStream = aesGcm.encryptStream(plainStream, blockSize);
+      final encryptedStream = aesGcm.encryptStream(
+        plainStream,
+        chunkSize: blockSize,
+      );
       // Collect encrypted data and feed it back chunked differently
       final encryptedData = await _listFromStream(encryptedStream);
-      final encChunk1 =
-          Uint8List.view(encryptedData.buffer, 0, encryptedData.length ~/ 2);
-      final encChunk2 =
-          Uint8List.view(encryptedData.buffer, encryptedData.length ~/ 2);
+      final encChunk1 = Uint8List.view(
+        encryptedData.buffer,
+        0,
+        encryptedData.length ~/ 2,
+      );
+      final encChunk2 = Uint8List.view(
+        encryptedData.buffer,
+        encryptedData.length ~/ 2,
+      );
       expect(encChunk1.length + encChunk2.length, equals(encryptedData.length));
       final reEncryptedStream = _streamFromList([encChunk1, encChunk2]);
 
-      final decryptedStream =
-          aesGcm.decryptStream(reEncryptedStream, blockSize);
+      final decryptedStream = aesGcm.decryptStream(
+        reEncryptedStream,
+        chunkSize: blockSize,
+      );
 
       final finalPlaintext = await _listFromStream(decryptedStream);
       expect(finalPlaintext, equals(originalPlaintext));
@@ -233,26 +264,33 @@ void main() {
       const encryptBlockSize = 100;
       const decryptBlockSize = 50; // Different block size
 
-      final originalPlaintext =
-          _generateTestData(encryptBlockSize * 2); // 2 full blocks
+      final originalPlaintext = _generateTestData(
+        encryptBlockSize * 2,
+      ); // 2 full blocks
       final plainStream = _streamFromList([originalPlaintext]);
 
-      final encryptedStream =
-          aesGcm.encryptStream(plainStream, encryptBlockSize);
+      final encryptedStream = aesGcm.encryptStream(
+        plainStream,
+        chunkSize: encryptBlockSize,
+      );
       // Collect encrypted data to feed into decryption
       final encryptedData = await _listFromStream(encryptedStream);
-      final reEncryptedStream =
-          _streamFromList([encryptedData]); // Feed as one chunk
+      final reEncryptedStream = _streamFromList([
+        encryptedData,
+      ]); // Feed as one chunk
 
-      final decryptedStream =
-          aesGcm.decryptStream(reEncryptedStream, decryptBlockSize);
+      final decryptedStream = aesGcm.decryptStream(
+        reEncryptedStream,
+        chunkSize: decryptBlockSize,
+      );
 
       // Expect an error during decryption because the chunk sizes won't match
       // what decryptStream expects based on decryptBlockSize
       expect(
         () => _listFromStream(decryptedStream),
-        throwsA(isA<
-            InvalidCipherTextException>()), // Or potentially ArgumentError depending on where it fails
+        throwsA(
+          isA<InvalidCipherTextException>(),
+        ), // Or potentially ArgumentError depending on where it fails
         reason: 'Decryption should fail when block sizes mismatch',
       );
     });

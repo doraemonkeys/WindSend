@@ -49,94 +49,151 @@ void main() {
     Future<Uint8List> collectStream(Stream<Uint8List> stream) async {
       final builder = BytesBuilder(copy: false); // More efficient
       await for (final chunk in stream) {
+        // print('chunk: ${chunk.length}');
         builder.add(chunk);
       }
       return builder.takeBytes();
     }
 
     test(
-        'encryptStream and decryptStream should correctly encrypt and decrypt data (default blocksize)',
-        () async {
-      // Simulate input stream with smaller chunks (e.g., 64KB)
-      final int inputChunkSize = 64 * 1024;
-      final Stream<Uint8List> plainStream =
-          createStreamFromChunks(originalData, inputChunkSize);
+      'encryptStream and decryptStream should correctly encrypt and decrypt data (default blocksize)',
+      () async {
+        // Simulate input stream with smaller chunks (e.g., 64KB)
+        final int inputChunkSize = 64 * 1024;
+        final Stream<Uint8List> plainStream = createStreamFromChunks(
+          originalData,
+          inputChunkSize,
+        );
 
-      // Encrypt
-      final Stream<Uint8List> cipherStream = aesGcm.encryptStream(plainStream);
+        // Encrypt
+        final Stream<Uint8List> cipherStream = aesGcm.encryptStream(
+          plainStream,
+        );
 
-      // Decrypt
-      // Note: The default blockSize for decryptStream MUST match the one used
-      // implicitly or explicitly in encryptStream for the chunking logic to work.
-      final Stream<Uint8List> decryptedStream =
-          aesGcm.decryptStream(cipherStream);
+        // Decrypt
+        // Note: The default blockSize for decryptStream MUST match the one used
+        // implicitly or explicitly in encryptStream for the chunking logic to work.
+        final Stream<Uint8List> decryptedStream = aesGcm.decryptStream(
+          cipherStream,
+        );
 
-      // Collect decrypted data
-      final Uint8List decryptedData = await collectStream(decryptedStream);
+        // Collect decrypted data
+        final Uint8List decryptedData = await collectStream(decryptedStream);
 
-      // Verify
-      expect(decryptedData.length, equals(originalData.length));
-      expect(ListEquality().equals(decryptedData, originalData), isTrue);
-      // Or use expect(decryptedData, orderedEquals(originalData)); but less efficient for large lists
-    });
+        // Verify
+        expect(decryptedData.length, equals(originalData.length));
+        expect(ListEquality().equals(decryptedData, originalData), isTrue);
+        // Or use expect(decryptedData, orderedEquals(originalData)); but less efficient for large lists
+      },
+    );
 
-    test('encryptStream and decryptStream work with custom block size',
-        () async {
-      final int customBlockSize = 512 * 1024; // Smaller block size
-      final int inputChunkSize = 32 * 1024;
-      final Stream<Uint8List> plainStream =
-          createStreamFromChunks(originalData, inputChunkSize);
+    test(
+      'encryptStreamRandom and decryptStreamRandom should correctly encrypt and decrypt data (default blocksize)',
+      () async {
+        // Simulate input stream with smaller chunks (e.g., 64KB)
+        final int inputChunkSize = 64 * 1024;
+        final Stream<Uint8List> plainStream = createStreamFromChunks(
+          originalData,
+          inputChunkSize,
+        );
 
-      // Encrypt
-      final Stream<Uint8List> cipherStream =
-          aesGcm.encryptStream(plainStream, customBlockSize);
+        // Encrypt
+        final Stream<Uint8List> cipherStream = aesGcm.encryptStreamRandom(
+          plainStream,
+        );
 
-      // Decrypt - MUST use the same block size
-      final Stream<Uint8List> decryptedStream =
-          aesGcm.decryptStream(cipherStream, customBlockSize);
+        // Decrypt
+        // Note: The default blockSize for decryptStream MUST match the one used
+        // implicitly or explicitly in encryptStream for the chunking logic to work.
+        final Stream<Uint8List> decryptedStream = aesGcm.decryptStreamRandom(
+          cipherStream,
+        );
 
-      // Collect decrypted data
-      final Uint8List decryptedData = await collectStream(decryptedStream);
+        // Collect decrypted data
+        final Uint8List decryptedData = await collectStream(decryptedStream);
 
-      // Verify
-      expect(decryptedData.length, equals(originalData.length));
-      expect(ListEquality().equals(decryptedData, originalData), isTrue);
-    });
+        // Verify
+        expect(decryptedData.length, equals(originalData.length));
+        expect(ListEquality().equals(decryptedData, originalData), isTrue);
+        // Or use expect(decryptedData, orderedEquals(originalData)); but less efficient for large lists
+      },
+    );
 
-    test('encryptStream and decryptStream handle data smaller than block size',
-        () async {
-      final smallData =
-          Uint8List.fromList(List.generate(500, (i) => i % 256)); // 500 bytes
-      final int inputChunkSize = 100; // Smaller than data size
-      final Stream<Uint8List> plainStream =
-          createStreamFromChunks(smallData, inputChunkSize);
+    test(
+      'encryptStream and decryptStream work with custom block size',
+      () async {
+        final int customBlockSize = 512 * 1024; // Smaller block size
+        final int inputChunkSize = 32 * 1024;
+        final Stream<Uint8List> plainStream = createStreamFromChunks(
+          originalData,
+          inputChunkSize,
+        );
 
-      // Encrypt (default block size is 1MB, much larger than data)
-      final Stream<Uint8List> cipherStream = aesGcm.encryptStream(plainStream);
+        // Encrypt
+        final Stream<Uint8List> cipherStream = aesGcm
+            .encryptStream(plainStream, chunkSize: customBlockSize)
+            .asBroadcastStream();
 
-      // Decrypt
-      final Stream<Uint8List> decryptedStream =
-          aesGcm.decryptStream(cipherStream);
+        // // Decrypt - MUST use the same block size
+        final Stream<Uint8List> decryptedStream = aesGcm.decryptStream(
+          cipherStream,
+          chunkSize: customBlockSize,
+        );
 
-      // Collect decrypted data
-      final Uint8List decryptedData = await collectStream(decryptedStream);
+        // Collect decrypted data
+        final Uint8List decryptedData = await collectStream(decryptedStream);
 
-      // Verify
-      expect(decryptedData.length, equals(smallData.length));
-      expect(ListEquality().equals(decryptedData, smallData), isTrue);
-    });
+        // // Verify
+        expect(decryptedData.length, equals(originalData.length));
+        expect(ListEquality().equals(decryptedData, originalData), isTrue);
+      },
+    );
+
+    test(
+      'encryptStream and decryptStream handle data smaller than block size',
+      () async {
+        final smallData = Uint8List.fromList(
+          List.generate(500, (i) => i % 256),
+        ); // 500 bytes
+        final int inputChunkSize = 100; // Smaller than data size
+        final Stream<Uint8List> plainStream = createStreamFromChunks(
+          smallData,
+          inputChunkSize,
+        );
+
+        // Encrypt (default block size is 1MB, much larger than data)
+        final Stream<Uint8List> cipherStream = aesGcm.encryptStream(
+          plainStream,
+        );
+
+        // Decrypt
+        final Stream<Uint8List> decryptedStream = aesGcm.decryptStream(
+          cipherStream,
+        );
+
+        // Collect decrypted data
+        final Uint8List decryptedData = await collectStream(decryptedStream);
+
+        // Verify
+        expect(decryptedData.length, equals(smallData.length));
+        expect(ListEquality().equals(decryptedData, smallData), isTrue);
+      },
+    );
 
     test('encryptStream and decryptStream handle empty stream', () async {
       final emptyData = Uint8List(0);
-      final Stream<Uint8List> plainStream =
-          createStreamFromChunks(emptyData, 1024); // Chunk size doesn't matter
+      final Stream<Uint8List> plainStream = createStreamFromChunks(
+        emptyData,
+        1024,
+      ); // Chunk size doesn't matter
 
       // Encrypt
       final Stream<Uint8List> cipherStream = aesGcm.encryptStream(plainStream);
 
       // Decrypt
-      final Stream<Uint8List> decryptedStream =
-          aesGcm.decryptStream(cipherStream);
+      final Stream<Uint8List> decryptedStream = aesGcm.decryptStream(
+        cipherStream,
+      );
 
       // Collect decrypted data
       final Uint8List decryptedData = await collectStream(decryptedStream);
@@ -149,29 +206,37 @@ void main() {
     // Potential Test for Mismatched Block Sizes (Expect Failure/Error)
     // This might be tricky depending on how errors are propagated in the stream processing.
     // The current implementation might just produce garbage data or hang if block sizes mismatch.
-    test('decryptStream fails or produces garbage with mismatched block size',
-        () async {
-      final int encryptBlockSize = 1024 * 1024;
-      final int decryptBlockSize = 512 * 1024; // Mismatch!
-      final int inputChunkSize = 64 * 1024;
-      final Stream<Uint8List> plainStream =
-          createStreamFromChunks(originalData, inputChunkSize);
+    test(
+      'decryptStream fails or produces garbage with mismatched block size',
+      () async {
+        final int encryptBlockSize = 1024 * 1024;
+        final int decryptBlockSize = 512 * 1024; // Mismatch!
+        final int inputChunkSize = 64 * 1024;
+        final Stream<Uint8List> plainStream = createStreamFromChunks(
+          originalData,
+          inputChunkSize,
+        );
 
-      final Stream<Uint8List> cipherStream =
-          aesGcm.encryptStream(plainStream, encryptBlockSize);
-      final Stream<Uint8List> decryptedStream =
-          aesGcm.decryptStream(cipherStream, decryptBlockSize);
+        final Stream<Uint8List> cipherStream = aesGcm.encryptStream(
+          plainStream,
+          chunkSize: encryptBlockSize,
+        );
+        final Stream<Uint8List> decryptedStream = aesGcm.decryptStream(
+          cipherStream,
+          chunkSize: decryptBlockSize,
+        );
 
-      // Expect an error during collection or incorrect data
-      try {
-        final Uint8List decryptedData = await collectStream(decryptedStream);
-        // If it finishes, the data should NOT match
-        expect(ListEquality().equals(decryptedData, originalData), isFalse);
-      } catch (e) {
-        // Expecting an error might be more appropriate, e.g., InvalidCipherTextException
-        // but stream error handling can be complex.
-        expect(e, isA<Exception>()); // Or a more specific exception if thrown
-      }
-    });
+        // Expect an error during collection or incorrect data
+        try {
+          final Uint8List decryptedData = await collectStream(decryptedStream);
+          // If it finishes, the data should NOT match
+          expect(ListEquality().equals(decryptedData, originalData), isFalse);
+        } catch (e) {
+          // Expecting an error might be more appropriate, e.g., InvalidCipherTextException
+          // but stream error handling can be complex.
+          expect(e, isA<Exception>()); // Or a more specific exception if thrown
+        }
+      },
+    );
   });
 }
