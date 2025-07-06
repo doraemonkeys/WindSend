@@ -54,10 +54,11 @@ class FileUploader {
         throw Exception('operationTotalSize is required');
       }
       _progressLimiter = ProgressLimiter<TransferProgress>(
-          sendPort: progressSendPort,
-          isSame: (a, b) =>
-              a.currentBytes == b.currentBytes && a.message == b.message,
-          totalBytes: operationTotalSize!);
+        sendPort: progressSendPort,
+        isSame: (a, b) =>
+            a.currentBytes == b.currentBytes && a.message == b.message,
+        totalBytes: operationTotalSize!,
+      );
     }
   }
 
@@ -67,8 +68,10 @@ class FileUploader {
       for (var e in _connectionManager.conns) {
         // print('close, send end connection1');
         if (e.isRelay) {
-          await device.doSendEndConnection(e.conn,
-              localDeviceName: loaclDeviceName);
+          await device.doSendEndConnection(
+            e.conn,
+            localDeviceName: loaclDeviceName,
+          );
           await e.stream
               .drain()
               .timeout(const Duration(milliseconds: 5))
@@ -238,7 +241,8 @@ class FileUploader {
       // Empty file
       var fileAccess = await file.open();
       futures.add(
-          uploader(fileAccess, start, end, filePath, savePath, opID, fileID));
+        uploader(fileAccess, start, end, filePath, savePath, opID, fileID),
+      );
     }
     while (end < fileSize) {
       // [start, end)
@@ -250,7 +254,8 @@ class FileUploader {
       // print("part $partNum: $start - $end");
       var fileAccess = await file.open(); //每次都重新打开文件，不用担心await导致seek位置不对
       futures.add(
-          uploader(fileAccess, start, end, filePath, savePath, opID, fileID));
+        uploader(fileAccess, start, end, filePath, savePath, opID, fileID),
+      );
       partNum++;
     }
     // print('partNum: $partNum');
@@ -295,10 +300,7 @@ class FileUploader {
     int? opID,
   }) async {
     opID = opID ?? Random().nextInt(int.parse('FFFFFFFF', radix: 16));
-    UploadOperationInfo opInfo = UploadOperationInfo(
-      data.length,
-      1,
-    );
+    UploadOperationInfo opInfo = UploadOperationInfo(data.length, 1);
     await sendOperationInfo(opID, opInfo);
 
     var connStream = await _connectionManager.getConnection(
@@ -388,8 +390,10 @@ class FileDownloader {
     if (_connectionManager.connsContainRelay) {
       for (var e in _connectionManager.conns) {
         if (e.isRelay) {
-          await device.doSendEndConnection(e.conn,
-              localDeviceName: localDeviceName);
+          await device.doSendEndConnection(
+            e.conn,
+            localDeviceName: localDeviceName,
+          );
           await e.stream
               .drain()
               .timeout(const Duration(milliseconds: 1))
@@ -400,8 +404,13 @@ class FileDownloader {
     await _connectionManager.closeAllConn();
   }
 
-  Future<void> _writeRangeFile(int start, int end, int partNum,
-      RandomAccessFile fileAccess, DownloadInfo paths) async {
+  Future<void> _writeRangeFile(
+    int start,
+    int end,
+    int partNum,
+    RandomAccessFile fileAccess,
+    DownloadInfo paths,
+  ) async {
     var chunkSize = min(maxChunkSize, end - start);
     // print('chunkSize: $chunkSize');
     var connStream = await _connectionManager.getConnection(
@@ -431,7 +440,8 @@ class FileDownloader {
       // print('_writeRangeFile respHeader: $jsonContent');
       if (respHeader.code != 200) {
         throw Exception(
-            'respone code: ${respHeader.code} msg: ${respHeader.msg}');
+          'respone code: ${respHeader.code} msg: ${respHeader.msg}',
+        );
       }
     }
 
@@ -455,8 +465,11 @@ class FileDownloader {
       n += data.length;
       if (isHeadReading) {
         if (n >= 4) {
-          respHeadLen =
-              ByteData.sublistView(buf, 0, 4).getInt32(0, Endian.little);
+          respHeadLen = ByteData.sublistView(
+            buf,
+            0,
+            4,
+          ).getInt32(0, Endian.little);
         }
         if (respHeadLen != 0 && n >= respHeadLen + 4) {
           var respHeadBytes = buf.sublist(4, respHeadLen + 4);
