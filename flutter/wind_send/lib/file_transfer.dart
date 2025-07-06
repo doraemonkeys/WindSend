@@ -71,7 +71,7 @@ class FileUploader {
               localDeviceName: loaclDeviceName);
           await e.stream
               .drain()
-              .timeout(const Duration(milliseconds: 1))
+              .timeout(const Duration(milliseconds: 5))
               .catchError((_) {});
         }
       }
