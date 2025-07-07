@@ -44,6 +44,7 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
                 let _ = set_relay_server_handler(&mut conn, head).await;
             }
             RouteAction::EndConnection => {
+                info!("client {} send end connection request", head.device_name);
                 return Some(conn);
             }
             RouteAction::Unknown(action) => {
@@ -87,7 +88,7 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
         Ok(Err(e)) => {
             match e.kind() {
                 std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_addr),
-                _ => error!("read head len failed, err: {}", e),
+                _ => error!("read common_auth head len failed, err: {}", e),
             }
             return Err(());
         }
