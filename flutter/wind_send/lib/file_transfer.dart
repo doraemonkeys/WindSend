@@ -678,6 +678,7 @@ class ConnectionManager {
     return conns.removeLast();
   }
 
+  /// The conn that has been idle for more than two minutes will be closed by the server
   void putConnection(ConnectionBox conn) {
     conns.add(conn);
 

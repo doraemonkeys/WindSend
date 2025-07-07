@@ -742,10 +742,7 @@ class Device {
       conn.destroy();
       throw Exception('${respHead.msg}');
     }
-    var decryptedBody = cipher.decrypt(
-      Uint8List.fromList(respBody),
-      utf8.encode(aad),
-    );
+    var decryptedBody = cipher.decrypt(respBody, utf8.encode(aad));
     var decryptedBodyStr = utf8.decode(decryptedBody);
     conn.destroy();
     if (decryptedBodyStr != 'pong') {

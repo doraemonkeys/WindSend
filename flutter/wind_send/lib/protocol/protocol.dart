@@ -215,10 +215,8 @@ class RespHead {
     'dataType': dataType,
   };
 
-  /// return [head, body]
-  ///
-  /// Do not use this function for large body, if there is still data after the body, these data may be lost
-  static Future<(RespHead, List<int>)> readHeadAndBodyFromConn(
+  @Deprecated('use readHeadAndBodyFromConn instead')
+  static Future<(RespHead, List<int>)> readHeadAndBodyFromConn2(
     Stream<Uint8List> conn,
   ) async {
     int respHeadLen = 0;
@@ -272,15 +270,79 @@ class RespHead {
     }
     throw Exception(errMsg);
   }
+
+  /// return [head, body]
+  ///
+  /// Do not use this function for large body, if there is still data after the body, it may throw an exception
+  ///
+  /// If the dataLen in the head is larger than the actual data, it may cause the program to be blocked here
+  static Future<(RespHead, Uint8List)> readHeadAndBodyFromConn(
+    Stream<Uint8List> conn, {
+    Duration? timeout,
+  }) async {
+    final initialLen = 4;
+
+    void safeCheck(int dataLen) {
+      if (dataLen < 0) {
+        throw Exception('dataLen < 0');
+      }
+      if (dataLen > 1024 * 1024 * 1024) {
+        throw Exception('dataLen > 1024 * 1024 * 1024');
+      }
+    }
+
+    int nextPartLen1(Uint8List data) {
+      var headLen = ByteData.sublistView(data).getInt32(0, Endian.little);
+      safeCheck(headLen);
+      return headLen;
+    }
+
+    RespHead? head;
+    int nextPartLen2(Uint8List data) {
+      head = RespHead.fromJson(jsonDecode(utf8.decode(data)));
+      safeCheck(head!.dataLen);
+      return head!.dataLen;
+    }
+
+    Uint8List? body;
+    int nextPartLen3(Uint8List data) {
+      body = data;
+      return 0;
+    }
+
+    int count = 0;
+    int nextPartLen(Uint8List data) {
+      count++;
+      switch (count) {
+        case 1:
+          return nextPartLen1(data);
+        case 2:
+          return nextPartLen2(data);
+        case 3:
+          return nextPartLen3(data);
+        default:
+          throw Exception('unexpected: count($count)');
+      }
+    }
+
+    var nextStreamFuture = MsgReader.readNPart(conn, initialLen, nextPartLen);
+    if (timeout != null) {
+      nextStreamFuture = nextStreamFuture.timeout(timeout);
+    }
+    final nextStream = await nextStreamFuture;
+    if (nextStream != null) {
+      throw Exception('readHeadAndBodyFromConn: receive extra data');
+    }
+    return (head!, body ?? Uint8List(0));
+  }
 }
 
-class MsgReader<T> {
-  final T Function(Map<String, dynamic> json) fromJson;
+class MsgReader {
+  MsgReader();
 
-  MsgReader(this.fromJson);
-
-  Future<(T, Stream<Uint8List>)> readReqHeadOnly2(
-    Stream<Uint8List> conn, {
+  static Future<(T, Stream<Uint8List>)> readReqHeadOnly2<T>(
+    Stream<Uint8List> conn,
+    T Function(Map<String, dynamic> json) fromJson, {
     AesGcm? cipher,
   }) async {
     void safeCheck(int dataLen) {
@@ -318,8 +380,9 @@ class MsgReader<T> {
   /// Stream must be broadcast and can not be in listen mode
   ///test
   /// 4 bytes length | request Head data
-  Future<(T, Stream<Uint8List>)> readReqHeadOnly(
-    Stream<Uint8List> conn, {
+  static Future<(T, Stream<Uint8List>)> readReqHeadOnly3<T>(
+    Stream<Uint8List> conn,
+    T Function(Map<String, dynamic> json) fromJson, {
     AesGcm? cipher,
   }) async {
     void safeCheck(int dataLen) {
@@ -398,6 +461,116 @@ class MsgReader<T> {
     } else {
       return (item, conn);
     }
+  }
+
+  static Future<(T, Stream<Uint8List>)> readReqHeadOnly<T>(
+    Stream<Uint8List> conn,
+    T Function(Map<String, dynamic> json) fromJson, {
+    AesGcm? cipher,
+  }) async {
+    void safeCheck(int dataLen) {
+      if (dataLen <= 0) {
+        throw Exception('dataLen <= 0');
+      }
+      if (dataLen > 1024 * 1024 * 1024) {
+        throw Exception('dataLen > 1024 * 1024 * 1024');
+      }
+    }
+
+    final initialLen = 4;
+    int nextPartLen1(Uint8List data) {
+      var headLen = ByteData.sublistView(data).getInt32(0, Endian.little);
+      safeCheck(headLen);
+      return headLen;
+    }
+
+    T? head;
+    int nextPartLen2(Uint8List data) {
+      if (cipher != null) {
+        data = cipher.decrypt(data);
+      }
+      head = fromJson(jsonDecode(utf8.decode(data)));
+      return 0;
+    }
+
+    int count = 0;
+    int nextPartLen(Uint8List data) {
+      count++;
+      switch (count) {
+        case 1:
+          return nextPartLen1(data);
+        case 2:
+          return nextPartLen2(data);
+        default:
+          throw Exception('unexpected: count($count)');
+      }
+    }
+
+    final nextStream = await readNPart(conn, initialLen, nextPartLen);
+    if (nextStream != null) {
+      conn = nextStream;
+    }
+    return (head!, conn);
+  }
+
+  static Future<Stream<Uint8List>?> readNPart(
+    Stream<Uint8List> conn,
+    int initialLen,
+    int Function(Uint8List) nextPartLen,
+  ) async {
+    int nextPartLenWithCheck(Uint8List data, int expectedLen) {
+      if (data.length != expectedLen) {
+        throw Exception(
+          'unexpected: data.length(${data.length}) != expectedLen($expectedLen)',
+        );
+      }
+      return nextPartLen(data);
+    }
+
+    int dataLen = initialLen;
+    Uint8List buffer = Uint8List(dataLen);
+    int writeOffset = 0;
+
+    void resetBuffer(int newLen) {
+      if (newLen <= buffer.buffer.lengthInBytes) {
+        buffer = Uint8List.view(buffer.buffer, 0, newLen);
+      } else {
+        buffer = Uint8List(newLen);
+      }
+      writeOffset = 0;
+    }
+
+    loop:
+    await for (var chunk in conn) {
+      while (true) {
+        if (chunk.length + writeOffset == dataLen) {
+          buffer.setRange(writeOffset, dataLen, chunk);
+          dataLen = nextPartLenWithCheck(buffer, dataLen);
+          if (dataLen == 0) {
+            return null;
+          }
+          resetBuffer(dataLen);
+          continue loop;
+        } else if (chunk.length + writeOffset < dataLen) {
+          buffer.setRange(writeOffset, writeOffset + chunk.length, chunk);
+          writeOffset += chunk.length;
+          continue loop;
+        } else {
+          buffer.setRange(writeOffset, dataLen, chunk);
+          chunk = Uint8List.view(
+            chunk.buffer,
+            chunk.offsetInBytes + dataLen - writeOffset,
+          );
+          dataLen = nextPartLenWithCheck(buffer, dataLen);
+          if (dataLen == 0) {
+            return streamUnshift(conn, chunk).asBroadcastStream();
+          }
+          resetBuffer(dataLen);
+          continue;
+        }
+      }
+    }
+    throw Exception('stream ended, bytes not enough');
   }
 }
 

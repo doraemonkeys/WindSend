@@ -9,8 +9,10 @@ import 'dart:collection'; // Import Queue
 /// asynchronously [waitTask] for available tasks.
 class SpmcChannel<T> {
   // Use Queues for efficient O(1) add/remove at ends
-  final _workers = Queue<
-      Completer<T>>(); // Queue of waiting consumers (represented by Completers)
+  final _workers =
+      Queue<
+        Completer<T>
+      >(); // Queue of waiting consumers (represented by Completers)
   final _tasks = Queue<T>(); // Queue of pending tasks
 
   /// Waits for a task to become available.

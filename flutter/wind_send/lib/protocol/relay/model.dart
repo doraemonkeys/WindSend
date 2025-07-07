@@ -95,8 +95,10 @@ class HandshakeResp {
   }
 
   static Future<HandshakeResp> fromConn(BroadcastSocket conn) async {
-    var reader = MsgReader(HandshakeResp.fromJson);
-    final (resp, nextStream) = await reader.readReqHeadOnly(conn.stream);
+    final (resp, nextStream) = await MsgReader.readReqHeadOnly(
+      conn.stream,
+      HandshakeResp.fromJson,
+    );
     conn.updateStream(nextStream);
     return resp;
   }
@@ -188,9 +190,9 @@ class RespHead with HeadWriter {
     BroadcastSocket conn, {
     AesGcm? cipher,
   }) async {
-    var reader = MsgReader(RespHead.fromJson);
-    final (head, nextStream) = await reader.readReqHeadOnly(
+    final (head, nextStream) = await MsgReader.readReqHeadOnly(
       conn.stream,
+      RespHead.fromJson,
       cipher: cipher,
     );
     conn.updateStream(nextStream);
