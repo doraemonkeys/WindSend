@@ -151,8 +151,7 @@ class HeadInfo with HeadWriter {
       headInfoUint8Len,
       Endian.little,
     );
-    conn.add(headInfoUint8LenUint8);
-    conn.add(headInfoUint8);
+    conn.add(headInfoUint8LenUint8 + headInfoUint8);
     // await conn.flush();
     // print('writeToConn all write length: ${4 + headInfoUint8.length}');
   }
@@ -171,8 +170,7 @@ class HeadInfo with HeadWriter {
       headInfoUint8Len,
       Endian.little,
     );
-    conn.add(headInfoUint8LenUint8);
-    conn.add(headInfoUint8);
+    conn.add(headInfoUint8LenUint8 + headInfoUint8);
     conn.add(body);
     // await conn.flush();
   }
@@ -596,8 +594,7 @@ mixin HeadWriter {
       headInfoUint8Len,
       Endian.little,
     );
-    conn.add(headInfoUint8LenUint8);
-    conn.add(headInfoUint8);
+    conn.add(headInfoUint8LenUint8 + headInfoUint8);
   }
 
   Future<void> writeHeadOnly(Socket conn, {AesGcm? cipher}) async {
