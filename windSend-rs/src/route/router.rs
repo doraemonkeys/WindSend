@@ -67,6 +67,8 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
     const UNAUTHORIZED_CODE: i32 = 401;
     // The header cannot exceed 10KB to prevent malicious attacks from causing memory overflow
     const MAX_HEAD_LEN: isize = 1024 * 10;
+    const IDLE_CONNECTION_WAITING_TIME: tokio::time::Duration =
+        tokio::time::Duration::from_secs(60 * 2);
 
     let remote_addr = conn
         .get_ref()
@@ -78,13 +80,22 @@ pub async fn common_auth(conn: &mut TlsStream<TcpStream>) -> Result<RouteRecvHea
 
     // Read the length of the json
     let mut head_len = [0u8; 4];
-    if let Err(e) = conn.read_exact(&mut head_len).await {
-        match e.kind() {
-            std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_addr),
-            _ => error!("read head len failed, err: {}", e),
+    let head_len_future =
+        tokio::time::timeout(IDLE_CONNECTION_WAITING_TIME, conn.read_exact(&mut head_len));
+    match head_len_future.await {
+        Ok(Ok(_)) => (),
+        Ok(Err(e)) => {
+            match e.kind() {
+                std::io::ErrorKind::UnexpectedEof => info!("client {} closed", remote_addr),
+                _ => error!("read head len failed, err: {}", e),
+            }
+            return Err(());
         }
-        return Err(());
-    }
+        Err(_) => {
+            error!("read client head timeout, remote ip: {}", remote_addr);
+            return Err(());
+        }
+    };
     let head_len = i32::from_le_bytes(head_len);
     if head_len > MAX_HEAD_LEN as i32 || head_len <= 0 {
         error!("invalid head len: {}", head_len);
