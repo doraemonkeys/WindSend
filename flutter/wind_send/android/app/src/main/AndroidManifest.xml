@@ -91,7 +91,7 @@
             </intent-filter>
 
             <!--TODO:
-                Add this filter, if you want to support sharing text into your app-->
+            Add this filter if you want to handle shared text-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -99,7 +99,7 @@
             </intent-filter>
 
             <!--TODO:
-                Add this filter, if you want to support sharing images into your app-->
+            Add this filter if you want to handle shared images-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -113,7 +113,7 @@
             </intent-filter>
 
             <!--TODO:
-                Add this filter, if you want to support sharing videos into your app-->
+            Add this filter if you want to handle shared videos-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -126,7 +126,7 @@
             </intent-filter>
 
             <!--TODO:
-                Add this filter, if you want to support sharing any type of files-->
+            Add this filter if you want to handle any type of file-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -137,6 +137,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+
+            <!-- TODO: (Optional) Add these meta-data tags if you want to support sharing to a
+            specific target/conversation/shortcut (via the recordSentMessage api) -->
+            <meta-data
+                android:name="android.service.chooser.chooser_target_service"
+                android:value="androidx.sharetarget.ChooserTargetServiceCompat" />
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/share_targets" />
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

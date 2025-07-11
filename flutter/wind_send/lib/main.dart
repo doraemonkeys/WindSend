@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 // import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:listen_sharing_intent/listen_sharing_intent.dart';
+import 'package:share_handler/share_handler.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
@@ -86,15 +86,17 @@ class _MyAppState extends State<MyApp> {
 
     // -------------------------------- share --------------------------------
     if (Platform.isAndroid || Platform.isIOS) {
-      var shareStream = ReceiveSharingIntent.instance.getMediaStream();
-
-      var shareFuture = ReceiveSharingIntent.instance.getInitialMedia();
-
-      ShareDataModel.initInstance(shareStream, shared: shareFuture);
+      initPlatformState();
     }
     // -------------------------------- share --------------------------------
 
     super.initState();
+  }
+
+  Future<void> initPlatformState() async {
+    final handler = ShareHandlerPlatform.instance;
+    var media = handler.getInitialSharedMedia();
+    ShareDataModel.initInstance(handler.sharedMediaStream, shared: media);
   }
 
   ThemeMode getThemeMode() {
@@ -543,10 +545,14 @@ class _MainBodyState extends State<MainBody> {
       );
     }
 
-    handleSharedMediaFile(List<SharedMediaFile> shared) async {
-      if (shared.isEmpty) {
+    handleSharedMediaFile(SharedMedia? sharedMedia) async {
+      if (sharedMedia == null) {
         return;
       }
+      if (sharedMedia.content == null && sharedMedia.attachments == null) {
+        return;
+      }
+      final shared = sharedMedia.attachments ?? [];
       var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
       if (defaultDevice == null) {
         return;
@@ -571,46 +577,38 @@ class _MainBodyState extends State<MainBody> {
             defaultDevice.targetDeviceName,
           ]);
 
-          var lastSharedMedia = LocalConfig.lastSharedMedia;
-          if (lastSharedMedia != null &&
-              lastSharedMedia.length == shared.length) {
-            var same = true;
-            for (var i = 0; i < lastSharedMedia.length; i++) {
-              if (lastSharedMedia[i] != jsonEncode(shared[i].toMap())) {
-                same = false;
-                break;
-              }
-            }
-            if (same) {
-              return ToastResult(message: shareSuccessMsg);
-            }
-          }
+          // var lastSharedMedia = LocalConfig.lastSharedMedia;
+          // if (lastSharedMedia != null &&
+          //     lastSharedMedia.length == shared.length) {
+          //   var same = true;
+          //   for (var i = 0; i < lastSharedMedia.length; i++) {
+          //     if (lastSharedMedia[i] != jsonEncode(shared[i].toMap())) {
+          //       same = false;
+          //       break;
+          //     }
+          //   }
+          //   if (same) {
+          //     return ToastResult(message: shareSuccessMsg);
+          //   }
+          // }
+
+          // final recipient = shared.speakableGroupName;
 
           List<String> fileList = [];
-          String? text;
+          String? text = sharedMedia.content;
           for (var element in shared) {
-            if (element.type == SharedMediaType.file ||
-                element.type == SharedMediaType.image ||
-                element.type == SharedMediaType.video) {
-              fileList.add(element.path);
+            if (element == null) {
               continue;
             }
-            if (element.mimeType == 'text/html') {
-              if (await File(element.path).exists()) {
-                fileList.add(element.path);
-              } else {
-                text = element.path;
-              }
-              continue;
-            }
-            if (Platform.isAndroid &&
-                element.path.startsWith('/') &&
-                element.path.contains(androidAppPackageName) &&
-                await File(element.path).exists()) {
-              fileList.add(element.path);
-              continue;
-            }
-            text = element.path;
+            fileList.add(element.path);
+            // if (element.mimeType == 'text/html') {
+            //   if (await File(element.path).exists()) {
+            //     fileList.add(element.path);
+            //   } else {
+            //     text = element.path;
+            //   }
+            //   continue;
+            // }
           }
           if (defaultDevice.iP == Device.webIP && text == null) {
             throw 'Unsupported operation, web device only support text';
@@ -629,7 +627,7 @@ class _MainBodyState extends State<MainBody> {
               await defaultDevice.doPasteTextAction(text: text);
             }
           }
-          await LocalConfig.setLastSharedMedia(shared);
+          // await LocalConfig.setLastSharedMedia(shared);
           return ToastResult(message: shareSuccessMsg);
         },
         progressReceivePort: rp,
@@ -646,7 +644,10 @@ class _MainBodyState extends State<MainBody> {
         ?.then((items) async {
           ShareDataModel().shared = null;
           await handleSharedMediaFile(items);
-          ReceiveSharingIntent.instance.reset().catchError(handleResetError);
+          // ReceiveSharingIntent.instance.reset().catchError(handleResetError);
+          ShareHandlerPlatform.instance.resetInitialSharedMedia().catchError(
+            handleResetError,
+          );
         }, onError: handleOnError)
         .catchError(handleOnError);
     // -------------------------------- share --------------------------------
