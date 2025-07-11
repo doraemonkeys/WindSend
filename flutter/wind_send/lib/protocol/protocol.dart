@@ -368,10 +368,13 @@ class MsgReader {
     if (nextStream2 != null) {
       conn = nextStream2;
     }
+    List<int>? decryptedHeadBytes;
     if (cipher != null) {
-      headBytes = cipher.decrypt(Uint8List.fromList(headBytes));
+      decryptedHeadBytes = await cipher.decrypt(headBytes);
     }
-    var head = fromJson(jsonDecode(utf8.decode(Uint8List.fromList(headBytes))));
+    var head = fromJson(
+      jsonDecode(utf8.decode(decryptedHeadBytes ?? headBytes)),
+    );
     return (head, conn);
   }
 
@@ -450,10 +453,11 @@ class MsgReader {
     if (writeOffset != dataLen) {
       throw Exception('stream bytes not enough');
     }
+    List<int>? buffer2;
     if (cipher != null) {
-      buffer = cipher.decrypt(buffer!);
+      buffer2 = await cipher.decrypt(buffer!);
     }
-    var item = fromJson(jsonDecode(utf8.decode(buffer!)));
+    var item = fromJson(jsonDecode(utf8.decode(buffer2 ?? buffer!)));
     if (surplus != null) {
       return (item, streamUnshift(conn, surplus).asBroadcastStream());
     } else {
@@ -483,16 +487,17 @@ class MsgReader {
     }
 
     T? head;
-    int nextPartLen2(Uint8List data) {
+    FutureOr<int> nextPartLen2(Uint8List data) async {
       if (cipher != null) {
-        data = cipher.decrypt(data);
+        var decryptedData = await cipher.decrypt(data);
+        data = Uint8List.fromList(decryptedData);
       }
       head = fromJson(jsonDecode(utf8.decode(data)));
       return 0;
     }
 
     int count = 0;
-    int nextPartLen(Uint8List data) {
+    FutureOr<int> nextPartLen(Uint8List data) async {
       count++;
       switch (count) {
         case 1:
@@ -514,9 +519,9 @@ class MsgReader {
   static Future<Stream<Uint8List>?> readNPart(
     Stream<Uint8List> conn,
     int initialLen,
-    int Function(Uint8List) nextPartLen,
+    FutureOr<int> Function(Uint8List) nextPartLen,
   ) async {
-    int nextPartLenWithCheck(Uint8List data, int expectedLen) {
+    FutureOr<int> nextPartLenWithCheck(Uint8List data, int expectedLen) async {
       if (data.length != expectedLen) {
         throw Exception(
           'unexpected: data.length(${data.length}) != expectedLen($expectedLen)',
@@ -543,7 +548,7 @@ class MsgReader {
       while (true) {
         if (chunk.length + writeOffset == dataLen) {
           buffer.setRange(writeOffset, dataLen, chunk);
-          dataLen = nextPartLenWithCheck(buffer, dataLen);
+          dataLen = await nextPartLenWithCheck(buffer, dataLen);
           if (dataLen == 0) {
             return null;
           }
@@ -559,7 +564,7 @@ class MsgReader {
             chunk.buffer,
             chunk.offsetInBytes + dataLen - writeOffset,
           );
-          dataLen = nextPartLenWithCheck(buffer, dataLen);
+          dataLen = await nextPartLenWithCheck(buffer, dataLen);
           if (dataLen == 0) {
             return streamUnshift(conn, chunk).asBroadcastStream();
           }
@@ -585,7 +590,7 @@ mixin HeadWriter {
     var headInfojson = jsonEncode(toJson());
     var headInfoUint8 = utf8.encode(headInfojson);
     if (cipher != null) {
-      headInfoUint8 = cipher.encrypt(headInfoUint8);
+      headInfoUint8 = await cipher.encrypt(headInfoUint8);
     }
     var headInfoUint8Len = headInfoUint8.length;
     var headInfoUint8LenUint8 = Uint8List(4);
@@ -608,7 +613,7 @@ mixin HeadWriter {
     AesGcm? cipher,
   }) async {
     if (cipher != null) {
-      body = cipher.encrypt(body);
+      body = await cipher.encrypt(body);
     }
     updateDataLen(body.length);
     await writeHead(conn, cipher: cipher);

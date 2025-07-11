@@ -1,360 +1,290 @@
 import 'dart:typed_data';
 // import 'dart:math';
 import 'package:convert/convert.dart';
-import "package:pointycastle/export.dart";
 import 'package:wind_send/utils.dart';
-// import 'dart:io';
+import 'dart:async';
+import 'package:cryptography_plus/cryptography_plus.dart';
+import 'package:cryptography_plus/cryptography_plus.dart' as cp;
+
+class AesCTR {
+  late final AesCtr _algorithm;
+  late final Uint8List _key;
+
+  MacAlgorithm macAlgorithm = MacAlgorithm.empty;
+
+  /// The length of the nonce in bytes for AES-CTR.
+  /// A 12-byte (96-bit) nonce is standard and recommended.
+  static const nonceLength = 12;
+
+  /// The number of bytes occupied by the counter.
+  static const counterBytes = 4;
+
+  static const blockBytes = 16;
+
+  /// The number of bytes occupied by the nonce and the counter.
+  static const nonceAndCounterBytes = nonceLength + counterBytes;
+
+  /// Creates an instance of AesCTR with a secret key.
+  ///
+  /// The [_key] must be 16, 24, or 32 bytes long, corresponding to
+  /// AES-128, AES-192, or AES-256, respectively.
+  AesCTR(this._key, {MacAlgorithm? macAlgorithm}) {
+    if (_key.length != 16 && _key.length != 24 && _key.length != 32) {
+      throw ArgumentError('Key must be 16, 24 or 32 bytes long');
+    }
+    if (macAlgorithm != null) {
+      this.macAlgorithm = macAlgorithm;
+    }
+    _algorithm = _getAlgorithm();
+  }
+
+  AesCTR.fromHex(String key, {MacAlgorithm? macAlgorithm}) {
+    AesCTR(Uint8List.fromList(hex.decode(key)), macAlgorithm: macAlgorithm);
+  }
+
+  AesCtr _getAlgorithm() {
+    switch (_key.length) {
+      case 16:
+        return AesCtr.with128bits(macAlgorithm: macAlgorithm);
+      case 24:
+        return AesCtr.with192bits(macAlgorithm: macAlgorithm);
+      case 32:
+        return AesCtr.with256bits(macAlgorithm: macAlgorithm);
+      default:
+        throw StateError('Unexpected key length.');
+    }
+  }
+
+  Stream<List<int>> encryptStream(
+    Stream<List<int>> plaintextStream, {
+    List<int>? nonce,
+    List<int> aad = const [],
+    bool yieldNonce = true,
+    void Function(cp.Mac)? onMac,
+    bool allowUseSameBytes = false,
+  }) async* {
+    nonce ??= _algorithm.newNonce();
+    if (yieldNonce) {
+      yield nonce;
+    }
+    yield* _algorithm.encryptStream(
+      plaintextStream,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      onMac: onMac ?? (mac) {},
+      allowUseSameBytes: allowUseSameBytes,
+    );
+  }
+
+  FutureOr<Stream<List<int>>> decryptStream(
+    // When the nonce is at the beginning of the cipherStream, the cipherStream must be broadcast and can not be in listen mode
+    Stream<List<int>> cipherStream, {
+    List<int>? nonce,
+    List<int> aad = const [],
+    bool allowUseSameBytes = false,
+    FutureOr<cp.Mac>? mac,
+  }) async {
+    if (nonce == null) {
+      final (nonce2, nextStream) = await takeBytesInListStream(
+        cipherStream,
+        nonceAndCounterBytes,
+      );
+      if (nextStream != null) {
+        cipherStream = nextStream;
+      }
+      nonce = nonce2;
+    }
+    return _algorithm.decryptStream(
+      cipherStream,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      mac: mac ?? cp.Mac.empty,
+      aad: aad,
+      allowUseSameBytes: allowUseSameBytes,
+    );
+  }
+
+  Future<SecretBox> encryptWithNonce(
+    List<int> plaintext,
+    List<int>? nonce, {
+    List<int> aad = const <int>[],
+    int keyStreamIndex = 0,
+    Uint8List? possibleBuffer,
+  }) {
+    return _algorithm.encrypt(
+      plaintext,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      aad: aad,
+      keyStreamIndex: keyStreamIndex,
+      possibleBuffer: possibleBuffer,
+    );
+  }
+
+  Future<List<int>> decryptWithNonce(
+    List<int> ciphertext,
+    List<int> nonce, {
+    List<int> aad = const <int>[],
+    int keyStreamIndex = 0,
+    Uint8List? possibleBuffer,
+    cp.Mac? mac,
+  }) {
+    return _algorithm.decrypt(
+      SecretBox(ciphertext, nonce: nonce, mac: mac ?? cp.Mac.empty),
+      secretKey: SecretKey(_key),
+      aad: aad,
+      keyStreamIndex: keyStreamIndex,
+      possibleBuffer: possibleBuffer,
+    );
+  }
+}
 
 class AesGcm {
+  late final cp.AesGcm _algorithm;
   late final Uint8List _key;
-  static const nonceLength = 12;
+
+  static const nonceLength = cp.AesGcm.defaultNonceLength;
+
   static const tagLength = 16;
+
+  static const blockBytes = 16;
 
   AesGcm(this._key) {
     if (_key.length != 16 && _key.length != 24 && _key.length != 32) {
       throw ArgumentError('Key must be 16, 24 or 32 bytes long');
     }
+    _algorithm = _getAlgorithm();
   }
 
   AesGcm.fromHex(String key) {
-    _key = Uint8List.fromList(hex.decode(key));
+    var a = AesGcm(Uint8List.fromList(hex.decode(key)));
+    _key = a._key;
+    _algorithm = a._algorithm;
   }
 
-  Uint8List generateSecureKey(int keyLengthInBytes) {
-    return generateSecureRandomBytes(keyLengthInBytes);
-  }
-
-  /// The space of ciphertext is not reused
-  Uint8List encryptWithNonce(
-    Uint8List plaintext,
-    Uint8List nonce, [
-    Uint8List? aad,
-  ]) {
-    final cipher = GCMBlockCipher(AESEngine());
-    final params = AEADParameters(
-      KeyParameter(_key),
-      128,
-      nonce,
-      aad ?? Uint8List(0),
-    );
-
-    cipher.init(true, params);
-
-    return cipher.process(plaintext);
-  }
-
-  /// The space of ciphertext is not reused
-  Uint8List decryptWithNonce(
-    Uint8List ciphertext,
-    Uint8List nonce, [
-    Uint8List? aad,
-  ]) {
-    final cipher = GCMBlockCipher(AESEngine());
-
-    final params = AEADParameters(
-      KeyParameter(_key),
-      128,
-      nonce,
-      aad ?? Uint8List(0),
-    );
-
-    cipher.init(false, params);
-
-    return cipher.process(ciphertext);
-  }
-
-  Uint8List encrypt(Uint8List plaintext, [Uint8List? aad]) {
-    final nonce = generateSecureKey(12);
-    final encrypted = encryptWithNonce(plaintext, nonce, aad);
-    return Uint8List.fromList(nonce.toList()..addAll(encrypted.toList()));
-  }
-
-  Uint8List decrypt(Uint8List ciphertext, [Uint8List? aad]) {
-    if (ciphertext.length < nonceLength) {
-      throw ArgumentError(
-        'Ciphertext must be at least $nonceLength bytes long',
-      );
+  cp.AesGcm _getAlgorithm() {
+    switch (_key.length) {
+      case 16:
+        return cp.AesGcm.with128bits();
+      case 24:
+        return cp.AesGcm.with192bits();
+      case 32:
+        return cp.AesGcm.with256bits();
+      default:
+        throw StateError('Unexpected key length.');
     }
-    final nonce = Uint8List.view(ciphertext.buffer, 0, nonceLength);
+  }
+
+  Stream<List<int>> encryptStream(
+    Stream<List<int>> plaintextStream,
+    void Function(cp.Mac) onMac, {
+    List<int>? nonce,
+    List<int> aad = const [],
+    bool yieldNonce = true,
+    bool allowUseSameBytes = false,
+  }) async* {
+    nonce ??= _algorithm.newNonce();
+    if (yieldNonce) {
+      yield nonce;
+    }
+    yield* _algorithm.encryptStream(
+      plaintextStream,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      onMac: onMac,
+      allowUseSameBytes: allowUseSameBytes,
+    );
+  }
+
+  FutureOr<Stream<List<int>>> decryptStream(
+    // When the nonce is at the beginning of the cipherStream, the cipherStream must be broadcast and can not be in listen mode
+    Stream<List<int>> cipherStream,
+    FutureOr<cp.Mac> mac, {
+    List<int>? nonce,
+    List<int> aad = const [],
+    bool allowUseSameBytes = false,
+  }) async {
+    if (nonce == null) {
+      final (nonce2, nextStream) = await takeBytesInListStream(
+        cipherStream,
+        nonceLength,
+      );
+      if (nextStream != null) {
+        cipherStream = nextStream;
+      }
+      nonce = nonce2;
+    }
+    return _algorithm.decryptStream(
+      cipherStream,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      mac: mac,
+      aad: aad,
+      allowUseSameBytes: allowUseSameBytes,
+    );
+  }
+
+  Future<SecretBox> encryptWithNonce(
+    List<int> plaintext,
+    List<int>? nonce, {
+    List<int> aad = const <int>[],
+    Uint8List? possibleBuffer,
+  }) {
+    return _algorithm.encrypt(
+      plaintext,
+      secretKey: SecretKey(_key),
+      nonce: nonce,
+      aad: aad,
+      possibleBuffer: possibleBuffer,
+    );
+  }
+
+  Future<List<int>> decryptWithNonce(
+    List<int> ciphertext,
+    cp.Mac mac,
+    List<int> nonce, {
+    List<int> aad = const <int>[],
+    Uint8List? possibleBuffer,
+  }) {
+    return _algorithm.decrypt(
+      SecretBox(ciphertext, nonce: nonce, mac: mac),
+      secretKey: SecretKey(_key),
+      aad: aad,
+      possibleBuffer: possibleBuffer,
+    );
+  }
+
+  /// nonce | ciphertext | tag
+  Future<Uint8List> encrypt(List<int> plaintext, [List<int>? aad]) async {
+    final nonce = _algorithm.newNonce();
+    final encrypted = await encryptWithNonce(plaintext, nonce, aad: aad ?? []);
+    var r = BytesBuilder();
+    r.add(nonce);
+    r.add(encrypted.cipherText);
+    r.add(encrypted.mac.bytes);
+    return r.takeBytes();
+  }
+
+  Future<List<int>> decrypt(Uint8List ciphertext, [Uint8List? aad]) async {
+    final nonce = Uint8List.view(
+      ciphertext.buffer,
+      ciphertext.offsetInBytes,
+      nonceLength,
+    );
+    final mac = Uint8List.view(
+      ciphertext.buffer,
+      ciphertext.offsetInBytes + ciphertext.length - tagLength,
+      tagLength,
+    );
     return decryptWithNonce(
       Uint8List.view(
         ciphertext.buffer,
-        nonceLength,
-        ciphertext.length - nonceLength,
+        ciphertext.offsetInBytes + nonceLength,
+        ciphertext.length - nonceLength - tagLength,
       ),
+      cp.Mac(mac),
       nonce,
-      aad,
+      aad: aad ?? [],
     );
   }
-
-  Stream<Uint8List> _encryptStream(
-    Stream<Uint8List> plainStream,
-    Uint8List Function(Uint8List) encryptor, {
-    int chunkSize = 1024 * 100,
-    // whether each chunk contains nonce
-    // bool chunkContainNonce = false,
-
-    // do not encrypt the last incomplete chunk
-    bool skipLastIncompleteChunk = false,
-  }) async* {
-    Uint8List buf = Uint8List(chunkSize);
-
-    var bufOffset = 0;
-
-    loop:
-    await for (var data in plainStream) {
-      var dataLeft = data.offsetInBytes;
-      while (true) {
-        if (bufOffset + data.length > buf.length) {
-          var freeSpace = buf.length - bufOffset;
-          buf.setAll(
-            bufOffset,
-            Uint8List.view(data.buffer, dataLeft, freeSpace),
-          );
-          var encrypted = encryptor(buf);
-          yield encrypted;
-          data = Uint8List.view(
-            data.buffer,
-            dataLeft + freeSpace,
-            data.length - freeSpace,
-          );
-          dataLeft += freeSpace;
-          bufOffset = 0;
-        } else {
-          buf.setAll(bufOffset, data);
-          bufOffset += data.length;
-          continue loop;
-        }
-      }
-    }
-    if ((!skipLastIncompleteChunk && bufOffset > 0) ||
-        (bufOffset == chunkSize)) {
-      var encrypted = encryptor(Uint8List.view(buf.buffer, 0, bufOffset));
-      yield encrypted;
-    }
-  }
-
-  Stream<Uint8List> _decryptStreamAt(
-    Stream<Uint8List> cipherStream,
-    int offsetInFirstByte,
-    Uint8List Function(Uint8List data, int chunkNum) decryptor, {
-    int chunkSize = 1024 * 100,
-    // whether each chunk contains nonce
-    bool chunkContainNonce = false,
-    // do not decrypt the last incomplete chunk
-    bool skipLastIncompleteChunk = false,
-  }) async* {
-    final realChunkSize = chunkContainNonce
-        ? nonceLength + chunkSize + tagLength
-        : chunkSize + tagLength;
-    final startChunkNum = offsetInFirstByte ~/ realChunkSize;
-    final startByteInChunk = offsetInFirstByte % realChunkSize;
-    final skipByteNum = startByteInChunk > 0
-        ? realChunkSize - startByteInChunk
-        : 0;
-
-    var buf = Uint8List(realChunkSize);
-    var bufOffset = 0;
-    var skipOffset = 0;
-    bool skipEnded = skipByteNum == 0 ? true : false;
-    var chunkNum = startChunkNum;
-
-    loop:
-    await for (var data in cipherStream) {
-      if (!skipEnded) {
-        var dataLeft = data.offsetInBytes;
-        if (data.length + skipOffset <= skipByteNum) {
-          skipOffset += data.length;
-          continue loop;
-        }
-        data = Uint8List.view(
-          data.buffer,
-          dataLeft + (skipByteNum - skipOffset),
-        );
-        skipOffset = skipByteNum;
-        skipEnded = true;
-        chunkNum++;
-      }
-
-      while (true) {
-        var dataLeft = data.offsetInBytes;
-        if (bufOffset + data.length > buf.length) {
-          var freeSpace = buf.length - bufOffset;
-          buf.setAll(
-            bufOffset,
-            Uint8List.view(data.buffer, dataLeft, freeSpace),
-          );
-          var decrypted = decryptor(buf, chunkNum);
-          yield decrypted;
-          data = Uint8List.view(
-            data.buffer,
-            dataLeft + freeSpace,
-            data.length - freeSpace,
-          );
-          dataLeft += freeSpace;
-          bufOffset = 0;
-          chunkNum++;
-        } else {
-          buf.setAll(bufOffset, data);
-          bufOffset += data.length;
-          continue loop;
-        }
-      }
-    }
-
-    if ((!skipLastIncompleteChunk && bufOffset > 0) ||
-        (bufOffset == chunkSize)) {
-      var decrypted = decryptor(
-        Uint8List.view(buf.buffer, 0, bufOffset),
-        chunkNum,
-      );
-      yield decrypted;
-    }
-  }
-
-  /// Each chunk generates a new nonce
-  Stream<Uint8List> encryptStreamRandom(
-    Stream<Uint8List> plainStream, [
-    int chunkSize = 1024 * 100,
-  ]) {
-    return _encryptStream(
-      plainStream,
-      (data) => encrypt(data),
-      chunkSize: chunkSize,
-    );
-  }
-
-  Stream<Uint8List> decryptStreamRandom(
-    Stream<Uint8List> cipherStream, [
-    int chunkSize = 1024 * 100,
-  ]) {
-    return _decryptStreamAt(
-      cipherStream,
-      0,
-      (data, _) => decrypt(data),
-      chunkSize: chunkSize,
-      chunkContainNonce: true,
-    );
-  }
-
-  /// Each chunk shares the same nonce and aad
-  Stream<Uint8List> encryptStream(
-    Stream<Uint8List> plainStream, {
-    int chunkSize = 1024 * 100,
-    Uint8List? nonce,
-    Uint8List? aad,
-    bool yieldNonce = true,
-  }) async* {
-    nonce ??= generateSecureKey(12);
-    if (yieldNonce) {
-      yield Uint8List.fromList(nonce.toList()); // yield copy of nonce
-    }
-    yield* _encryptStream(
-      plainStream,
-      (data) => encryptWithNonce(data, nonce!, aad),
-      chunkSize: chunkSize,
-    );
-  }
-
-  Stream<Uint8List> decryptStream(
-    Stream<Uint8List> cipherStream, {
-    int chunkSize = 1024 * 100,
-    Uint8List? aad,
-  }) async* {
-    cipherStream = cipherStream.asBroadcastStream();
-    final (nonce, nextStream) = await takeBytesInUint8ListStream(
-      cipherStream,
-      nonceLength,
-    );
-    if (nextStream != null) {
-      cipherStream = nextStream;
-    }
-    yield* _decryptStreamAt(
-      cipherStream,
-      0,
-      (data, _) => decryptWithNonce(data, nonce, aad),
-      chunkSize: chunkSize,
-    );
-  }
-
-  Stream<Uint8List> decryptStreamAt(
-    // decrypt from a certain part of the stream, not need to be a complete stream.
-    // cipherStream cannot contain bytes before offsetInFirstByte!!!
-    Stream<Uint8List> cipherStream,
-    // offset in the first byte of the stream(not contain nonce)
-    int offsetInFirstByte,
-    Uint8List nonce, {
-    int chunkSize = 1024 * 100,
-    Uint8List? aad,
-  }) async* {
-    yield* _decryptStreamAt(
-      cipherStream,
-      offsetInFirstByte,
-      (data, _) => decryptWithNonce(data, nonce, aad),
-      chunkSize: chunkSize,
-    );
-  }
-
-  // Stream<Uint8List> _decryptStream(
-  //   Stream<Uint8List> cipherStream,
-  //   Uint8List Function(Uint8List) decryptor, {
-  //   int chunkSize = 1024 * 100,
-  //   // whether each chunk contains nonce
-  //   bool containNonce = false,
-  // }) async* {
-  //   const nonceLength = 12;
-  //   const tagLength = 16;
-  //   final realChunkSize = containNonce
-  //       ? nonceLength + chunkSize + tagLength
-  //       : chunkSize + tagLength;
-
-  //   var buf = Uint8List(realChunkSize);
-  //   var bufOffset = 0;
-
-  //   loop:
-  //   await for (var data in cipherStream) {
-  //     var dataLeft = data.offsetInBytes;
-  //     while (true) {
-  //       if (bufOffset + data.length > buf.length) {
-  //         var freeSpace = buf.length - bufOffset;
-  //         buf.setAll(
-  //           bufOffset,
-  //           Uint8List.view(data.buffer, dataLeft, freeSpace),
-  //         );
-  //         var decrypted = decryptor(buf);
-  //         yield decrypted;
-  //         data = Uint8List.view(
-  //           data.buffer,
-  //           dataLeft + freeSpace,
-  //           data.length - freeSpace,
-  //         );
-  //         dataLeft += freeSpace;
-  //         bufOffset = 0;
-  //       } else {
-  //         buf.setAll(bufOffset, data);
-  //         bufOffset += data.length;
-  //         continue loop;
-  //       }
-  //     }
-  //   }
-
-  //   if (bufOffset > 0) {
-  //     var decrypted = decryptor(Uint8List.view(buf.buffer, 0, bufOffset));
-  //     yield decrypted;
-  //   }
-  // }
-}
-
-(Uint8List, Uint8List) pkcs7Padding(Uint8List plainText, int blockSize) {
-  final padding = blockSize - (plainText.length % blockSize);
-  final padText = Uint8List.fromList(List.filled(padding, padding));
-  return (plainText, padText);
-}
-
-Uint8List pkcs7UnPadding(Uint8List plainText, int blockSize) {
-  final unpadding = plainText.last;
-  if (unpadding > plainText.length || unpadding > blockSize || unpadding < 1) {
-    throw ArgumentError('invalid plaintext');
-  }
-  return Uint8List.view(plainText.buffer, 0, plainText.length - unpadding);
 }

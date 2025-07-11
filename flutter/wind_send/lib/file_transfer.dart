@@ -93,7 +93,7 @@ class FileUploader {
 
     var infoJson = jsonEncode(info.toJson());
     Uint8List infoBytes = utf8.encode(infoJson);
-    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
@@ -134,7 +134,7 @@ class FileUploader {
       onlyDirect: onlyDirectConn,
     );
     var (conn, stream) = (connStream.conn, connStream.stream);
-    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
@@ -308,7 +308,7 @@ class FileUploader {
       onlyDirect: onlyDirectConn,
     );
     var (conn, stream) = (connStream.conn, connStream.stream);
-    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await device.generateAuthHeaderAndAAD();
     HeadInfo head = HeadInfo(
       loaclDeviceName,
       DeviceAction.pasteFile,
@@ -420,7 +420,7 @@ class FileDownloader {
     var (conn, stream) = (connStream.conn, connStream.stream);
 
     // print('_writeRangeFile start: $start, end: $end');
-    final (headEncryptedHex, aad) = device.generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await device.generateAuthHeaderAndAAD();
     var head = HeadInfo(
       localDeviceName,
       DeviceAction.downloadAction,

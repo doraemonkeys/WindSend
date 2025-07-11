@@ -30,17 +30,17 @@ class WebSync {
     dioClient = dio;
   }
 
-  Future<Uint8List> getContentFromWeb() async {
+  Future<List<int>> getContentFromWeb() async {
     // var client = http.Client();
     // var request = http.Request('GET', Uri.parse(myUrl));
     // request.headers['User-Agent'] = userAgent;
     // var response = await client.send(request);
     // var body = await response.stream.toBytes();
-    var headers = {
-      'User-Agent': userAgent,
-    };
-    var response =
-        await dioClient.get(myUrl, options: Options(headers: headers));
+    var headers = {'User-Agent': userAgent};
+    var response = await dioClient.get(
+      myUrl,
+      options: Options(headers: headers),
+    );
     var body = response.data;
 
     // class[\s]*=[\s]*"txt_view">[\s]*<p>(.+)<\/p>
@@ -55,16 +55,16 @@ class WebSync {
     var encryptedataUint8List = Uint8List.fromList(encryptedata);
     // decrypt
     var cryptor = AesGcm.fromHex(secretKeyHex);
-    var decrypted = cryptor.decrypt(encryptedataUint8List);
+    var decrypted = await cryptor.decrypt(encryptedataUint8List);
     return decrypted;
   }
 
   Future<String> _getCsrfmiddlewaretoken(String myUrl, String userAgent) async {
-    var headers = {
-      'User-Agent': userAgent,
-    };
-    var response =
-        await dioClient.get(myUrl, options: Options(headers: headers));
+    var headers = {'User-Agent': userAgent};
+    var response = await dioClient.get(
+      myUrl,
+      options: Options(headers: headers),
+    );
     return parseCsrfmiddlewaretoken(response.data);
   }
 
@@ -78,11 +78,13 @@ class WebSync {
   }
 
   Future<void> postContentToWeb(String content) async {
-    String csrfmiddlewaretoken =
-        await _getCsrfmiddlewaretoken(myUrl, userAgent);
+    String csrfmiddlewaretoken = await _getCsrfmiddlewaretoken(
+      myUrl,
+      userAgent,
+    );
     var crypter = AesGcm.fromHex(secretKeyHex);
     var contentList = utf8.encode(content);
-    var encryptedata = crypter.encrypt(Uint8List.fromList(contentList));
+    var encryptedata = await crypter.encrypt(Uint8List.fromList(contentList));
     var encryptedataHex = hex.encode(encryptedata);
 
     var payload = FormData.fromMap({
@@ -100,8 +102,11 @@ class WebSync {
     };
     // print("content-type: ${payload.boundary}");
     // post
-    var response = await dioClient.post(submitUrl,
-        data: payload, options: Options(headers: headers));
+    var response = await dioClient.post(
+      submitUrl,
+      data: payload,
+      options: Options(headers: headers),
+    );
     if (!response.data.contains('success')) {
       throw Exception('post content failed');
     }

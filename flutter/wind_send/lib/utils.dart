@@ -647,7 +647,7 @@ String hostPortToAddress(String host, int port) {
   return '$host:$port';
 }
 
-Stream<Uint8List> streamUnshift(Stream<Uint8List> s, Uint8List bytes) async* {
+Stream<T> streamUnshift<T>(Stream<T> s, T bytes) async* {
   yield bytes;
   yield* s;
 }
@@ -662,6 +662,42 @@ Future<(Uint8List, Stream<Uint8List>?)> takeBytesInUint8ListStream(
   var left = 0;
   Uint8List? surplus;
   await for (final chunk in stream) {
+    if (left + chunk.length == count) {
+      bytes.setRange(left, left + chunk.length, chunk);
+      return (bytes, null);
+    }
+    if (left + chunk.length < count) {
+      bytes.setRange(left, left + chunk.length, chunk);
+      left += chunk.length;
+      continue;
+    }
+    bytes.setRange(left, count, chunk);
+    surplus = chunk.sublist(count - left);
+    break;
+  }
+
+  if (surplus != null) {
+    return (bytes, streamUnshift(stream, surplus).asBroadcastStream());
+  } else {
+    throw Exception('stream bytes not enough');
+  }
+}
+
+/// Stream must be broadcast and can not be in listen mode
+Future<(List<int>, Stream<List<int>>?)> takeBytesInListStream(
+  Stream<List<int>> stream,
+  int count,
+) async {
+  // var bytes = List.filled(count, 0);
+  var bytes = List<int>.filled(count, 0);
+  var left = 0;
+  List<int>? surplus;
+  await for (final chunk in stream) {
+    for (var i = 0; i < chunk.length; i++) {
+      if (chunk[i] < 0 || chunk[i] > 255) {
+        throw Exception('invalid byte: ${chunk[i]}');
+      }
+    }
     if (left + chunk.length == count) {
       bytes.setRange(left, left + chunk.length, chunk);
       return (bytes, null);

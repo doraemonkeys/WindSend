@@ -78,11 +78,22 @@ Future<(T, Stream<Uint8List>)> readReqHeadOnly3<T>(
 // --- END: Stubs and Mocks for Testing ---
 
 // 辅助函数，用于构建一个完整的网络数据包
-Uint8List buildPacket(MyRequestHead head, {AesGcm? cipher}) {
+Uint8List buildPacket(MyRequestHead head) {
   var jsonData = utf8.encode(jsonEncode(head.toJson()));
-  if (cipher != null) {
-    jsonData = cipher.encrypt(jsonData);
-  }
+
+  final length = jsonData.length;
+  final buffer = BytesBuilder();
+  buffer.add(
+    Uint8List(4)..buffer.asByteData().setInt32(0, length, Endian.little),
+  );
+  buffer.add(jsonData);
+  return buffer.toBytes();
+}
+
+Future<Uint8List> buildPacket2(MyRequestHead head, AesGcm cipher) async {
+  var jsonData = utf8.encode(jsonEncode(head.toJson()));
+
+  jsonData = await cipher.encrypt(jsonData);
 
   final length = jsonData.length;
   final buffer = BytesBuilder();
@@ -191,7 +202,7 @@ void main() {
       final cipher = AesGcm.fromHex(
         '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
       );
-      final packet = buildPacket(sampleHead, cipher: cipher);
+      final packet = await buildPacket2(sampleHead, cipher);
       final controller = StreamController<Uint8List>.broadcast();
 
       final futureResult = readReqHeadOnly<MyRequestHead>(
@@ -378,7 +389,7 @@ void main() {
       final cipher = AesGcm.fromHex(
         '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
       );
-      final packet = buildPacket(sampleHead, cipher: cipher);
+      final packet = await buildPacket2(sampleHead, cipher);
       final controller = StreamController<Uint8List>.broadcast();
 
       final futureResult = readReqHeadOnly2<MyRequestHead>(
@@ -565,7 +576,7 @@ void main() {
       final cipher = AesGcm.fromHex(
         '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
       );
-      final packet = buildPacket(sampleHead, cipher: cipher);
+      final packet = await buildPacket2(sampleHead, cipher);
       final controller = StreamController<Uint8List>.broadcast();
 
       final futureResult = readReqHeadOnly3<MyRequestHead>(

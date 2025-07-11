@@ -77,7 +77,7 @@ dependencies:
     git:
       url: https://github.com/Lzyct/media_scanner
       ref: master
-  pointycastle: ^4.0.0
+  #pointycastle: ^4.0.0
   cryptography_plus: ^2.7.1
   cryptography_flutter_plus: ^2.3.4
   intl: ^0.20.2

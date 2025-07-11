@@ -18,8 +18,8 @@ import 'package:crypto/crypto.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:wind_send/protocol/relay/model.dart' as relay_model;
 import 'dart:developer' as dev;
-import 'package:pointycastle/export.dart'; // PointyCastle core exports
-
+import 'package:cryptography_plus/cryptography_plus.dart' as cp;
+// import 'package:pointycastle/export.dart'; // PointyCastle core exports
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
@@ -195,6 +195,7 @@ class Device {
     }
   }
 
+  /// Only stored in the memory, you should call [LocalConfig.setDevice] to save the cache.
   void setRelayKdfCache(RelayKdfCache? value) async {
     if (value == null) {
       _relaySecretKey = null;
@@ -222,15 +223,14 @@ class Device {
 
   String? get relayKdfSecretB64 => _relayKdfSecretB64;
 
-  /// Re-derive the secret key from the salt and the secret key
+  /// Re-derive the secret key from the salt and the secret key.
+  /// Only stored in the memory，you should call [LocalConfig.setDevice] to save the cache.
   Future<void> setRelayKdfSaltB64(String? value) async {
     _relayKdfSaltB64 = value;
     if (relaySecretKey != null) {
-      // _relayKdfSecretB64 = base64Encode(
-      //     aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)));
-      _relayKdfSecretB64 = await compute((_) {
+      _relayKdfSecretB64 = await compute((_) async {
         return base64Encode(
-          aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)),
+          await aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)),
         );
       }, null);
     }
@@ -241,14 +241,14 @@ class Device {
       relaySecretAuthKey() != null ? AesGcm(relaySecretAuthKey()!) : null;
   AesGcm get cipher => AesGcm.fromHex(secretKey);
 
-  (String, String) generateAuthHeaderAndAAD() {
+  Future<(String, String)> generateAuthHeaderAndAAD() async {
     // 2006-01-02 15:04:05 192.168.1.1
     // UTC
     final now = DateTime.now().toUtc();
     final timestr = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
     final timeIpStr = '$timestr $iP';
     final headUint8List = utf8.encode(timeIpStr);
-    final headEncrypted = cipher.encrypt(headUint8List, headUint8List);
+    final headEncrypted = await cipher.encrypt(headUint8List, headUint8List);
     final headEncryptedHex = hex.encode(headEncrypted);
     return (headEncryptedHex, timeIpStr);
   }
@@ -458,28 +458,36 @@ class Device {
   ///
   /// Returns:
   ///   A 24-byte key (Uint8List).
-  static Uint8List aes192KeyKdf(String password, Uint8List salt) {
+  static Future<List<int>> aes192KeyKdf(String password, Uint8List salt) async {
     // 1. Define parameters (matching the Go function)
     const int iterations = 10000;
     const int keyLengthBytes = 192 ~/ 8; // 24 bytes for AES-192
 
     // 2. Convert password string to bytes (UTF-8 is standard)
-    final Uint8List passwordBytes = Uint8List.fromList(utf8.encode(password));
+    // final Uint8List passwordBytes = Uint8List.fromList(utf8.encode(password));
 
     // 3. Create the PBKDF2 key derivator
     // PBKDF2 uses an underlying HMAC function. We need HMAC-SHA256 here.
     // SHA-256 has a block size of 64 bytes.
-    final keyDerivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64));
+    // final keyDerivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64));
 
-    // 4. Initialize the derivator with parameters
-    final params = Pbkdf2Parameters(salt, iterations, keyLengthBytes);
-    keyDerivator.init(params);
+    // // 4. Initialize the derivator with parameters
+    // final params = Pbkdf2Parameters(salt, iterations, keyLengthBytes);
+    // keyDerivator.init(params);
+
+    final keyDerivator = cp.Pbkdf2(
+      macAlgorithm: cp.Hmac(cp.Sha256()),
+      iterations: iterations,
+      bits: keyLengthBytes * 8,
+    );
 
     // 5. Derive the key from the password bytes
-    final Uint8List key = keyDerivator.process(passwordBytes);
+    final key = await keyDerivator.deriveKeyFromPassword(
+      password: password,
+      nonce: salt,
+    );
 
-    // 6. Return the derived key
-    return key;
+    return key.extractBytes();
   }
 
   // static Uint8List hashToAES192Key(String c) {
@@ -711,7 +719,7 @@ class Device {
     SecureSocket conn;
     conn = await connect(timeout: timeout);
 
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
 
     localDeviceName ??= globalLocalDeviceName;
     // print('localDeviceName: $localDeviceName');
@@ -742,7 +750,7 @@ class Device {
       conn.destroy();
       throw Exception('${respHead.msg}');
     }
-    var decryptedBody = cipher.decrypt(respBody, utf8.encode(aad));
+    var decryptedBody = await cipher.decrypt(respBody, utf8.encode(aad));
     var decryptedBodyStr = utf8.decode(decryptedBody);
     conn.destroy();
     if (decryptedBodyStr != 'pong') {
@@ -919,7 +927,7 @@ class Device {
     SendPort? progressSendPort,
   }) async {
     var (conn, isRelay) = await connectAuto(timeout: connectTimeout);
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.copy,
@@ -1005,7 +1013,7 @@ class Device {
 
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(pasteText);
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.syncText,
@@ -1050,7 +1058,7 @@ class Device {
 
   Future<void> doSendRelayServerConfig() async {
     var conn = await connect(timeout: const Duration(seconds: 2));
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.setRelayServer,
@@ -1079,7 +1087,7 @@ class Device {
     String? localDeviceName,
   }) async {
     // await Future.delayed(const Duration(milliseconds: 1000));
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       localDeviceName ?? globalLocalDeviceName,
       DeviceAction.endConnection,
@@ -1584,7 +1592,7 @@ class Device {
   }) async {
     var (conn, isRelay) = await connectAuto(timeout: timeout);
     Uint8List pasteTextUint8 = utf8.encode(text);
-    final (headEncryptedHex, aad) = generateAuthHeaderAndAAD();
+    final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,
       DeviceAction.pasteText,

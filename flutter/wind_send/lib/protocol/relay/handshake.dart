@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:wind_send/socket.dart';
 import 'package:wind_send/protocol/relay/model.dart' as model;
 import 'package:wind_send/utils.dart';
@@ -40,6 +40,7 @@ Future<Uint8List> handshake(Device device, BroadcastSocket sock) async {
   var resp = await model.HandshakeResp.fromConn(sock);
   // print('resp: ${resp.toJson()}');
   if (resp.code == model.StatusCode.unauthKdfSaltMismatch) {
+    debugPrint('unauthKdfSaltMismatch, new kdfSaltB64: ${resp.kdfSaltB64}');
     await device.setRelayKdfSaltB64(resp.kdfSaltB64);
     if (LocalConfig.initialized && device.uniqueId.isNotEmpty) {
       await LocalConfig.setDevice(device);
@@ -69,10 +70,10 @@ Future<Uint8List> resolveSharedSecret(
   AesGcm? cipher,
 }) async {
   final publicKey = await keyPair.extractPublicKey();
-  var remotePublicKeyBytes = base64.decode(resp.ecdhPublicKeyB64);
+  List<int> remotePublicKeyBytes = base64.decode(resp.ecdhPublicKeyB64);
   if (cipher != null) {
-    remotePublicKeyBytes = cipher.decrypt(
-      remotePublicKeyBytes,
+    remotePublicKeyBytes = await cipher.decrypt(
+      remotePublicKeyBytes as Uint8List,
       utf8.encode("AUTH"),
     );
   }
@@ -97,7 +98,7 @@ Future<(model.HandshakeReq, SimpleKeyPair)> resolveHandshakeReq(
   String? authAAD;
   if (device.relayCipher != null) {
     authAAD = generateRandomString(16);
-    final authFieldEncrypted = device.relayCipher!.encrypt(
+    final authFieldEncrypted = await device.relayCipher!.encrypt(
       utf8.encode('AUTH${generateRandomString(16)}'),
       utf8.encode(authAAD),
     );
