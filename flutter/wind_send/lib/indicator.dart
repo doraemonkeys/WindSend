@@ -24,10 +24,7 @@ class TransferProgress {
 class LoadingIndicator2 extends StatelessWidget {
   final Stream<TransferProgress> progressStream;
 
-  const LoadingIndicator2({
-    super.key,
-    required this.progressStream,
-  });
+  const LoadingIndicator2({super.key, required this.progressStream});
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +41,9 @@ class LoadingIndicator2 extends StatelessWidget {
           final totalBytes = progress.totalBytes;
           final message = progress.message;
 
-          double progressValue =
-              (totalBytes > 0) ? currentBytes / totalBytes : 1.0;
+          double progressValue = (totalBytes > 0)
+              ? currentBytes / totalBytes
+              : 1.0;
 
           var percentage = (progressValue * 100).toStringAsFixed(1);
 
@@ -73,16 +71,22 @@ class LoadingIndicator2 extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(formatBytes(totalBytes),
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.secondary)),
-                      Text('$percentage%',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary)),
+                      Text(
+                        formatBytes(totalBytes),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                      Text(
+                        '$percentage%',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -113,10 +117,7 @@ class LoadingIndicator2 extends StatelessWidget {
 class LoadingIndicator extends StatelessWidget {
   final Stream<TransferProgress> progressStream;
 
-  const LoadingIndicator({
-    super.key,
-    required this.progressStream,
-  });
+  const LoadingIndicator({super.key, required this.progressStream});
 
   @override
   Widget build(BuildContext context) {
@@ -156,23 +157,26 @@ class LoadingIndicator extends StatelessWidget {
           // Calculate the *target* progress value (between 0.0 and 1.0)
           // This is the value the animation should reach when it finishes.
           // If total is unknown, the target is conceptually 0 or not used for the determinate bar.
-          double targetProgressValue =
-              isProgressKnown ? currentBytes / totalBytes : 0.0;
+          double targetProgressValue = isProgressKnown
+              ? currentBytes / totalBytes
+              : 0.0;
           if (targetProgressValue >= 1.0) {
             targetProgressValue = 0.999;
           }
 
           // print('targetProgressValue2: $targetProgressValue');
 
-          var tweenAnimationDuration =
-              Duration(milliseconds: ProgressLimiter.getIntervalMs(totalBytes));
+          var tweenAnimationDuration = Duration(
+            milliseconds: ProgressLimiter.getIntervalMs(totalBytes),
+          );
           var difference = targetProgressValue - lastProgressValue;
           // If the difference is large, increase the animation duration for a smoother transition.
           if (difference > 0.2 &&
               totalBytes > ProgressLimiter.minLimitTransferBytes) {
             const baseP20Duration = 200;
             tweenAnimationDuration = Duration(
-                milliseconds: ((difference / 0.2) * baseP20Duration).toInt());
+              milliseconds: ((difference / 0.2) * baseP20Duration).toInt(),
+            );
           }
           if (difference > 0.5 &&
               totalBytes < ProgressLimiter.minLimitTransferBytes) {
@@ -187,8 +191,9 @@ class LoadingIndicator extends StatelessWidget {
           // The tween animates from the last 'end' value to the new 'targetProgressValue'.
           return TweenAnimationBuilder<double>(
             tween: Tween<double>(
-                begin: firstStreamElement == true ? 0.0 : null,
-                end: targetProgressValue),
+              begin: firstStreamElement == true ? 0.0 : null,
+              end: targetProgressValue,
+            ),
             // The duration over which the animation should occur.
             // This should ideally match the stream's update interval for smoothness.
             // duration: Duration(milliseconds: streamIntervalMs),
@@ -223,10 +228,9 @@ class LoadingIndicator extends StatelessWidget {
                       // Add a background color when indeterminate to make it visible
                       backgroundColor: isProgressKnown
                           ? null
-                          : Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withAlpha((0.2 * 255) as int),
+                          : Theme.of(
+                              context,
+                            ).colorScheme.primary.withAlpha((0.2 * 255) as int),
                     ),
                   ),
                   SizedBox(height: 10),
@@ -237,22 +241,26 @@ class LoadingIndicator extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         // Show total bytes (this updates instantly with new data)
-                        Text(formatBytes(totalBytes),
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    Theme.of(context).colorScheme.secondary)),
+                        Text(
+                          formatBytes(totalBytes),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
                         // Show percentage using the animated value
                         Text(
-                            isProgressKnown
-                                ? '${animatedPercentage.toStringAsFixed(1)}%'
-                                // If progress is unknown, show ellipsis or current bytes / unknown
-                                : '${formatBytes(currentBytes)} / ...',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary)),
+                          isProgressKnown
+                              ? '${animatedPercentage.toStringAsFixed(1)}%'
+                              // If progress is unknown, show ellipsis or current bytes / unknown
+                              : '${formatBytes(currentBytes)} / ...',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
