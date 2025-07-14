@@ -6,7 +6,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 // import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:listen_sharing_intent/listen_sharing_intent.dart';
+// import 'package:listen_sharing_intent/listen_sharing_intent.dart';
+import 'package:share_handler/share_handler.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -86,11 +87,13 @@ class LocalConfig {
                   break loop;
                 case 1:
                   await setFileSavePath(
-                      (await getApplicationDocumentsDirectory()).path);
+                    (await getApplicationDocumentsDirectory()).path,
+                  );
                   break loop;
                 case 2:
                   await setFileSavePath(
-                      (await getApplicationSupportDirectory()).path);
+                    (await getApplicationSupportDirectory()).path,
+                  );
                   break loop;
               }
               break;
@@ -118,11 +121,13 @@ class LocalConfig {
                   break loop;
                 case 1:
                   await setImageSavePath(
-                      (await getApplicationDocumentsDirectory()).path);
+                    (await getApplicationDocumentsDirectory()).path,
+                  );
                   break loop;
                 case 2:
                   await setImageSavePath(
-                      (await getApplicationSupportDirectory()).path);
+                    (await getApplicationSupportDirectory()).path,
+                  );
                   break loop;
               }
               break;
@@ -231,18 +236,20 @@ class LocalConfig {
   }
 
   /// last shared media
-  static List<String>? get lastSharedMedia {
-    final values = _sp.getStringList('LastSharedMedia');
-    if (values == null) {
-      return null;
-    }
-    return values;
-  }
+  // static List<String>? get lastSharedMedia {
+  //   final values = _sp.getStringList('LastSharedMedia');
+  //   if (values == null) {
+  //     return null;
+  //   }
+  //   return values;
+  // }
 
-  static Future<bool> setLastSharedMedia(List<SharedMediaFile> value) async {
-    return await _sp.setStringList(
-        'LastSharedMedia', value.map((e) => json.encode(e.toMap())).toList());
-  }
+  // static Future<bool> setLastSharedMedia(List<SharedMediaFile> value) async {
+  //   return await _sp.setStringList(
+  //     'LastSharedMedia',
+  //     value.map((e) => json.encode(e.toMap())).toList(),
+  //   );
+  // }
 
   /// Brightness
   static Brightness get brightness =>
@@ -251,7 +258,9 @@ class LocalConfig {
   //     _sp.setString('Theme', value == Brightness.dark ? 'dark' : 'light');
   static Future<bool> setBrightness(Brightness value) async {
     return await _sp.setString(
-        'Theme', value == Brightness.dark ? 'dark' : 'light');
+      'Theme',
+      value == Brightness.dark ? 'dark' : 'light',
+    );
   }
 
   /// Theme color
@@ -316,12 +325,14 @@ class LocalConfig {
       final sysLanguage = Platform.localeName;
       final sysLanguageCode = sysLanguage.split('_')[0];
       language = AppLocale.getSupportLanguageCode().firstWhere(
-          (element) => element == sysLanguageCode,
-          orElse: () => 'en_US');
+        (element) => element == sysLanguageCode,
+        orElse: () => 'en_US',
+      );
     }
     final languageCode = language.split('_')[0];
-    final countryCode =
-        language.split('_').length > 1 ? language.split('_')[1] : null;
+    final countryCode = language.split('_').length > 1
+        ? language.split('_')[1]
+        : null;
     return Locale(languageCode, countryCode);
   }
 
@@ -330,7 +341,9 @@ class LocalConfig {
   // }
   static Future<bool> setLocale(Locale value) async {
     return await _sp.setString(
-        'Language', '${value.languageCode}_${value.countryCode}');
+      'Language',
+      '${value.languageCode}_${value.countryCode}',
+    );
   }
 
   static const String _oldDevicesKey = 'Device';
@@ -358,7 +371,8 @@ class LocalConfig {
 
   static Future<bool> setDevice(Device device) async {
     dev.log(
-        'save Device ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}');
+      'save Device ,uniqueId: ${device.uniqueId},name: ${device.targetDeviceName}',
+    );
     if (device.uniqueId.isEmpty) {
       throw Exception('save device failed, uniqueId is empty');
     }
@@ -368,7 +382,9 @@ class LocalConfig {
     }
 
     return await _sp.setString(
-        '$_deviceStorePrefix${device.uniqueId}', json.encode(device.toJson()));
+      '$_deviceStorePrefix${device.uniqueId}',
+      json.encode(device.toJson()),
+    );
   }
 
   static Future<bool> removeDevice(String id) async {
@@ -428,8 +444,10 @@ class LocalConfig {
         final ids = devicesOld.map((e) => e.uniqueId).toList();
         await setAllDeviceId(ids);
         for (final element in devicesOld) {
-          await _sp.setString('$_deviceStorePrefix${element.uniqueId}',
-              json.encode(element.toJson()));
+          await _sp.setString(
+            '$_deviceStorePrefix${element.uniqueId}',
+            json.encode(element.toJson()),
+          );
         }
       }();
       return devicesOld;
@@ -487,25 +505,19 @@ class LocalConfig {
 // }
 
 class ShareDataModel {
-  Stream<List<SharedMediaFile>> sharedStream;
-  Future<List<SharedMediaFile>>? shared;
+  Stream<SharedMedia> sharedStream;
+  Future<SharedMedia?>? shared;
 
   static ShareDataModel? _instance;
 
   static void initInstance(
-    Stream<List<SharedMediaFile>> sharedStream, {
-    required Future<List<SharedMediaFile>> shared,
+    Stream<SharedMedia> sharedStream, {
+    required Future<SharedMedia?> shared,
   }) {
-    _instance ??= ShareDataModel._internal(
-      sharedStream,
-      shared: shared,
-    );
+    _instance ??= ShareDataModel._internal(sharedStream, shared: shared);
   }
 
-  ShareDataModel._internal(
-    this.sharedStream, {
-    required this.shared,
-  });
+  ShareDataModel._internal(this.sharedStream, {required this.shared});
 
   factory ShareDataModel() {
     return _instance!;
@@ -513,7 +525,9 @@ class ShareDataModel {
 }
 
 Future<void> showFirstTimeLocationPermissionDialog(
-    BuildContext context, Device device) async {
+  BuildContext context,
+  Device device,
+) async {
   if (LocalConfig.isLocationPermissionDialogShown) {
     return;
   }
@@ -524,16 +538,18 @@ Future<void> showFirstTimeLocationPermissionDialog(
       LocalConfig.autoSelectShareSyncDeviceByBssid) {
     if (context.mounted) {
       await alertDialogFunc(
-          context, Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
-          content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
-          onConfirmed: () async {
-        try {
-          await checkOrRequestNetworkPermission();
-          await saveDeviceWifiBssid(device);
-        } catch (e) {
-          LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
-        }
-      });
+        context,
+        Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
+        content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
+        onConfirmed: () async {
+          try {
+            await checkOrRequestNetworkPermission();
+            await saveDeviceWifiBssid(device);
+          } catch (e) {
+            LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
+          }
+        },
+      );
     }
   }
 }
@@ -601,11 +617,13 @@ Future<Device?> resolveTargetDevice({
   }
   if (defaultShareDevice) {
     return LocalConfig.devices.firstWhereOrNull(
-        (e) => e.targetDeviceName == LocalConfig.defaultShareDevice);
+      (e) => e.targetDeviceName == LocalConfig.defaultShareDevice,
+    );
   }
   if (defaultSyncDevice) {
     return LocalConfig.devices.firstWhereOrNull(
-        (e) => e.targetDeviceName == LocalConfig.defaultSyncDevice);
+      (e) => e.targetDeviceName == LocalConfig.defaultSyncDevice,
+    );
   }
   return null;
 }
@@ -615,8 +633,11 @@ class RelayKdfCache {
   String saltB64;
   String kdfSecretB64;
 
-  RelayKdfCache(
-      {required this.pwd, required this.saltB64, required this.kdfSecretB64});
+  RelayKdfCache({
+    required this.pwd,
+    required this.saltB64,
+    required this.kdfSecretB64,
+  });
 }
 
 // class RelayKdfInfoCache {

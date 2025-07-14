@@ -40,9 +40,9 @@ dependencies:
   device_info_plus: ^10.1.2
   path_provider: ^2.1.1
   file_picker: ^10.2.0
+  share_handler: ^0.0.23
   # https://github.com/ShoutSocial/share_handler/tree/main/share_handler
-  listen_sharing_intent: ^1.9.2
-  # share_handler 
+  #listen_sharing_intent: ^1.9.2
   # receive_sharing_intent: 
   #   git:
   #     url: https://github.com/KasemJaffer/receive_sharing_intent
