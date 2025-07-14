@@ -244,9 +244,19 @@ async fn write_handshake_req(
 // async fn fetch_relay_salt(mut conn: tokio::net::TcpStream) -> Option<String> {}
 
 async fn handle_request(
-    mut conn: tokio::net::TcpStream,
+    conn: tokio::net::TcpStream,
     cipher: Option<crate::utils::encrypt::AesGcmCipher>,
 ) {
+    if let Some(mut conn) = _handle_request(conn, cipher).await {
+        use tokio::io::AsyncWriteExt;
+        conn.shutdown().await.ok();
+    }
+}
+
+async fn _handle_request(
+    mut conn: tokio::net::TcpStream,
+    cipher: Option<crate::utils::encrypt::AesGcmCipher>,
+) -> Option<tokio::net::TcpStream> {
     use crate::relay::protocol::{Action, CommonReqHead};
     use tokio::time::Duration;
     use tracing::{debug, error};
@@ -263,14 +273,14 @@ async fn handle_request(
         };
         let common_req_head = match read_result {
             Ok(Ok(head)) => head,
-            Ok(Err(_)) => return,
+            Ok(Err(_)) => return Some(conn),
             Err(_) => {
                 if last_req_is_relay {
                     error!("Heartbeat timeout after waiting for the relay to finish");
                 } else {
                     error!("read relay server request timeout");
                 }
-                return;
+                return Some(conn);
             }
         };
 
@@ -281,18 +291,18 @@ async fn handle_request(
                 last_req_is_relay = true;
                 conn = match handle_relay(conn, cipher.as_ref()).await {
                     Ok(conn) => conn,
-                    Err(_) => return,
+                    Err(_) => return None,
                 }
             }
             Action::Heartbeat => {
                 match handle_heartbeat(&mut conn, common_req_head, cipher.as_ref()).await {
                     Ok(_) => (),
-                    Err(_) => return,
+                    Err(_) => return Some(conn),
                 }
             }
             _ => {
                 error!("invalid action: {:?}", common_req_head.action);
-                return;
+                return Some(conn);
             }
         };
     }
