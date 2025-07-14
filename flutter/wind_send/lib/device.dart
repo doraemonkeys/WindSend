@@ -734,6 +734,12 @@ class Device {
     await headInfo.writeToConn(conn);
     await conn.flush();
 
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn)
         .timeout(
           timeout,
@@ -743,16 +749,16 @@ class Device {
           },
         );
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
-      conn.destroy();
+      await destroy();
       throw UnauthorizedException(respHead.msg ?? '');
     }
     if (respHead.code != 200) {
-      conn.destroy();
+      await destroy();
       throw Exception('${respHead.msg}');
     }
     var decryptedBody = await cipher.decrypt(respBody, utf8.encode(aad));
     var decryptedBodyStr = utf8.decode(decryptedBody);
-    conn.destroy();
+    await destroy();
     if (decryptedBodyStr != 'pong') {
       throw Exception('pong error');
     }
@@ -853,7 +859,13 @@ class Device {
     );
     await headInfo.writeToConn(conn);
     await conn.flush();
-    // var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
+
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     RespHead respHead;
     try {
       (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
@@ -861,7 +873,7 @@ class Device {
       msgController.add(device);
       return;
     }
-    conn.destroy();
+    await destroy();
 
     if (respHead.code != respOkCode || respHead.msg == null) {
       // throw Exception('unexpected match response: ${respHead.msg}');
@@ -936,8 +948,15 @@ class Device {
     );
     await headInfo.writeToConn(conn);
     await conn.flush();
+
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
-    conn.destroy();
+    await destroy();
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
     }
@@ -1023,8 +1042,14 @@ class Device {
     );
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     var (respHead, respBody) = await RespHead.readHeadAndBodyFromConn(conn);
-    conn.destroy();
+    await destroy();
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
     }
@@ -1071,8 +1096,15 @@ class Device {
       enableRelay,
     );
     await headInfo.writeToConnWithBody(conn, utf8.encode(jsonEncode(req)));
+
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
-    conn.destroy();
+    await destroy();
 
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
@@ -1602,8 +1634,15 @@ class Device {
     );
     await headInfo.writeToConnWithBody(conn, pasteTextUint8);
     await conn.flush();
+
+    Future<void> destroy() async {
+      await conn.flush();
+      await conn.close();
+      conn.destroy();
+    }
+
     var (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
-    conn.destroy();
+    await destroy();
     if (respHead.code == UnauthorizedException.unauthorizedCode) {
       throw UnauthorizedException(respHead.msg ?? '');
     }
