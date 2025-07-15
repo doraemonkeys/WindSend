@@ -121,6 +121,13 @@ fn main() {
 }
 
 async fn async_main() {
+    loop {
+        _async_main().await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    }
+}
+
+async fn _async_main() {
     trace!("async_main");
 
     {
@@ -158,6 +165,11 @@ async fn async_main() {
         let result = listener.accept().await;
         if let Err(e) = result {
             error!("accept error: {}", e);
+            #[cfg(target_os = "windows")]
+            if e.to_string().contains("WSAStartup") {
+                // restart listener
+                return;
+            }
             continue;
         }
         let (stream, addr) = result.unwrap();
