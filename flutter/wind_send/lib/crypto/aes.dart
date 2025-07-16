@@ -76,8 +76,8 @@ class AesCTR {
     );
   }
 
+  /// When the nonce is at the beginning of the cipherStream, the cipherStream must be broadcast and can not be in listen mode
   FutureOr<Stream<List<int>>> decryptStream(
-    // When the nonce is at the beginning of the cipherStream, the cipherStream must be broadcast and can not be in listen mode
     Stream<List<int>> cipherStream, {
     List<int>? nonce,
     List<int> aad = const [],

@@ -1216,14 +1216,26 @@ class Device {
           continue;
         }
         // print('download: ${item.toJson()}, saveDir: $saveDir');
-        var lastRealSavePathFuture = await downloader.addTask(item, saveDir);
+        Future<String> lastRealSavePathFuture;
+        try {
+          lastRealSavePathFuture = await downloader.addTask(item, saveDir);
+        } catch (_) {
+          await downloader.close();
+          rethrow;
+        }
         if (!tooManyFiles) {
           realSavePathsFuture.add(lastRealSavePathFuture);
         }
       }
-      var realSavePaths = await Future.wait(realSavePathsFuture);
-      await Future.wait(futures);
-      await downloader.close();
+      List<String> realSavePaths;
+      try {
+        realSavePaths = await Future.wait(realSavePathsFuture);
+        await Future.wait(futures);
+      } catch (_) {
+        rethrow;
+      } finally {
+        await downloader.close();
+      }
       // print('all download done');
       return realSavePaths;
     }
@@ -1440,20 +1452,25 @@ class Device {
         progressSendPort: args.progressSendPort,
       );
 
-      await fileUploader.sendOperationInfo(opID, uploadOpInfo);
+      try {
+        await fileUploader.sendOperationInfo(opID, uploadOpInfo);
 
-      for (var filepath in args.filePaths) {
-        if (uploadThread == 0) {
-          throw Exception('threadNum can not be 0');
+        for (var filepath in args.filePaths) {
+          if (uploadThread == 0) {
+            throw Exception('threadNum can not be 0');
+          }
+          // print('uploading $filepath');
+          await fileUploader.addTask(
+            filepath,
+            args.fileRelativeSavePath![filepath] ?? '',
+            opID,
+          );
         }
-        // print('uploading $filepath');
-        await fileUploader.addTask(
-          filepath,
-          args.fileRelativeSavePath![filepath] ?? '',
-          opID,
-        );
+      } catch (_) {
+        rethrow;
+      } finally {
+        await fileUploader.close();
       }
-      await fileUploader.close();
     }
 
     final args = IsolateUploadArgs(

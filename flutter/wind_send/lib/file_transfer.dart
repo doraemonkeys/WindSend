@@ -63,21 +63,25 @@ class FileUploader {
   }
 
   Future<void> close() async {
-    await Future.wait(smallFileTasks);
-    if (_connectionManager.connsContainRelay) {
-      for (var e in _connectionManager.conns) {
-        // print('close, send end connection1');
-        if (e.isRelay) {
-          await device.doSendEndConnection(
-            e.conn,
-            localDeviceName: loaclDeviceName,
-          );
-          await e.stream
-              .drain()
-              .timeout(const Duration(milliseconds: 5))
-              .catchError((_) {});
+    try {
+      await Future.wait(smallFileTasks);
+      if (_connectionManager.connsContainRelay) {
+        for (var e in _connectionManager.conns) {
+          // print('close, send end connection1');
+          if (e.isRelay) {
+            await device.doSendEndConnection(
+              e.conn,
+              localDeviceName: loaclDeviceName,
+            );
+            await e.stream
+                .drain()
+                .timeout(const Duration(milliseconds: 5))
+                .catchError((_) {});
+          }
         }
       }
+    } catch (e) {
+      debugPrint('FileUploader close error: $e');
     }
     await _connectionManager.closeAllConn();
   }
@@ -386,20 +390,24 @@ class FileDownloader {
   }
 
   Future<void> close() async {
-    await Future.wait(smallFileTasks);
-    if (_connectionManager.connsContainRelay) {
-      for (var e in _connectionManager.conns) {
-        if (e.isRelay) {
-          await device.doSendEndConnection(
-            e.conn,
-            localDeviceName: localDeviceName,
-          );
-          await e.stream
-              .drain()
-              .timeout(const Duration(milliseconds: 5))
-              .catchError((_) {});
+    try {
+      await Future.wait(smallFileTasks);
+      if (_connectionManager.connsContainRelay) {
+        for (var e in _connectionManager.conns) {
+          if (e.isRelay) {
+            await device.doSendEndConnection(
+              e.conn,
+              localDeviceName: localDeviceName,
+            );
+            await e.stream
+                .drain()
+                .timeout(const Duration(milliseconds: 5))
+                .catchError((_) {});
+          }
         }
       }
+    } catch (e) {
+      debugPrint('FileDownloader close error: $e');
     }
     await _connectionManager.closeAllConn();
   }
