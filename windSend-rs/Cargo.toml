@@ -15,10 +15,10 @@ disable-systray-support = []
 log = "0.4"
 aes = "0.8.3"
 hex = "0.4.3"
-tokio = { version = "1.45", features = ["full"] }
+tokio = { version = "1.46", features = ["full"] }
 # x25519 依赖rand v0.8
-rand = "0.8"
-x25519-dalek = "2.0"
+rand = "0.9"
+x25519-dalek = { version = "3.0.0-pre.0", features = ["os_rng"] }
 pbkdf2 = "0.12"
 image = "0.25"
 crossbeam-channel = "0.5"
@@ -27,7 +27,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 # 依赖ring v0.16.20导致aarch64-windows编译失败
 # x509-parser升级到0.16.0即可解决
-rcgen = { version = "0.13", features = ["pem"] }
+rcgen = { version = "0.14", features = ["pem"] }
 pem = { version = "3" }
 time = { version = "0.3", features = ["macros", "local-offset"] }
 lazy_static = "1.4"
@@ -64,8 +64,8 @@ rustls-pemfile = "2.2"
 tokio-rustls = "0.26"
 hostname = "0.4"
 walkdir = "2.4"
-socket2 = { features = ["all"], version = "0.5" }
-clipboard-rs = "0.2.4"
+socket2 = { features = ["all"], version = "0.6" }
+clipboard-rs = "0.3.0"
 dirs = "6.0"
 base64 = "0.22"
 aes-gcm = "0.10.3"                                # Or latest version

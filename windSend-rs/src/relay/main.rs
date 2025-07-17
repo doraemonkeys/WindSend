@@ -95,11 +95,10 @@ async fn handshake(
     use crate::relay::protocol::{HandshakeResp, StatusCode};
     use crate::utils::encrypt;
     use base64::prelude::*;
-    use rand::rngs::OsRng;
     use tracing::{debug, error};
     use x25519_dalek::{EphemeralSecret, PublicKey};
 
-    let secret = EphemeralSecret::random_from_rng(OsRng);
+    let secret = EphemeralSecret::random();
     let public = PublicKey::from(&secret);
 
     let mut handshake_cipher = match write_handshake_req(conn, public).await {

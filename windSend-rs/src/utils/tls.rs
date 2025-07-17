@@ -27,12 +27,12 @@ pub fn generate_signed_certificate(
     ];
     params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     params.subject_alt_names = vec![
-        SanType::DnsName(rcgen::Ia5String::from_str("localhost")?),
+        SanType::DnsName(rcgen::string::Ia5String::from_str("localhost")?),
         SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))),
         SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::new(
             0, 0, 0, 0, 0, 0, 0, 1,
         ))),
-        SanType::DnsName(rcgen::Ia5String::from_str("fake.windsend.com")?),
+        SanType::DnsName(rcgen::string::Ia5String::from_str("fake.windsend.com")?),
         // SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::new(
         //     192, 168, 1, 7,
         // ))),
@@ -50,7 +50,10 @@ pub fn generate_signed_certificate(
     // params.alg = &rcgen::PKCS_ECDSA_P256_SHA256;
 
     let key_pair = rcgen::KeyPair::generate()?;
-    Ok((params.signed_by(&key_pair, issuer, issuer_key)?, key_pair))
+
+    let issuer_ca_param = &rcgen::CertificateParams::new(vec![issuer.pem()]).unwrap();
+    let issuer = rcgen::Issuer::from_params(issuer_ca_param, issuer_key);
+    Ok((params.signed_by(&key_pair, &issuer)?, key_pair))
 }
 
 pub fn generate_self_signed_ca_certificate()
@@ -69,7 +72,7 @@ pub fn generate_self_signed_ca_certificate()
     ];
     params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     params.subject_alt_names = vec![
-        SanType::DnsName(rcgen::Ia5String::from_str("localhost")?),
+        SanType::DnsName(rcgen::string::Ia5String::from_str("localhost")?),
         SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))),
         SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::new(
             0, 0, 0, 0, 0, 0, 0, 1,

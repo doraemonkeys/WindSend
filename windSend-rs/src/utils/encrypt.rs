@@ -12,35 +12,33 @@ pub fn rand_n_bytes(rng: &mut rand::rngs::ThreadRng, n: usize) -> Vec<u8> {
     bytes
 }
 
-// rand v0.9
-// pub fn rand_n_bytes2(n: usize) -> Vec<u8> {
-//     use rand::rng;
-//     let mut bytes = vec![0u8; n];
-//     rng().fill_bytes(&mut bytes);
-//     bytes
-// }
-
-// rand v0.9
-// pub fn generate_rand_bytes_hex(byte_len: usize) -> String {
-//     use rand::rng;
-//     let mut rng = rng();
-//     let bytes = rand_n_bytes(&mut rng, byte_len);
-//     hex::encode(bytes)
-// }
-
 pub fn rand_n_bytes2(n: usize) -> Vec<u8> {
-    use rand::thread_rng;
+    use rand::rng;
     let mut bytes = vec![0u8; n];
-    thread_rng().fill_bytes(&mut bytes);
+    rng().fill_bytes(&mut bytes);
     bytes
 }
 
 pub fn generate_rand_bytes_hex(byte_len: usize) -> String {
-    use rand::thread_rng;
-    let mut rng = thread_rng();
+    use rand::rng;
+    let mut rng = rng();
     let bytes = rand_n_bytes(&mut rng, byte_len);
     hex::encode(bytes)
 }
+
+// pub fn rand_n_bytes2(n: usize) -> Vec<u8> {
+//     use rand::thread_rng;
+//     let mut bytes = vec![0u8; n];
+//     thread_rng().fill_bytes(&mut bytes);
+//     bytes
+// }
+
+// pub fn generate_rand_bytes_hex(byte_len: usize) -> String {
+//     use rand::thread_rng;
+//     let mut rng = thread_rng();
+//     let bytes = rand_n_bytes(&mut rng, byte_len);
+//     hex::encode(bytes)
+// }
 
 #[allow(dead_code)]
 pub fn compute_sha256(bytes: &[u8]) -> [u8; 32] {
