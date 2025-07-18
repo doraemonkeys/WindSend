@@ -10,7 +10,7 @@ use std::{
 use time::{OffsetDateTime, ext::NumericalDuration};
 
 pub fn generate_signed_certificate(
-    issuer: &Certificate,
+    issuer_params: &CertificateParams,
     issuer_key: &KeyPair,
 ) -> Result<(Certificate, KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
@@ -51,13 +51,12 @@ pub fn generate_signed_certificate(
 
     let key_pair = rcgen::KeyPair::generate()?;
 
-    let issuer_ca_param = &rcgen::CertificateParams::new(vec![issuer.pem()]).unwrap();
-    let issuer = rcgen::Issuer::from_params(issuer_ca_param, issuer_key);
+    let issuer = rcgen::Issuer::from_params(issuer_params, issuer_key);
     Ok((params.signed_by(&key_pair, &issuer)?, key_pair))
 }
 
 pub fn generate_self_signed_ca_certificate()
--> Result<(Certificate, KeyPair), Box<dyn std::error::Error>> {
+-> Result<(Certificate, CertificateParams, KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, "Doraemon CA");
@@ -89,13 +88,13 @@ pub fn generate_self_signed_ca_certificate()
 
     let key_pair = rcgen::KeyPair::generate()?;
     let cert = params.self_signed(&key_pair)?;
-    Ok((cert, key_pair))
+    Ok((cert, params, key_pair))
 }
 
 pub fn generate_ca_and_signed_certificate_pair()
 -> Result<([String; 2], [String; 2]), Box<dyn std::error::Error>> {
-    let (ca_cert, ca_key) = generate_self_signed_ca_certificate()?;
-    let (cert, key_pair) = generate_signed_certificate(&ca_cert, &ca_key)?;
+    let (ca_cert, issuer_params, ca_key) = generate_self_signed_ca_certificate()?;
+    let (cert, key_pair) = generate_signed_certificate(&issuer_params, &ca_key)?;
     Ok((
         [cert.pem(), key_pair.serialize_pem()],
         [ca_cert.pem(), ca_key.serialize_pem()],
