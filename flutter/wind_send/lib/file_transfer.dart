@@ -73,9 +73,10 @@ class FileUploader {
               e.conn,
               localDeviceName: loaclDeviceName,
             );
+            await e.conn.flush();
             await e.stream
                 .drain()
-                .timeout(const Duration(milliseconds: 5))
+                .timeout(const Duration(milliseconds: 10))
                 .catchError((_) {});
           }
         }
@@ -399,9 +400,10 @@ class FileDownloader {
               e.conn,
               localDeviceName: localDeviceName,
             );
+            await e.conn.flush();
             await e.stream
                 .drain()
-                .timeout(const Duration(milliseconds: 5))
+                .timeout(const Duration(milliseconds: 10))
                 .catchError((_) {});
           }
         }
