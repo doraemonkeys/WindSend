@@ -76,8 +76,13 @@ class FileUploader {
             await e.conn.flush();
             await e.stream
                 .drain()
-                .timeout(const Duration(milliseconds: 10))
-                .catchError((_) {});
+                .timeout(const Duration(milliseconds: 20))
+                .catchError((_) {
+                  e.stream
+                      .drain()
+                      .timeout(const Duration(milliseconds: 30))
+                      .catchError((_) {});
+                });
           }
         }
       }
@@ -403,8 +408,13 @@ class FileDownloader {
             await e.conn.flush();
             await e.stream
                 .drain()
-                .timeout(const Duration(milliseconds: 10))
-                .catchError((_) {});
+                .timeout(const Duration(milliseconds: 20))
+                .catchError((_) {
+                  e.stream
+                      .drain()
+                      .timeout(const Duration(milliseconds: 30))
+                      .catchError((_) {});
+                });
           }
         }
       }
