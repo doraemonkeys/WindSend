@@ -146,7 +146,9 @@ class TextEditPageState extends State<TextEditPage> {
           ),
         ],
       ),
-      body: TextField(
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: TextField(
         controller: _controller,
         maxLines: null,
         expands: true,
@@ -155,7 +157,8 @@ class TextEditPageState extends State<TextEditPage> {
           border: InputBorder.none,
           hintText: context.formatString(AppLocale.inputContent, []),
         ),
-        buildCounter: (
+          buildCounter:
+              (
           BuildContext context, {
           required int currentLength,
           required int? maxLength,
@@ -164,6 +167,7 @@ class TextEditPageState extends State<TextEditPage> {
           // print('characters buildCounter');
           return Text('$currentLength characters');
         },
+        ),
       ),
     );
   }
