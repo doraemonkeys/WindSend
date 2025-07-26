@@ -15,8 +15,10 @@ enum SendTextMethod {
   final String name;
 
   static SendTextMethod fromName(String name) {
-    return SendTextMethod.values.firstWhere((element) => element.name == name,
-        orElse: () => SendTextMethod.p2p);
+    return SendTextMethod.values.firstWhere(
+      (element) => element.name == name,
+      orElse: () => SendTextMethod.p2p,
+    );
   }
 
   static List<String> get valueNames =>
@@ -27,8 +29,11 @@ class TextEditPage extends StatefulWidget {
   final Device device;
   final void Function() onChanged;
 
-  const TextEditPage(
-      {super.key, required this.device, required this.onChanged});
+  const TextEditPage({
+    super.key,
+    required this.device,
+    required this.onChanged,
+  });
   @override
   TextEditPageState createState() => TextEditPageState();
 }
@@ -118,14 +123,18 @@ class TextEditPageState extends State<TextEditPage> {
               try {
                 if (_sendType == SendTextMethod.p2p) {
                   await DeviceCard.commonActionFunc(
-                      widget.device, (_) => widget.onChanged(), () {
-                    return widget.device
-                        .doPasteTextAction(text: _controller.text)
-                        .then((_) => ToastResult(message: successMsg));
-                  });
+                    widget.device,
+                    (_) => widget.onChanged(),
+                    () {
+                      return widget.device
+                          .doPasteTextAction(text: _controller.text)
+                          .then((_) => ToastResult(message: successMsg));
+                    },
+                  );
                 } else {
-                  await widget.device
-                      .doPasteTextActionWeb(text: _controller.text);
+                  await widget.device.doPasteTextActionWeb(
+                    text: _controller.text,
+                  );
                 }
                 msg = successMsg;
               } catch (e) {
@@ -134,39 +143,37 @@ class TextEditPageState extends State<TextEditPage> {
               }
               if (_sendStatus == TaskStatus.pending) {
                 setState(() {
-                  _sendStatus =
-                      success ? TaskStatus.successDone : TaskStatus.failDone;
+                  _sendStatus = success
+                      ? TaskStatus.successDone
+                      : TaskStatus.failDone;
                 });
               }
             },
-            child: IconIndicatorButton(
-              status: _sendStatus,
-              errorMsg: msg,
-            ),
+            child: IconIndicatorButton(status: _sendStatus, errorMsg: msg),
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: TextField(
-        controller: _controller,
-        maxLines: null,
-        expands: true,
-        autofocus: true,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: context.formatString(AppLocale.inputContent, []),
-        ),
+          controller: _controller,
+          maxLines: null,
+          expands: true,
+          autofocus: true,
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            hintText: context.formatString(AppLocale.inputContent, []),
+          ),
           buildCounter:
               (
-          BuildContext context, {
-          required int currentLength,
-          required int? maxLength,
-          required bool isFocused,
-        }) {
-          // print('characters buildCounter');
-          return Text('$currentLength characters');
-        },
+                BuildContext context, {
+                required int currentLength,
+                required int? maxLength,
+                required bool isFocused,
+              }) {
+                // print('characters buildCounter');
+                return Text('$currentLength characters');
+              },
         ),
       ),
     );
@@ -187,9 +194,7 @@ class IconIndicatorButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
