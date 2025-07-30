@@ -175,7 +175,7 @@ class FileUploader {
       if (n != readSize) {
         throw Exception('unexpected situation');
       }
-      // var data = await fileAccess.read(readSize);
+      // var data = await fileAccess.read(readSize); // fileAccess.read may be slower?
       conn.add(Uint8List.view(buffer.buffer, 0, n));
       sentSize += n;
       totalSentSize += n;
@@ -554,12 +554,12 @@ class FileDownloader {
     // print('newFilepath: $newFilepath');
     // print('newFile fileSavePath: $fileSavePath');
     // print('------------------------------------');
-    var fileAccess = await file.open(mode: FileMode.write);
+    var raf = await file.open(mode: FileMode.write);
     if (targetFileSize != 0) {
       // 预分配空间
-      await fileAccess.setPosition(targetFileSize - 1);
-      await fileAccess.writeByte(1);
-      await fileAccess.flush();
+      await raf.setPosition(targetFileSize - 1);
+      await raf.writeByte(1);
+      await raf.flush();
     }
 
     int partSize = targetFileSize ~/ threadNum;
@@ -582,9 +582,10 @@ class FileDownloader {
         end = targetFileSize;
       }
       // print("part $partNum: $start - $end");
-      futures.add(_writeRangeFile(start, end, partNum, fileAccess, targetFile));
+      // raf.lock(FileLock.exclusive, start, end);
+      futures.add(_writeRangeFile(start, end, partNum, raf, targetFile));
       if (end < targetFileSize) {
-        fileAccess = await file.open(mode: FileMode.write);
+        raf = await file.open(mode: FileMode.append);
       }
       partNum++;
     }
