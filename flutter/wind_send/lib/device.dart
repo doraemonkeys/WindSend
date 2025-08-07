@@ -57,6 +57,7 @@ class Device {
   String? _relayKdfSaltB64;
   String? _relayKdfSecretB64;
   bool _connectionStateInitialized = false;
+  bool onlyUseRelay = false;
 
   int port = defaultPort;
   bool autoSelect = true;
@@ -117,6 +118,7 @@ class Device {
     enableRelay = device.enableRelay;
     _relayKdfSaltB64 = device._relayKdfSaltB64;
     _relayKdfSecretB64 = device._relayKdfSecretB64;
+    onlyUseRelay = device.onlyUseRelay;
   }
 
   Device clone() {
@@ -146,6 +148,7 @@ class Device {
     enableRelay = json['EnableRelay'] ?? enableRelay;
     _relayKdfSaltB64 = json['RelayKdfSaltB64'] ?? _relayKdfSaltB64;
     _relayKdfSecretB64 = json['RelayKdfSecretB64'] ?? _relayKdfSecretB64;
+    onlyUseRelay = json['OnlyUseRelay'] ?? onlyUseRelay;
   }
 
   Map<String, dynamic> toJson() {
@@ -173,6 +176,7 @@ class Device {
     data['EnableRelay'] = enableRelay;
     data['RelayKdfSaltB64'] = _relayKdfSaltB64;
     data['RelayKdfSecretB64'] = _relayKdfSecretB64;
+    data['OnlyUseRelay'] = onlyUseRelay;
     return data;
   }
 
@@ -363,6 +367,9 @@ class Device {
     dev.log(
       'run connectAuto, relayEnabled: $enableRelay, forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout',
     );
+    if (onlyUseRelay) {
+      return (await connectToRelay(timeout: timeout), true);
+    }
     // return _connectAutoRoutine(timeout: timeout);
     if (onlyDirect) {
       return (await connect(timeout: timeout), false);
@@ -1082,7 +1089,7 @@ class Device {
   }
 
   Future<void> doSendRelayServerConfig() async {
-    var conn = await connect(timeout: const Duration(seconds: 2));
+    var (conn, _) = await connectAuto(timeout: const Duration(seconds: 2));
     final (headEncryptedHex, aad) = await generateAuthHeaderAndAAD();
     var headInfo = HeadInfo(
       globalLocalDeviceName,

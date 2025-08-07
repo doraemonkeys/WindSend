@@ -15,15 +15,13 @@ import 'device_card.dart';
 class DeviceSettingPage extends StatefulWidget {
   final Device device;
   final String? Function(String?) Function(BuildContext context)
-      deviceNameValidator;
+  deviceNameValidator;
   const DeviceSettingPage({
     super.key,
     required this.device,
     required this.deviceNameValidator,
   });
-  static const defaultSizedBox = SizedBox(
-    height: 20,
-  );
+  static const defaultSizedBox = SizedBox(height: 20);
 
   @override
   State<DeviceSettingPage> createState() => _DeviceSettingPageState();
@@ -31,19 +29,6 @@ class DeviceSettingPage extends StatefulWidget {
 
 class _DeviceSettingPageState extends State<DeviceSettingPage> {
   final _formKey = GlobalKey<FormState>();
-
-  /// key: '$serverAddress-$secretKey'
-  final saltCache = <String, RelayKdfCache?>{};
-
-  String parseHost(String hostAndPort) {
-    final (h, p) = parseHostAndPort(hostAndPort, defaultPort: 0);
-    return h;
-  }
-
-  int parsePort(String hostAndPort) {
-    final (h, p) = parseHostAndPort(hostAndPort, defaultPort: 0);
-    return p;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,69 +69,23 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               if (Platform.isAndroid) filePickerPackageNameTile(context),
             ],
           ),
-          SettingsSection(children: [
-            RelaySetting(
-              changeUseRelayState: (value) {
-                setState(() {
-                  widget.device.enableRelay = value;
-                });
-              },
-              changeRelayConfig: (host, port, password) {
-                setState(() {
-                  // print('changeRelayConfig: $host $port $password');
-                  widget.device.relayServerAddress =
-                      hostPortToAddress(host, port);
-                  final cache = saltCache['$host-$port-$password'];
-                  if (cache != null) {
-                    // print('setRelayKdfCache: ${cache.kdfSecretB64}');
-                    widget.device.setRelayKdfCache(cache);
-                  } else {
-                    widget.device.setRelaySecretKey(password);
-                  }
-                });
-              },
-              testRelayConnection: (host, port, password) async {
-                final invalidSecretKeyError =
-                    context.formatString(AppLocale.invalidSecretKeyError, []);
-                try {
-                  final testD = await widget.device.pingRelay2(
-                      host, port, password,
-                      timeout: const Duration(seconds: 2));
-                  saltCache['$host-$port-$password'] = testD.relayKdfCache;
-                  return null;
-                } catch (e) {
-                  if (e is HandshakeAuthFailedException) {
-                    return invalidSecretKeyError;
-                  }
-                  return '$e';
-                }
-              },
-              pushRelayConfigToDevice: () async {
-                try {
-                  // await widget.device.doSendRelayServerConfig();
-                  await DeviceCard.commonActionFunc(
-                      widget.device, (_) => setState(() {}), () {
-                    return widget.device
-                        .doSendRelayServerConfig()
-                        .then((_) => ToastResult(message: 'success'));
-                  });
-                  return null;
-                } catch (e) {
-                  return '$e';
-                }
-              },
-              initialRelayHost: parseHost(widget.device.relayServerAddress),
-              initialRelayPort: parsePort(widget.device.relayServerAddress),
-              initialRelayPassword: widget.device.relaySecretKey,
-              initialRelayEnabled: widget.device.enableRelay,
-            ),
-          ]),
+          SettingsSection(
+            children: [
+              RelaySetting(
+                device: widget.device,
+                onDeviceStateChanged: () {
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
           SettingsSection(
             children: [
               ListTile(
                 enabled: widget.device.iP != Device.webIP,
                 title: Text(
-                    '${context.formatString(AppLocale.downloadThread, [])}: ${widget.device.downloadThread}'),
+                  '${context.formatString(AppLocale.downloadThread, [])}: ${widget.device.downloadThread}',
+                ),
                 subtitle: Slider(
                   value: widget.device.downloadThread.toDouble(),
                   min: 1,
@@ -166,7 +105,8 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               ListTile(
                 enabled: widget.device.iP != Device.webIP,
                 title: Text(
-                    '${context.formatString(AppLocale.uploadThread, [])}: ${widget.device.uploadThread}'),
+                  '${context.formatString(AppLocale.uploadThread, [])}: ${widget.device.uploadThread}',
+                ),
                 subtitle: Slider(
                   value: widget.device.uploadThread.toDouble(),
                   min: 1,
@@ -237,8 +177,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       title: Text(context.formatString(AppLocale.deviceName, [])),
       subtitle: Text(widget.device.targetDeviceName),
       onTap: () {
-        final deviceNameController =
-            TextEditingController(text: widget.device.targetDeviceName);
+        final deviceNameController = TextEditingController(
+          text: widget.device.targetDeviceName,
+        );
         alertDialogFunc(
           context,
           Text(context.formatString(AppLocale.deviceName, [])),
@@ -261,12 +202,14 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               if (widget.device.targetDeviceName ==
                   LocalConfig.defaultSyncDevice) {
                 LocalConfig.setDefaultSyncDevice(
-                    deviceNameController.text.trim());
+                  deviceNameController.text.trim(),
+                );
               }
               if (widget.device.targetDeviceName ==
                   LocalConfig.defaultShareDevice) {
                 LocalConfig.setDefaultShareDevice(
-                    deviceNameController.text.trim());
+                  deviceNameController.text.trim(),
+                );
               }
               widget.device.targetDeviceName = deviceNameController.text.trim();
             });
@@ -281,8 +224,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       title: Text(context.formatString(AppLocale.useThirdPartyFilePicker, [])),
       subtitle: Text(widget.device.filePickerPackageName),
       onTap: () {
-        final filePickerPackageNameController =
-            TextEditingController(text: widget.device.filePickerPackageName);
+        final filePickerPackageNameController = TextEditingController(
+          text: widget.device.filePickerPackageName,
+        );
         alertDialogFunc(
           context,
           Text(context.formatString(AppLocale.useThirdPartyFilePicker, [])),
@@ -292,8 +236,10 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               controller: filePickerPackageNameController,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: context
-                    .formatString(AppLocale.filePickerPackageNameHint, []),
+                hintText: context.formatString(
+                  AppLocale.filePickerPackageNameHint,
+                  [],
+                ),
               ),
               validator: Device.filePickerPackageNameValidator(context),
             ),
@@ -321,15 +267,18 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       }
       trustedCertificateSubtitle = lines.join('\n');
     } else {
-      trustedCertificateSubtitle =
-          context.formatString(AppLocale.trustedCertificateHint, []);
+      trustedCertificateSubtitle = context.formatString(
+        AppLocale.trustedCertificateHint,
+        [],
+      );
     }
     return ListTile(
       title: Text(context.formatString(AppLocale.trustedCertificate, [])),
       subtitle: Text(trustedCertificateSubtitle),
       onTap: () {
-        final certificateAuthorityController =
-            TextEditingController(text: widget.device.trustedCertificate);
+        final certificateAuthorityController = TextEditingController(
+          text: widget.device.trustedCertificate,
+        );
         alertDialogFunc(
           context,
           Text(context.formatString(AppLocale.trustedCertificate, [])),
@@ -341,8 +290,10 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
               maxLines: 10,
               minLines: 3,
               decoration: InputDecoration(
-                hintText:
-                    context.formatString(AppLocale.trustedCertificateHint, []),
+                hintText: context.formatString(
+                  AppLocale.trustedCertificateHint,
+                  [],
+                ),
                 border: const OutlineInputBorder(),
               ),
               validator: Device.certificateAuthorityValidator(context),
@@ -353,8 +304,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
           },
           onConfirmed: () {
             setState(() {
-              widget.device.trustedCertificate =
-                  certificateAuthorityController.text.trim();
+              widget.device.trustedCertificate = certificateAuthorityController
+                  .text
+                  .trim();
             });
           },
         );
@@ -367,8 +319,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       title: const Text('SecretKey'),
       subtitle: Text(widget.device.secretKey),
       onTap: () {
-        final secretKeyController =
-            TextEditingController(text: widget.device.secretKey);
+        final secretKeyController = TextEditingController(
+          text: widget.device.secretKey,
+        );
         alertDialogFunc(
           context,
           Text(context.formatString('SecretKey', [])),
@@ -402,8 +355,9 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       subtitle: Text(widget.device.port.toString()),
       enabled: widget.device.iP != Device.webIP,
       onTap: () {
-        final portController =
-            TextEditingController(text: widget.device.port.toString());
+        final portController = TextEditingController(
+          text: widget.device.port.toString(),
+        );
         alertDialogFunc(
           context,
           Text(context.formatString('Port', [])),
@@ -474,10 +428,7 @@ class SettingsSection extends StatelessWidget {
   const SettingsSection({super.key, this.title, required this.children});
 
   static Divider defaultDivider(BuildContext context) {
-    return Divider(
-      color: Theme.of(context).colorScheme.surface,
-      height: 1,
-    );
+    return Divider(color: Theme.of(context).colorScheme.surface, height: 1);
   }
 
   @override
@@ -487,24 +438,12 @@ class SettingsSection extends StatelessWidget {
       children: [
         if (title != null)
           Padding(
-            padding: const EdgeInsets.only(
-              left: 10,
-              top: 0,
-            ),
-            child: Text(
-              title!,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            padding: const EdgeInsets.only(left: 10, top: 0),
+            child: Text(title!, style: Theme.of(context).textTheme.titleMedium),
           ),
         Card(
-          margin: const EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: 18,
-          ),
-          child: Column(
-            children: children,
-          ),
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 18),
+          child: Column(children: children),
         ),
       ],
     );
@@ -514,29 +453,16 @@ class SettingsSection extends StatelessWidget {
 enum ConnectionTestStatus { none, testing, success, error }
 
 class RelaySetting extends StatefulWidget {
-  final void Function(bool) changeUseRelayState;
-  final void Function(String host, int port, String? password)
-      changeRelayConfig;
-  final Future<String?> Function(String host, int port, String? password)
-      testRelayConnection;
-  final Future<String?> Function() pushRelayConfigToDevice;
+  // final void Function(bool) changeUseRelayState;
 
   // Initial values
-  final bool initialRelayEnabled;
-  final String initialRelayHost;
-  final int initialRelayPort;
-  final String? initialRelayPassword;
+  final Device device;
+  final void Function() onDeviceStateChanged;
 
   const RelaySetting({
     super.key,
-    required this.changeUseRelayState,
-    required this.changeRelayConfig,
-    required this.testRelayConnection,
-    required this.pushRelayConfigToDevice,
-    this.initialRelayEnabled = false,
-    this.initialRelayHost = '',
-    this.initialRelayPort = 0,
-    this.initialRelayPassword,
+    required this.device,
+    required this.onDeviceStateChanged,
   });
 
   @override
@@ -544,56 +470,93 @@ class RelaySetting extends StatefulWidget {
 }
 
 class _RelaySettingState extends State<RelaySetting> {
-  late bool _relayServiceEnabled;
-  late String _relayHost;
-  late int _relayPort;
-  late String? _relayPassword;
   TaskStatus _pushConfigStatus = TaskStatus.idle;
   String? _pushConfigResult = '';
+
+  /// key: '$serverAddress-$secretKey'
+  final saltCache = <String, RelayKdfCache?>{};
 
   @override
   void initState() {
     super.initState();
-    _relayServiceEnabled = widget.initialRelayEnabled;
-    _relayHost = widget.initialRelayHost;
-    _relayPort = widget.initialRelayPort;
-    _relayPassword = widget.initialRelayPassword;
   }
 
   @override
   void didUpdateWidget(covariant RelaySetting oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update local state if initial values from the parent widget change
-    bool needsSetState = false;
-    if (widget.initialRelayEnabled != oldWidget.initialRelayEnabled &&
-        widget.initialRelayEnabled != _relayServiceEnabled) {
-      // Avoid redundant updates if already changed locally
-      _relayServiceEnabled = widget.initialRelayEnabled;
-      needsSetState = true;
+    if (oldWidget.device.uniqueId != widget.device.uniqueId) {
+      saltCache.clear();
     }
-    if (widget.initialRelayHost != oldWidget.initialRelayHost &&
-        widget.initialRelayHost != _relayHost) {
-      _relayHost = widget.initialRelayHost;
-      needsSetState = true;
+  }
+
+  String parseHost(String hostAndPort) {
+    final (h, p) = parseHostAndPort(hostAndPort, defaultPort: 0);
+    return h;
+  }
+
+  int parsePort(String hostAndPort) {
+    final (h, p) = parseHostAndPort(hostAndPort, defaultPort: 0);
+    return p;
+  }
+
+  Future<String?> testRelayConnection(
+    String host,
+    int port,
+    String? password,
+  ) async {
+    final invalidSecretKeyError = context.formatString(
+      AppLocale.invalidSecretKeyError,
+      [],
+    );
+    try {
+      final testD = await widget.device.pingRelay2(
+        host,
+        port,
+        password,
+        timeout: const Duration(seconds: 2),
+      );
+      saltCache['$host-$port-$password'] = testD.relayKdfCache;
+      return null;
+    } catch (e) {
+      if (e is HandshakeAuthFailedException) {
+        return invalidSecretKeyError;
+      }
+      return '$e';
     }
-    if (widget.initialRelayPort != oldWidget.initialRelayPort &&
-        widget.initialRelayPort != _relayPort) {
-      _relayPort = widget.initialRelayPort;
-      needsSetState = true;
+  }
+
+  Future<String?> pushRelayConfigToDevice() async {
+    final tempDevice = widget.device.clone();
+    tempDevice.onlyUseRelay = false;
+    try {
+      // await widget.device.doSendRelayServerConfig();
+      await DeviceCard.commonActionFunc(
+        tempDevice,
+        (_) {
+          widget.device.iP = tempDevice.iP;
+          widget.onDeviceStateChanged();
+        },
+        () {
+          return tempDevice.doSendRelayServerConfig().then(
+            (_) => ToastResult(message: 'success'),
+          );
+        },
+      );
+      return null;
+    } catch (e) {
+      return '$e';
     }
-    if (widget.initialRelayPassword != oldWidget.initialRelayPassword &&
-        widget.initialRelayPassword != _relayPassword) {
-      _relayPassword = widget.initialRelayPassword;
-      needsSetState = true;
-    }
-    if (needsSetState) {
-      // Use WidgetsBinding to avoid calling setState during build/update phase
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          // Check if still mounted before calling setState
-          setState(() {});
-        }
-      });
+  }
+
+  void changeRelayConfig(String host, int port, String? password) {
+    // print('changeRelayConfig: $host $port $password');
+    widget.device.relayServerAddress = hostPortToAddress(host, port);
+    final cache = saltCache['$host-$port-$password'];
+    if (cache != null) {
+      // print('setRelayKdfCache: ${cache.kdfSecretB64}');
+      widget.device.setRelayKdfCache(cache);
+    } else {
+      widget.device.setRelaySecretKey(password);
     }
   }
 
@@ -613,9 +576,7 @@ class _RelaySettingState extends State<RelaySetting> {
                     // Allow text to wrap
                     child: Text(
                       context.formatString(AppLocale.useRelay, []),
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(fontSize: 16),
                       overflow: TextOverflow.ellipsis, // Handle overflow
                     ),
                   ),
@@ -627,7 +588,8 @@ class _RelaySettingState extends State<RelaySetting> {
                         builder: (context) => AlertDialog(
                           title: const Text('About relay service'),
                           content: Text(
-                              context.formatString(AppLocale.useRelayTip, [])),
+                            context.formatString(AppLocale.useRelayTip, []),
+                          ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
@@ -649,13 +611,50 @@ class _RelaySettingState extends State<RelaySetting> {
           ),
         ),
         Switch(
-          value: _relayServiceEnabled,
+          value: widget.device.enableRelay,
           onChanged: (value) {
             setState(() {
-              _relayServiceEnabled = value;
+              widget.device.enableRelay = value;
             });
-            widget.changeUseRelayState(value); // Notify parent
           },
+        ),
+      ],
+    );
+  }
+
+  Row _forceUseRelayRow(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      context.formatString(AppLocale.forceUseRelay, []),
+                      style: TextStyle(fontSize: 16),
+                      overflow: TextOverflow.ellipsis, // Handle overflow
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: widget.device.onlyUseRelay,
+          onChanged: !widget.device.enableRelay
+              ? null
+              : (value) {
+                  setState(() {
+                    widget.device.onlyUseRelay = value;
+                  });
+                },
         ),
       ],
     );
@@ -675,38 +674,40 @@ class _RelaySettingState extends State<RelaySetting> {
               Text(
                 context.formatString(AppLocale.relayServerAddress, []),
                 style: TextStyle(
-                    fontSize: 16,
-                    color: _relayServiceEnabled ? null : Colors.grey),
+                  fontSize: 16,
+                  color: widget.device.enableRelay ? null : Colors.grey,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
               // Display current config
-              if (_relayHost.isNotEmpty && _relayPort > 0)
+              if (parseHost(widget.device.relayServerAddress).isNotEmpty &&
+                  parsePort(widget.device.relayServerAddress) > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
-                    '$_relayHost:$_relayPort',
+                    widget.device.relayServerAddress,
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
-                )
+                ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: TextButton(
-            onPressed:
-                _relayServiceEnabled ? () => _showConfigDialog(context) : null,
+            onPressed: widget.device.enableRelay
+                ? () => _showConfigDialog(context)
+                : null,
             style: TextButton.styleFrom(
-              foregroundColor: _relayServiceEnabled
+              foregroundColor: widget.device.enableRelay
                   ? Theme.of(context).colorScheme.primary
                   : Colors.grey, // Use theme color
               // Disable visual feedback when disabled
-              disabledForegroundColor:
-                  Colors.grey.withAlpha((0.5 * 255).toInt()),
+              disabledForegroundColor: Colors.grey.withAlpha(
+                (0.5 * 255).toInt(),
+              ),
             ),
             child: Text(context.formatString(AppLocale.setting, [])),
           ),
@@ -738,21 +739,21 @@ class _RelaySettingState extends State<RelaySetting> {
               icon: switch (_pushConfigStatus) {
                 TaskStatus.idle => const Icon(Icons.send),
                 TaskStatus.pending => SizedBox(
-                    width: const IconThemeData.fallback().size,
-                    height: const IconThemeData.fallback().size,
-                    child: const CircularProgressIndicator(),
-                  ),
+                  width: const IconThemeData.fallback().size,
+                  height: const IconThemeData.fallback().size,
+                  child: const CircularProgressIndicator(),
+                ),
                 TaskStatus.successDone => const Icon(Icons.check),
                 TaskStatus.failDone => Tooltip(
-                    message: _pushConfigResult,
-                    child: const Icon(Icons.error),
-                  ),
+                  message: _pushConfigResult,
+                  child: const Icon(Icons.error),
+                ),
               },
               onPressed: () async {
                 setState(() {
                   _pushConfigStatus = TaskStatus.pending;
                 });
-                _pushConfigResult = await widget.pushRelayConfigToDevice();
+                _pushConfigResult = await pushRelayConfigToDevice();
                 setState(() {
                   if (_pushConfigResult == null) {
                     _pushConfigStatus = TaskStatus.successDone;
@@ -778,6 +779,8 @@ class _RelaySettingState extends State<RelaySetting> {
         children: [
           _relayEnableRow(context),
           SettingsSection.defaultDivider(context),
+          _forceUseRelayRow(context),
+          SettingsSection.defaultDivider(context),
           _relayConfigRow(context),
           SettingsSection.defaultDivider(context),
           _pushConfigRow(context),
@@ -788,11 +791,17 @@ class _RelaySettingState extends State<RelaySetting> {
 
   void _showConfigDialog(BuildContext context) {
     final formKey = GlobalKey<FormState>();
-    final hostController = TextEditingController(text: _relayHost);
+    final hostController = TextEditingController(
+      text: parseHost(widget.device.relayServerAddress),
+    );
+    final port = parsePort(widget.device.relayServerAddress);
     final portController = TextEditingController(
-        text: _relayPort == 0 ? '' : _relayPort.toString());
-    final passwordController = TextEditingController(text: _relayPassword);
-    bool usePassword = _relayPassword != null;
+      text: port == 0 ? '' : port.toString(),
+    );
+    final passwordController = TextEditingController(
+      text: widget.device.relaySecretKey,
+    );
+    bool usePassword = widget.device.relaySecretKey != null;
 
     // --- State for test connection feedback ---
     ConnectionTestStatus testStatus = ConnectionTestStatus.none;
@@ -801,7 +810,8 @@ class _RelaySettingState extends State<RelaySetting> {
 
     showDialog(
       context: context,
-      barrierDismissible: testStatus !=
+      barrierDismissible:
+          testStatus !=
           ConnectionTestStatus.testing, // Prevent dismissal while testing
       builder: (BuildContext context) {
         // Use StatefulBuilder to manage local dialog state
@@ -835,8 +845,10 @@ class _RelaySettingState extends State<RelaySetting> {
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return context
-                              .formatString(AppLocale.invalidHost, []);
+                          return context.formatString(
+                            AppLocale.invalidHost,
+                            [],
+                          );
                         }
                         return null;
                       },
@@ -858,13 +870,17 @@ class _RelaySettingState extends State<RelaySetting> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return context
-                              .formatString(AppLocale.invalidPort, []);
+                          return context.formatString(
+                            AppLocale.invalidPort,
+                            [],
+                          );
                         }
                         final port = int.tryParse(value);
                         if (port == null || port <= 0 || port > 65535) {
-                          return context
-                              .formatString(AppLocale.invalidPort, []);
+                          return context.formatString(
+                            AppLocale.invalidPort,
+                            [],
+                          );
                         }
                         return null;
                       },
@@ -880,7 +896,8 @@ class _RelaySettingState extends State<RelaySetting> {
                 children: [
                   SizedBox(
                     // Ensure consistent tap area size
-                    width: 24, height: 24,
+                    width: 24,
+                    height: 24,
                     child: Checkbox(
                       value: usePassword,
                       visualDensity:
@@ -915,8 +932,9 @@ class _RelaySettingState extends State<RelaySetting> {
                               testResultMessage = '';
                             });
                           },
-                    child:
-                        Text(context.formatString(AppLocale.useSecretKey, [])),
+                    child: Text(
+                      context.formatString(AppLocale.useSecretKey, []),
+                    ),
                   ),
                 ],
               );
@@ -936,8 +954,10 @@ class _RelaySettingState extends State<RelaySetting> {
                   // obscureText: true,
                   validator: (value) {
                     if (usePassword && (value == null)) {
-                      return context
-                          .formatString(AppLocale.invalidSecretKey, []);
+                      return context.formatString(
+                        AppLocale.invalidSecretKey,
+                        [],
+                      );
                     }
                     return null;
                   },
@@ -958,7 +978,8 @@ class _RelaySettingState extends State<RelaySetting> {
             return AlertDialog(
               actionsAlignment: MainAxisAlignment.spaceBetween,
               title: Text(
-                  context.formatString(AppLocale.configureRelayServer, [])),
+                context.formatString(AppLocale.configureRelayServer, []),
+              ),
               content: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -1007,8 +1028,9 @@ class _RelaySettingState extends State<RelaySetting> {
                           if (formKey.currentState!.validate()) {
                             final host = hostController.text.trim();
                             final port = int.parse(portController.text);
-                            final password =
-                                usePassword ? passwordController.text : null;
+                            final password = usePassword
+                                ? passwordController.text
+                                : null;
 
                             // Set loading state
                             setStateDialog(() {
@@ -1018,8 +1040,11 @@ class _RelaySettingState extends State<RelaySetting> {
 
                             String? errorResult;
                             try {
-                              errorResult = await widget.testRelayConnection(
-                                  host, port, password);
+                              errorResult = await testRelayConnection(
+                                host,
+                                port,
+                                password,
+                              );
                             } catch (e) {
                               errorResult = "error: ${e.toString()}";
                             } finally {
@@ -1049,7 +1074,8 @@ class _RelaySettingState extends State<RelaySetting> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 14, height: 14, // Smaller indicator
+                              width: 14,
+                              height: 14, // Smaller indicator
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                             SizedBox(width: 8),
@@ -1057,7 +1083,8 @@ class _RelaySettingState extends State<RelaySetting> {
                           ],
                         )
                       : Text(
-                          context.formatString(AppLocale.checkConnection, [])),
+                          context.formatString(AppLocale.checkConnection, []),
+                        ),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -1086,19 +1113,20 @@ class _RelaySettingState extends State<RelaySetting> {
                                     ? passwordController.text
                                     : null;
 
-                                // --- Update the main widget's state (outside dialog) ---
-                                // Check if values actually changed before updating
-                                if (_relayHost != host ||
-                                    _relayPort != port ||
-                                    _relayPassword != password) {
+                                final oldHost = parseHost(
+                                  widget.device.relayServerAddress,
+                                );
+                                final oldPort = parsePort(
+                                  widget.device.relayServerAddress,
+                                );
+                                final oldPassword =
+                                    widget.device.relaySecretKey;
+                                if (oldHost != host ||
+                                    oldPort != port ||
+                                    oldPassword != password) {
                                   setState(() {
-                                    _relayHost = host;
-                                    _relayPort = port;
-                                    _relayPassword = password;
+                                    changeRelayConfig(host, port, password);
                                   });
-                                  // Notify the parent widget
-                                  widget.changeRelayConfig(
-                                      host, port, password);
                                 }
                                 // --- End Update ---
 
@@ -1115,7 +1143,7 @@ class _RelaySettingState extends State<RelaySetting> {
                       child: Text(context.formatString(AppLocale.confirm, [])),
                     ),
                   ],
-                )
+                ),
               ],
             );
           },
