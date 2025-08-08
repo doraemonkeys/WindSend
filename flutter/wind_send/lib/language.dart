@@ -140,7 +140,7 @@ mixin AppLocale {
     trustedCertificate: '证书',
     trustedCertificateHint: '证书内容可以从 tls/ca_cert.pem 文件中复制',
     useRelay: '使用中转服务',
-    forceUseRelay: '强制使用中转服务',
+    forceUseRelay: '强制使用中转',
     relayServerAddress: '中转服务器地址',
     accessKey: '访问密钥',
     checkConnection: '检测连接',
@@ -221,7 +221,7 @@ mixin AppLocale {
     trustedCertificateHint:
         'The certificate content can be copied from tls/ca_cert.pem file',
     useRelay: 'Use relay service',
-    forceUseRelay: 'Force use relay service',
+    forceUseRelay: 'Force use relay',
     relayServerAddress: 'Relay server address',
     accessKey: 'Access key',
     checkConnection: 'Check',
