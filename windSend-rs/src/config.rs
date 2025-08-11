@@ -242,12 +242,10 @@ impl Config {
 
 fn init_global_config() -> Config {
     debug!("Ensuring config directory exists: {:?}", &*CONFIG_FILE_PATH);
-    if let Some(parent_dir) = CONFIG_FILE_PATH.parent() {
-        if !parent_dir.exists() {
-            if let Err(err) = std::fs::create_dir_all(parent_dir) {
+    if let Some(parent_dir) = CONFIG_FILE_PATH.parent()
+        && !parent_dir.exists()
+            && let Err(err) = std::fs::create_dir_all(parent_dir) {
                 panic!("Failed to create config directory: {err}");
-            }
-        }
     }
 
     if !CONFIG_FILE_PATH.exists() {

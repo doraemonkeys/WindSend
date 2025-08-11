@@ -395,11 +395,10 @@ impl SaltCache {
             Some(pwd) => pwd,
             _ => return (None, None),
         };
-        if let (Some(p), Some(_)) = (&self.cur_pwd, &self.salt_b64) {
-            if *p == *pwd {
+        if let (Some(p), Some(_)) = (&self.cur_pwd, &self.salt_b64)
+            && *p == *pwd {
                 return (self.kdf_key, self.salt_b64.clone());
             }
-        }
         (None, None)
     }
 
@@ -414,11 +413,10 @@ impl SaltCache {
             (Some(pwd), Some(salt_b64)) => (pwd, salt_b64),
             _ => return None,
         };
-        if let (Some(p), Some(s)) = (&self.cur_pwd, &self.salt_b64) {
-            if *p == *pwd && *s == *salt_b64 {
+        if let (Some(p), Some(s)) = (&self.cur_pwd, &self.salt_b64)
+            && *p == *pwd && *s == *salt_b64 {
                 return self.kdf_key;
             }
-        }
         let salt = match BASE64_STANDARD.decode(salt_b64) {
             Ok(salt) => salt,
             Err(e) => {

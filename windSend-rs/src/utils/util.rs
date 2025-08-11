@@ -279,8 +279,8 @@ pub fn get_system_lang() -> String {
         }
     }
     #[cfg(target_os = "windows")]
-    if lang.is_empty() {
-        if let Ok(output) = std::process::Command::new("cmd")
+    if lang.is_empty()
+        && let Ok(output) = std::process::Command::new("cmd")
             .args(["/c", "chcp"])
             .output()
         {
@@ -290,7 +290,6 @@ pub fn get_system_lang() -> String {
                 _ => {}
             }
         }
-    }
     lang
 }
 

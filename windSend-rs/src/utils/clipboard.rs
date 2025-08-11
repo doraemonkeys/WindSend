@@ -89,7 +89,9 @@ impl ClipboardManager {
         }
     }
 
-    pub fn read_image(&self) -> Result<ClipboardImage, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn read_image(
+        &self,
+    ) -> Result<ClipboardImage<'_>, Box<dyn std::error::Error + Send + Sync>> {
         let mut ret = ClipboardImage {
             image1: None,
             image2: None,
