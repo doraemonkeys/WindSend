@@ -58,7 +58,6 @@ class AesCTR {
   Stream<List<int>> encryptStream(
     Stream<List<int>> plaintextStream, {
     List<int>? nonce,
-    List<int> aad = const [],
     bool yieldNonce = true,
     void Function(cp.Mac)? onMac,
     bool allowUseSameBytes = false,
@@ -80,7 +79,6 @@ class AesCTR {
   FutureOr<Stream<List<int>>> decryptStream(
     Stream<List<int>> cipherStream, {
     List<int>? nonce,
-    List<int> aad = const [],
     bool allowUseSameBytes = false,
     FutureOr<cp.Mac>? mac,
   }) async {
@@ -99,7 +97,6 @@ class AesCTR {
       secretKey: SecretKey(_key),
       nonce: nonce,
       mac: mac ?? cp.Mac.empty,
-      aad: aad,
       allowUseSameBytes: allowUseSameBytes,
     );
   }
@@ -107,7 +104,6 @@ class AesCTR {
   Future<SecretBox> encryptWithNonce(
     List<int> plaintext,
     List<int>? nonce, {
-    List<int> aad = const <int>[],
     int keyStreamIndex = 0,
     Uint8List? possibleBuffer,
   }) {
@@ -115,7 +111,6 @@ class AesCTR {
       plaintext,
       secretKey: SecretKey(_key),
       nonce: nonce,
-      aad: aad,
       keyStreamIndex: keyStreamIndex,
       possibleBuffer: possibleBuffer,
     );
@@ -124,7 +119,6 @@ class AesCTR {
   Future<List<int>> decryptWithNonce(
     List<int> ciphertext,
     List<int> nonce, {
-    List<int> aad = const <int>[],
     int keyStreamIndex = 0,
     Uint8List? possibleBuffer,
     cp.Mac? mac,
@@ -132,9 +126,47 @@ class AesCTR {
     return _algorithm.decrypt(
       SecretBox(ciphertext, nonce: nonce, mac: mac ?? cp.Mac.empty),
       secretKey: SecretKey(_key),
-      aad: aad,
       keyStreamIndex: keyStreamIndex,
       possibleBuffer: possibleBuffer,
+    );
+  }
+
+  /// nonce | ciphertext | mac
+  Future<Uint8List> encrypt(List<int> plaintext) async {
+    final nonce = _algorithm.newNonce();
+    if (nonce.length != nonceAndCounterBytes) {
+      throw ArgumentError('Nonce length must be $nonceAndCounterBytes');
+    }
+    final encrypted = await encryptWithNonce(plaintext, nonce);
+    if (encrypted.mac.bytes.length != macAlgorithm.macLength) {
+      throw ArgumentError('Mac length must be ${macAlgorithm.macLength}');
+    }
+    var r = BytesBuilder();
+    r.add(nonce);
+    r.add(encrypted.cipherText);
+    r.add(encrypted.mac.bytes);
+    return r.takeBytes();
+  }
+
+  Future<List<int>> decrypt(Uint8List ciphertext) async {
+    final nonce = Uint8List.view(
+      ciphertext.buffer,
+      ciphertext.offsetInBytes,
+      nonceAndCounterBytes,
+    );
+    final mac = Uint8List.view(
+      ciphertext.buffer,
+      ciphertext.offsetInBytes + ciphertext.length - macAlgorithm.macLength,
+      macAlgorithm.macLength,
+    );
+    return decryptWithNonce(
+      Uint8List.view(
+        ciphertext.buffer,
+        ciphertext.offsetInBytes + nonceAndCounterBytes,
+        ciphertext.length - nonceAndCounterBytes - macAlgorithm.macLength,
+      ),
+      nonce,
+      mac: cp.Mac(mac),
     );
   }
 }
