@@ -35,20 +35,23 @@ class DeviceCard extends StatefulWidget {
 
   /// throw Exception if failed
   static Future<ToastResult> commonActionFunc(
-      Device device,
-      void Function(Device device) onChanged,
-      Future<ToastResult> Function() task) async {
+    Device device,
+    void Function(Device device) onChanged,
+    Future<ToastResult> Function() task,
+  ) async {
     ToastResult result;
-    for (var i = 0;; i++) {
+    for (var i = 0; ; i++) {
       dynamic tempErr;
       try {
         result = await task();
         break; // success exit
       } catch (e, s) {
         tempErr = e;
-        SharedLogger()
-            .logger
-            .i('commonActionFunc failed(try: $i)', error: e, stackTrace: s);
+        SharedLogger().logger.i(
+          'commonActionFunc failed(try: $i)',
+          error: e,
+          stackTrace: s,
+        );
         // print('commonActionFunc err: $err\n, $s');
       }
 
@@ -105,9 +108,7 @@ class DeviceCard extends StatefulWidget {
           context: context,
           barrierDismissible: false,
           builder: (BuildContext context) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           },
         );
       } else {
@@ -119,8 +120,9 @@ class DeviceCard extends StatefulWidget {
             return Material(
               color: Colors.transparent,
               child: LoadingIndicator(
-                progressStream:
-                    progressReceivePort.map((e) => e as TransferProgress),
+                progressStream: progressReceivePort.map(
+                  (e) => e as TransferProgress,
+                ),
               ),
             );
           },
@@ -165,7 +167,8 @@ class _DeviceCardState extends State<DeviceCard> {
       margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
       child: ExpansionTile(
         key: ValueKey(
-            '${widget.device.targetDeviceName}${widget.device.unFold}'),
+          '${widget.device.targetDeviceName}${widget.device.unFold}',
+        ),
         title: GestureDetector(
           onLongPress: () {
             deviceItemLongPressDialog(context, widget.device.targetDeviceName);
@@ -265,11 +268,12 @@ class _DeviceCardState extends State<DeviceCard> {
             SimpleDialogOption(
               onPressed: () {
                 Navigator.pop(context);
-                alertDialogFunc(
+                showAlertDialog(
                   context,
                   Text(context.formatString(AppLocale.deleteDevice, [])),
-                  content:
-                      Text(context.formatString(AppLocale.deleteDeviceTip, [])),
+                  content: Text(
+                    context.formatString(AppLocale.deleteDeviceTip, []),
+                  ),
                   onConfirmed: () {
                     widget.onDelete();
                   },
@@ -292,8 +296,11 @@ class _DeviceCardState extends State<DeviceCard> {
   }
 }
 
-List<Widget> deviceItemChilden(BuildContext context, Device device,
-    void Function(Device device) onChanged) {
+List<Widget> deviceItemChilden(
+  BuildContext context,
+  Device device,
+  void Function(Device device) onChanged,
+) {
   // print('build deviceItemChilden,unFold: ${device.unFold}');
   List<Widget> result = [];
   final int maxStringLen = max(
@@ -314,74 +321,86 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               const Icon(Icons.copy_outlined),
               const SizedBox(width: 10),
               SizedBox(
-                  width: 38.0 + maxStringLen,
-                  child: Text(context.formatString(AppLocale.copy, []),
-                      maxLines: 1)),
+                width: 38.0 + maxStringLen,
+                child: Text(
+                  context.formatString(AppLocale.copy, []),
+                  maxLines: 1,
+                ),
+              ),
             ],
           ),
           onTap: () async {
             ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
-                context, device, onChanged, () async {
-              var (copiedText, downloadInfos, realSavePaths) = await device
-                  .doCopyAction(() => context, progressSendPort: rp.sendPort);
-              if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                saveDeviceWifiBssid(device);
-              }
-              if (copiedText != null && context.mounted) {
-                final copiedTextMsg = copiedText.length > 40
-                    ? '${copiedText.substring(0, 40)}...'
-                    : copiedText;
-                return ToastResult(
-                  message:
-                      '${context.formatString(AppLocale.copySuccess, [])}\n$copiedTextMsg',
-                  shareText: copiedText,
-                );
-              }
-              if (downloadInfos.isNotEmpty) {
-                int count = 0;
-                bool haveDir = false;
-                bool allFileBothImage = true;
-                for (var info in downloadInfos) {
-                  if (info.isFile()) {
-                    count++;
-                    if (!hasImageExtension(info.remotePath)) {
-                      allFileBothImage = false;
-                    }
-                  } else {
-                    haveDir = true;
-                  }
+              context,
+              device,
+              onChanged,
+              () async {
+                var (copiedText, downloadInfos, realSavePaths) = await device
+                    .doCopyAction(() => context, progressSendPort: rp.sendPort);
+                if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
+                  saveDeviceWifiBssid(device);
                 }
-                var openPath =
-                    realSavePaths.length == 1 ? realSavePaths.first : '';
-                if (count > 1) {
-                  openPath = haveDir || !allFileBothImage
-                      ? LocalConfig.fileSavePath
-                      : LocalConfig.imageSavePath;
-                }
-                if (context.mounted) {
+                if (copiedText != null && context.mounted) {
+                  final copiedTextMsg = copiedText.length > 40
+                      ? '${copiedText.substring(0, 40)}...'
+                      : copiedText;
                   return ToastResult(
                     message:
-                        context.formatString(AppLocale.filesSaved, [count]),
-                    shareFile: realSavePaths,
-                    openPath: openPath,
+                        '${context.formatString(AppLocale.copySuccess, [])}\n$copiedTextMsg',
+                    shareText: copiedText,
                   );
                 }
-              }
-              if (realSavePaths.isNotEmpty && context.mounted) {
+                if (downloadInfos.isNotEmpty) {
+                  int count = 0;
+                  bool haveDir = false;
+                  bool allFileBothImage = true;
+                  for (var info in downloadInfos) {
+                    if (info.isFile()) {
+                      count++;
+                      if (!hasImageExtension(info.remotePath)) {
+                        allFileBothImage = false;
+                      }
+                    } else {
+                      haveDir = true;
+                    }
+                  }
+                  var openPath = realSavePaths.length == 1
+                      ? realSavePaths.first
+                      : '';
+                  if (count > 1) {
+                    openPath = haveDir || !allFileBothImage
+                        ? LocalConfig.fileSavePath
+                        : LocalConfig.imageSavePath;
+                  }
+                  if (context.mounted) {
+                    return ToastResult(
+                      message: context.formatString(AppLocale.filesSaved, [
+                        count,
+                      ]),
+                      shareFile: realSavePaths,
+                      openPath: openPath,
+                    );
+                  }
+                }
+                if (realSavePaths.isNotEmpty && context.mounted) {
+                  return ToastResult(
+                    message: context.formatString(AppLocale.filesSaved, [
+                      realSavePaths.length,
+                    ]),
+                    shareFile: realSavePaths,
+                    openPath: realSavePaths.length == 1
+                        ? realSavePaths.first
+                        : '',
+                  );
+                }
                 return ToastResult(
-                  message: context.formatString(
-                      AppLocale.filesSaved, [realSavePaths.length]),
-                  shareFile: realSavePaths,
-                  openPath:
-                      realSavePaths.length == 1 ? realSavePaths.first : '',
+                  message: 'unknown error',
+                  status: ToastStatus.failure,
                 );
-              }
-              return ToastResult(
-                message: 'unknown error',
-                status: ToastStatus.failure,
-              );
-            }, progressReceivePort: rp);
+              },
+              progressReceivePort: rp,
+            );
           },
         ),
       );
@@ -395,9 +414,12 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               const Icon(Icons.paste_outlined),
               const SizedBox(width: 10),
               SizedBox(
-                  width: 38.0 + maxStringLen,
-                  child: Text(context.formatString(AppLocale.push, []),
-                      maxLines: 1)),
+                width: 38.0 + maxStringLen,
+                child: Text(
+                  context.formatString(AppLocale.push, []),
+                  maxLines: 1,
+                ),
+              ),
             ],
           ),
           onTap: () async {
@@ -407,12 +429,18 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               device,
               onChanged,
               () {
-                String pasteSuccess =
-                    context.formatString(AppLocale.pasteSuccess, []);
-                String sendSuccess =
-                    context.formatString(AppLocale.sendSuccess, []);
-                Future<bool> f = device.doPasteClipboardAction(() => context,
-                    progressSendPort: rp.sendPort);
+                String pasteSuccess = context.formatString(
+                  AppLocale.pasteSuccess,
+                  [],
+                );
+                String sendSuccess = context.formatString(
+                  AppLocale.sendSuccess,
+                  [],
+                );
+                Future<bool> f = device.doPasteClipboardAction(
+                  () => context,
+                  progressSendPort: rp.sendPort,
+                );
                 return f.then((isText) async {
                   if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
                     saveDeviceWifiBssid(device);
@@ -438,56 +466,78 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
               const SizedBox(width: 10),
               SizedBox(
                 width: 38.0 + maxStringLen,
-                child: Text(context.formatString(AppLocale.transferFile, []),
-                    maxLines: 1),
+                child: Text(
+                  context.formatString(AppLocale.transferFile, []),
+                  maxLines: 1,
+                ),
               ),
             ],
           ),
           onTap: () async {
-            String successMsg =
-                context.formatString(AppLocale.operationSuccess, []);
+            String successMsg = context.formatString(
+              AppLocale.operationSuccess,
+              [],
+            );
             List<String> selectedFilePaths = [];
             ReceivePort rp = ReceivePort();
             await DeviceCard.commonActionFuncWithToastr(
-                context, device, onChanged, () async {
-              if (selectedFilePaths.isEmpty) {
-                selectedFilePaths = await device.pickFiles();
-              }
-              await device.doSendAction(() => context, selectedFilePaths,
-                  progressSendPort: rp.sendPort);
-              device.clearTemporaryFiles();
-              if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                saveDeviceWifiBssid(device);
-              }
-              return ToastResult(message: successMsg);
-            }, progressReceivePort: rp);
+              context,
+              device,
+              onChanged,
+              () async {
+                if (selectedFilePaths.isEmpty) {
+                  selectedFilePaths = await device.pickFiles();
+                }
+                await device.doSendAction(
+                  () => context,
+                  selectedFilePaths,
+                  progressSendPort: rp.sendPort,
+                );
+                device.clearTemporaryFiles();
+                if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
+                  saveDeviceWifiBssid(device);
+                }
+                return ToastResult(message: successMsg);
+              },
+              progressReceivePort: rp,
+            );
           },
           onLongPress: () async {
             ReceivePort rp = ReceivePort();
-            String successMsg =
-                context.formatString(AppLocale.operationSuccess, []);
+            String successMsg = context.formatString(
+              AppLocale.operationSuccess,
+              [],
+            );
             String selectedDirPath = '';
             await DeviceCard.commonActionFuncWithToastr(
-                context, device, onChanged, () async {
-              if (selectedDirPath.isEmpty) {
-                selectedDirPath = await device.pickDir();
-              }
-              await device.doSendAction(() => context, [selectedDirPath],
-                  progressSendPort: rp.sendPort);
-              return ToastResult(message: successMsg);
-            }, progressReceivePort: rp);
+              context,
+              device,
+              onChanged,
+              () async {
+                if (selectedDirPath.isEmpty) {
+                  selectedDirPath = await device.pickDir();
+                }
+                await device.doSendAction(() => context, [
+                  selectedDirPath,
+                ], progressSendPort: rp.sendPort);
+                return ToastResult(message: successMsg);
+              },
+              progressReceivePort: rp,
+            );
           },
         ),
       );
     }
   }
   if (device.actionWebCopy || device.actionWebPaste) {
-    result.add(Divider(
-      // color: Theme.of(context).colorScheme.onSurfaceVariant,
-      height: 1,
-      color: Theme.of(context).colorScheme.surface,
-      thickness: 1,
-    ));
+    result.add(
+      Divider(
+        // color: Theme.of(context).colorScheme.onSurfaceVariant,
+        height: 1,
+        color: Theme.of(context).colorScheme.surface,
+        thickness: 1,
+      ),
+    );
   }
   if (device.actionWebCopy) {
     result.add(
@@ -503,15 +553,21 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           ],
         ),
         onTap: () async {
-          String successMsg =
-              context.formatString(AppLocale.operationSuccess, []);
+          String successMsg = context.formatString(
+            AppLocale.operationSuccess,
+            [],
+          );
           await DeviceCard.commonActionFuncWithToastr(
-              context, device, onChanged, () async {
-            String msg = await device.doCopyActionWeb();
-            return ToastResult(
-              message: msg.isEmpty ? successMsg : '$successMsg\n$msg',
-            );
-          });
+            context,
+            device,
+            onChanged,
+            () async {
+              String msg = await device.doCopyActionWeb();
+              return ToastResult(
+                message: msg.isEmpty ? successMsg : '$successMsg\n$msg',
+              );
+            },
+          );
         },
       ),
     );
@@ -530,13 +586,19 @@ List<Widget> deviceItemChilden(BuildContext context, Device device,
           ],
         ),
         onTap: () async {
-          String successMsg =
-              context.formatString(AppLocale.operationSuccess, []);
+          String successMsg = context.formatString(
+            AppLocale.operationSuccess,
+            [],
+          );
           await DeviceCard.commonActionFuncWithToastr(
-              context, device, onChanged, () async {
-            await device.doPasteTextActionWeb();
-            return ToastResult(message: successMsg);
-          });
+            context,
+            device,
+            onChanged,
+            () async {
+              await device.doPasteTextActionWeb();
+              return ToastResult(message: successMsg);
+            },
+          );
         },
       ),
     );

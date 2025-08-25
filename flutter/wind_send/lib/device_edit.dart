@@ -180,7 +180,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         final deviceNameController = TextEditingController(
           text: widget.device.targetDeviceName,
         );
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString(AppLocale.deviceName, [])),
           content: Form(
@@ -227,7 +227,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         final filePickerPackageNameController = TextEditingController(
           text: widget.device.filePickerPackageName,
         );
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString(AppLocale.useThirdPartyFilePicker, [])),
           content: Form(
@@ -279,7 +279,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         final certificateAuthorityController = TextEditingController(
           text: widget.device.trustedCertificate,
         );
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString(AppLocale.trustedCertificate, [])),
           content: Form(
@@ -322,7 +322,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         final secretKeyController = TextEditingController(
           text: widget.device.secretKey,
         );
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString('SecretKey', [])),
           content: Form(
@@ -358,7 +358,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
         final portController = TextEditingController(
           text: widget.device.port.toString(),
         );
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString('Port', [])),
           content: Form(
@@ -391,7 +391,7 @@ class _DeviceSettingPageState extends State<DeviceSettingPage> {
       subtitle: Text(widget.device.iP),
       onTap: () {
         final ipController = TextEditingController(text: widget.device.iP);
-        alertDialogFunc(
+        showAlertDialog(
           context,
           Text(context.formatString('Host', [])),
           content: Form(

@@ -266,7 +266,7 @@ Future<String?> superClipboardReadText(
   return ret;
 }
 
-Future<T?> alertDialogFunc<T>(
+Future<T?> showAlertDialog<T>(
   BuildContext context,
   Widget? title, {
   Widget? content,

@@ -1153,7 +1153,7 @@ class Device {
       directFirst = true;
       var ctx = getContext?.call();
       if (ctx != null && ctx.mounted) {
-        await alertDialogFunc(
+        await showAlertDialog(
           ctx,
           Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
           content: Text(
@@ -1387,7 +1387,7 @@ class Device {
         bool isCancel = false;
         var ctx = getContext?.call();
         if (ctx != null && ctx.mounted) {
-          await alertDialogFunc(
+          await showAlertDialog(
             ctx,
             Text(ctx.formatString(AppLocale.continueWithError, [])),
             content: Text(dirListError.join('\n')),
@@ -1411,7 +1411,7 @@ class Device {
       directFirst = true;
       var ctx = getContext?.call();
       if (ctx != null && ctx.mounted) {
-        await alertDialogFunc(
+        await showAlertDialog(
           ctx,
           Text(ctx.formatString(AppLocale.fileTooLargeTitle, [])),
           content: Text(

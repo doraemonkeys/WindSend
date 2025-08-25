@@ -537,7 +537,7 @@ Future<void> showFirstTimeLocationPermissionDialog(
   if ((Platform.isIOS || Platform.isAndroid) &&
       LocalConfig.autoSelectShareSyncDeviceByBssid) {
     if (context.mounted) {
-      await alertDialogFunc(
+      await showAlertDialog(
         context,
         Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
         content: Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),

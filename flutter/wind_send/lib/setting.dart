@@ -44,9 +44,7 @@ class _SettingPageState extends State<SettingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.formatString(AppLocale.setting, [])),
-      ),
+      appBar: AppBar(title: Text(context.formatString(AppLocale.setting, []))),
       body: SettingsList(
         sections: [
           SettingsSection(
@@ -55,11 +53,13 @@ class _SettingPageState extends State<SettingPage> {
               followSystemThemeSetting(context),
             ],
           ),
-          SettingsSection(tiles: [
-            localDeviceNameSetting(context),
-            fileSavePathSetting(context),
-            imageSavePathSetting(context),
-          ]),
+          SettingsSection(
+            tiles: [
+              localDeviceNameSetting(context),
+              fileSavePathSetting(context),
+              imageSavePathSetting(context),
+            ],
+          ),
           SettingsSection(
             tiles: [
               defaultSyncDeviceSetting(context),
@@ -89,8 +89,9 @@ class _SettingPageState extends State<SettingPage> {
 
   SettingsTile autoSelectShareDeviceSetting(BuildContext context) {
     return SettingsTile.switchTile(
-      title:
-          Text(context.formatString(AppLocale.autoSelectShareSyncDevice, [])),
+      title: Text(
+        context.formatString(AppLocale.autoSelectShareSyncDevice, []),
+      ),
       leading: const Icon(Icons.wifi),
       initialValue: autoSelectShareDeviceByBssid,
       activeSwitchColor: Theme.of(context).colorScheme.primary,
@@ -100,11 +101,12 @@ class _SettingPageState extends State<SettingPage> {
             await checkOrRequestNetworkPermission();
           } catch (e) {
             if (context.mounted) {
-              alertDialogFunc(
+              showAlertDialog(
                 context,
                 Text(context.formatString(AppLocale.getWIFIBSSIDTitle, [])),
-                content:
-                    Text(context.formatString(AppLocale.getWIFIBSSIDTip, [])),
+                content: Text(
+                  context.formatString(AppLocale.getWIFIBSSIDTip, []),
+                ),
               );
             }
             return;
@@ -121,7 +123,8 @@ class _SettingPageState extends State<SettingPage> {
           context: context,
           builder: (context) => AlertDialog(
             title: Text(
-                context.formatString(AppLocale.autoSelectShareSyncDevice, [])),
+              context.formatString(AppLocale.autoSelectShareSyncDevice, []),
+            ),
             content: Text(jsonEncode(LocalConfig.bssidDeviceNameMap)),
           ),
         );
@@ -174,7 +177,7 @@ class _SettingPageState extends State<SettingPage> {
       value: Text(deviceName),
       onPressed: (context) async {
         var controller = TextEditingController(text: deviceName);
-        await alertDialogFunc(
+        await showAlertDialog(
           context,
           Text(context.formatString(AppLocale.deviceName, [])),
           content: TextField(
@@ -225,29 +228,32 @@ class _SettingPageState extends State<SettingPage> {
           context: context,
           builder: (context) {
             return SimpleDialog(
-                title:
-                    Text(context.formatString(AppLocale.defaultSyncDevice, [])),
-                children: [
-                  ...devices.where((element) => element.iP != Device.webIP).map(
-                        (e) => RadioListTile(
-                          title: Text(e.targetDeviceName),
-                          value: e.targetDeviceName,
-                          groupValue: defaultSyncDevice,
-                          onChanged: (value) {
-                            Navigator.pop(context, value);
-                          },
-                        ),
+              title: Text(
+                context.formatString(AppLocale.defaultSyncDevice, []),
+              ),
+              children: [
+                ...devices
+                    .where((element) => element.iP != Device.webIP)
+                    .map(
+                      (e) => RadioListTile(
+                        title: Text(e.targetDeviceName),
+                        value: e.targetDeviceName,
+                        groupValue: defaultSyncDevice,
+                        onChanged: (value) {
+                          Navigator.pop(context, value);
+                        },
                       ),
-                  RadioListTile(
-                    title:
-                        Text(context.formatString(AppLocale.disableSync, [])),
-                    value: '',
-                    groupValue: defaultSyncDevice,
-                    onChanged: (value) {
-                      Navigator.pop(context, value);
-                    },
-                  ),
-                ]);
+                    ),
+                RadioListTile(
+                  title: Text(context.formatString(AppLocale.disableSync, [])),
+                  value: '',
+                  groupValue: defaultSyncDevice,
+                  onChanged: (value) {
+                    Navigator.pop(context, value);
+                  },
+                ),
+              ],
+            );
           },
         );
         if (result != null) {
@@ -286,20 +292,24 @@ class _SettingPageState extends State<SettingPage> {
           context: context,
           builder: (context) {
             return SimpleDialog(
-                title: Text(
-                    context.formatString(AppLocale.defaultShareDevice, [])),
-                children: [
-                  ...devices.where((element) => element.iP != Device.webIP).map(
-                        (e) => RadioListTile(
-                          title: Text(e.targetDeviceName),
-                          value: e.targetDeviceName,
-                          groupValue: defaultShareDevice,
-                          onChanged: (value) {
-                            Navigator.pop(context, value);
-                          },
-                        ),
+              title: Text(
+                context.formatString(AppLocale.defaultShareDevice, []),
+              ),
+              children: [
+                ...devices
+                    .where((element) => element.iP != Device.webIP)
+                    .map(
+                      (e) => RadioListTile(
+                        title: Text(e.targetDeviceName),
+                        value: e.targetDeviceName,
+                        groupValue: defaultShareDevice,
+                        onChanged: (value) {
+                          Navigator.pop(context, value);
+                        },
                       ),
-                ]);
+                    ),
+              ],
+            );
           },
         );
         if (result != null) {

@@ -527,7 +527,7 @@ class _MainBodyState extends State<MainBody> {
     handleOnError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
       SharedLogger().logger.e('share failed', error: err, stackTrace: s);
-      alertDialogFunc(
+      showAlertDialog(
         context,
         const Text('Share failed'),
         content: Text(err.toString()),
@@ -537,7 +537,7 @@ class _MainBodyState extends State<MainBody> {
     handleResetError(Object err, StackTrace s) {
       // print('handleOnErrorxxxxx: $err');
       SharedLogger().logger.e('reset failed', error: err, stackTrace: s);
-      alertDialogFunc(
+      showAlertDialog(
         context,
         const Text('Reset failed'),
         content: Text(err.toString()),
