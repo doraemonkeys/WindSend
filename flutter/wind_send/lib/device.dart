@@ -57,6 +57,8 @@ class Device {
   String? _relayKdfSaltB64;
   String? _relayKdfSecretB64;
   bool _connectionStateInitialized = false;
+
+  /// Only valid when relay is enabled
   bool onlyUseRelay = false;
 
   int port = defaultPort;
@@ -367,7 +369,7 @@ class Device {
     dev.log(
       'run connectAuto, relayEnabled: $enableRelay, forceDirectFirst: $forceDirectFirst,onlyDirect: $onlyDirect,onlyRelay: $onlyRelay,timeout: $timeout',
     );
-    if (onlyUseRelay) {
+    if (onlyUseRelay && enableRelay) {
       return (await connectToRelay(timeout: timeout), true);
     }
     // return _connectAutoRoutine(timeout: timeout);

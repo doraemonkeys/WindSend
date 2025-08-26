@@ -636,7 +636,10 @@ class _RelaySettingState extends State<RelaySetting> {
                   Flexible(
                     child: Text(
                       context.formatString(AppLocale.forceUseRelay, []),
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: widget.device.enableRelay ? null : Colors.grey,
+                      ),
                       overflow: TextOverflow.ellipsis, // Handle overflow
                     ),
                   ),
