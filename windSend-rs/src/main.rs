@@ -150,10 +150,9 @@ async fn _async_main() {
             warn!("set_only_v6 error: {}", e);
         }
         // Enable SO_REUSEADDR
-        // if let Err(e) = socket_ref.set_reuse_address(true) {
-        //     error!("Failed to set SO_REUSEADDR: {}", e);
-        //     return;
-        // }
+        if let Err(e) = socket_ref.set_reuse_address(true) {
+            warn!("Failed to set SO_REUSEADDR: {}", e);
+        }
     }
     socket
         .bind((std::net::Ipv6Addr::UNSPECIFIED, server_port).into())
