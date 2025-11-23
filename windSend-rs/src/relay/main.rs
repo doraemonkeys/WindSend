@@ -60,7 +60,7 @@ async fn send_connection_req(
     use crate::relay::protocol::{CommonReq, ConnectionReq, RespHead};
     let req = ConnectionReq {
         common: CommonReq {
-            id: config::read_config().get_device_id(),
+            id: config::read_config().get_secret_key_id(),
         },
     };
     match req.write_to(tcp_stream, Some(cipher)).await {
@@ -396,7 +396,8 @@ impl SaltCache {
             _ => return (None, None),
         };
         if let (Some(p), Some(_)) = (&self.cur_pwd, &self.salt_b64)
-            && *p == *pwd {
+            && *p == *pwd
+        {
                 return (self.kdf_key, self.salt_b64.clone());
             }
         (None, None)
@@ -414,7 +415,9 @@ impl SaltCache {
             _ => return None,
         };
         if let (Some(p), Some(s)) = (&self.cur_pwd, &self.salt_b64)
-            && *p == *pwd && *s == *salt_b64 {
+            && *p == *pwd
+            && *s == *salt_b64
+        {
                 return self.kdf_key;
             }
         let salt = match BASE64_STANDARD.decode(salt_b64) {

@@ -15,7 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/clipboard/clipboard_service.dart';
 // import 'package:wind_send/main.dart';
-import 'language.dart';
+import '../language.dart';
 
 Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   if (clipboard == null) {

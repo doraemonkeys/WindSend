@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 
 import 'language.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'device.dart';
 import 'device_card.dart';
 import 'toast.dart';

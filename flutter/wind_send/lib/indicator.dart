@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:isolate';
 import 'dart:async';
 import 'dart:io';
-import 'utils.dart';
+import 'utils/utils.dart';
 
 class TransferProgress {
   final int totalBytes;

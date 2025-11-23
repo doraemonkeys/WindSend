@@ -13,7 +13,7 @@ import 'package:wind_send/file_transfer.dart';
 
 import 'language.dart';
 import 'text_edit.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'device_edit.dart';
 import 'device.dart';
 import 'cnf.dart';
@@ -64,7 +64,31 @@ class DeviceCard extends StatefulWidget {
         return autoSelectErrorTypes.contains(err.runtimeType);
       }
 
+      bool shouldNotRetry(dynamic err) {
+        // e.g. HandshakeException: Connection terminated during handshake
+
+        // const noRetryErrorTypes = {HandshakeException};
+        // return noRetryErrorTypes.contains(err.runtimeType);
+
+        if (err is HandshakeException) {
+          const errorStrings = {'terminated during handshake'};
+          for (var errorString in errorStrings) {
+            if (err.toString().contains(errorString)) {
+              return true;
+            }
+          }
+        }
+
+        return false;
+      }
+
       if (tempErr != null) {
+        if (shouldNotRetry(tempErr)) {
+          throw tempErr;
+        }
+        if (tempErr is UserCancelPickException) {
+          return ToastResult(message: 'canceled');
+        }
         if (i == 0 && device.autoSelect && shouldAutoSelectError(tempErr)) {
           if (await device.findServer() == null) {
             // errorMsg = tempErr.toString();
@@ -72,9 +96,6 @@ class DeviceCard extends StatefulWidget {
           }
           onChanged(device);
           continue;
-        }
-        if (tempErr is UserCancelPickException) {
-          return ToastResult(message: 'canceled');
         }
         throw tempErr;
       }

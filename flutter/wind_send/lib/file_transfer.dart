@@ -12,7 +12,7 @@ import 'package:path/path.dart' as filepathpkg;
 import 'package:wind_send/protocol/protocol.dart';
 
 import 'device.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'spmc.dart';
 import 'indicator.dart';
 

@@ -38,3 +38,7 @@ windSend-rs/config.yaml
 go/icon_bytes
 TODO
 TODO.md
+
+gitignore_*
+*_gitignore
+.cursor/rules/rules.mdc

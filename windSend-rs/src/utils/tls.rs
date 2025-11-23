@@ -9,9 +9,39 @@ use std::{
 };
 use time::{OffsetDateTime, ext::NumericalDuration};
 
+/// Base domain name used for TLS certificate generation
+const BASE_DOMAIN: &str = "cdu.edu.cn";
+
+fn random_domain_label(min_len: usize, max_len: usize) -> String {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let length = rng.random_range(min_len..=max_len);
+    (0..length)
+        .map(|_| {
+            let idx = rng.random_range(0..26);
+            (b'a' + idx) as char
+        })
+        .collect()
+}
+
+fn generate_domain_by_mode(mode: u8) -> String {
+    match mode {
+        1 => BASE_DOMAIN.to_string(),
+        2 => format!("{}.{}", random_domain_label(4, 12), BASE_DOMAIN),
+        3 => format!("{}.com", random_domain_label(7, 15)),
+        4 => format!(
+            "{}.{}",
+            random_domain_label(5, 12),
+            random_domain_label(3, 6)
+        ),
+        _ => format!("{}.internal", random_domain_label(5, 12)),
+    }
+}
+
 pub fn generate_signed_certificate(
     issuer_params: &CertificateParams,
     issuer_key: &KeyPair,
+    fake_domain: &str,
 ) -> Result<(Certificate, KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
     let mut distinguished_name = DistinguishedName::new();
@@ -32,10 +62,7 @@ pub fn generate_signed_certificate(
         SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::new(
             0, 0, 0, 0, 0, 0, 0, 1,
         ))),
-        SanType::DnsName(rcgen::string::Ia5String::from_str("fake.windsend.com")?),
-        // SanType::IpAddress(std::net::IpAddr::V4(std::net::Ipv4Addr::new(
-        //     192, 168, 1, 7,
-        // ))),
+        SanType::DnsName(rcgen::string::Ia5String::from_str(fake_domain)?),
     ];
     // current time
     params.not_before = OffsetDateTime::now_utc();
@@ -55,8 +82,9 @@ pub fn generate_signed_certificate(
     Ok((params.signed_by(&key_pair, &issuer)?, key_pair))
 }
 
-pub fn generate_self_signed_ca_certificate()
--> Result<(Certificate, CertificateParams, KeyPair), Box<dyn std::error::Error>> {
+pub fn generate_self_signed_ca_certificate(
+    fake_domain: &str,
+) -> Result<(Certificate, CertificateParams, KeyPair), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, "Doraemon CA");
@@ -76,6 +104,7 @@ pub fn generate_self_signed_ca_certificate()
         SanType::IpAddress(std::net::IpAddr::V6(std::net::Ipv6Addr::new(
             0, 0, 0, 0, 0, 0, 0, 1,
         ))),
+        SanType::DnsName(rcgen::string::Ia5String::from_str(fake_domain)?),
     ];
     params.not_before = OffsetDateTime::now_utc();
     params.not_after = params
@@ -91,10 +120,12 @@ pub fn generate_self_signed_ca_certificate()
     Ok((cert, params, key_pair))
 }
 
-pub fn generate_ca_and_signed_certificate_pair()
--> Result<([String; 2], [String; 2]), Box<dyn std::error::Error>> {
-    let (ca_cert, issuer_params, ca_key) = generate_self_signed_ca_certificate()?;
-    let (cert, key_pair) = generate_signed_certificate(&issuer_params, &ca_key)?;
+pub fn generate_ca_and_signed_certificate_pair(
+    domain_mode: u8,
+) -> Result<([String; 2], [String; 2]), Box<dyn std::error::Error>> {
+    let fake_domain = generate_domain_by_mode(domain_mode);
+    let (ca_cert, issuer_params, ca_key) = generate_self_signed_ca_certificate(&fake_domain)?;
+    let (cert, key_pair) = generate_signed_certificate(&issuer_params, &ca_key, &fake_domain)?;
     Ok((
         [cert.pem(), key_pair.serialize_pem()],
         [ca_cert.pem(), ca_key.serialize_pem()],

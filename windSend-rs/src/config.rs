@@ -149,6 +149,9 @@ pub struct Config {
     pub relay_secret_key: Option<String>,
     #[serde(rename = "enableRelay", default)]
     pub enable_relay: bool,
+    /// TLS certificate domain name generation mode
+    #[serde(rename = "tlsDomainMode", default)]
+    pub tls_domain_mode: u8,
 }
 
 #[cfg(not(feature = "disable-systray-support"))]
@@ -203,7 +206,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_device_id(&self) -> String {
+    pub fn get_secret_key_id(&self) -> String {
         let r_key = self.secret_key_hex.as_bytes();
         let r_key = crate::utils::encrypt::compute_sha256(r_key);
         let r_key = crate::utils::encrypt::compute_sha256(&r_key);
@@ -236,6 +239,7 @@ impl Config {
             relay_server_address: "".to_string(),
             relay_secret_key: Some("".to_string()),
             enable_relay: false,
+            tls_domain_mode: 0,
         }
     }
 }
@@ -244,7 +248,8 @@ fn init_global_config() -> Config {
     debug!("Ensuring config directory exists: {:?}", &*CONFIG_FILE_PATH);
     if let Some(parent_dir) = CONFIG_FILE_PATH.parent()
         && !parent_dir.exists()
-            && let Err(err) = std::fs::create_dir_all(parent_dir) {
+        && let Err(err) = std::fs::create_dir_all(parent_dir)
+    {
                 panic!("Failed to create config directory: {err}");
     }
 
@@ -358,7 +363,11 @@ fn init_tls_config() {
     // check file
     if !cert_path.exists() || !key_path.exists() || !ca_cert_path.exists() || !ca_key_path.exists()
     {
-        let result = utils::tls::generate_ca_and_signed_certificate_pair();
+        let domain_mode = GLOBAL_CONFIG
+            .read()
+            .map(|config| config.tls_domain_mode)
+            .unwrap_or(0);
+        let result = utils::tls::generate_ca_and_signed_certificate_pair(domain_mode);
         if let Err(err) = result {
             panic!("init_tls_config error: {err}");
         }

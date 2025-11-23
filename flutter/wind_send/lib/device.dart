@@ -24,7 +24,8 @@ import 'package:cryptography_plus/cryptography_plus.dart' as cp;
 
 import 'language.dart';
 import 'file_transfer.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
+import 'utils/x509.dart';
 import 'web.dart';
 import 'cnf.dart';
 import 'protocol/protocol.dart';
@@ -273,16 +274,14 @@ class Device {
     SecurityContext context = SecurityContext();
     context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
 
+    final sniHost = selectSniDomain(trustedCertificate);
+
     // Workaround: We cannot set the SNI directly when using SecureSocket.connect.
     // instead, we connect using a regular socket and then secure it. This allows
     // us to set the SNI to whatever we want.
     return Socket.connect(iP, port, timeout: timeout)
         .then((sock) {
-          return SecureSocket.secure(
-            sock,
-            context: context,
-            host: 'fake.windsend.com',
-          );
+          return SecureSocket.secure(sock, context: context, host: sniHost);
         })
         .timeout(socketFutureTimeout);
   }
@@ -327,12 +326,15 @@ class Device {
       throw Exception('connect to relay device failed: ${respHead.msg}');
     }
     dev.log('connect to relay success, device online');
+    // await Future.delayed(const Duration(milliseconds: 3000));
     SecurityContext context = SecurityContext();
     context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
+
+    final sniHost = selectSniDomain(trustedCertificate);
     return SecureSocket.secure(
       sock2.conn,
       context: context,
-      host: 'fake.windsend.com',
+      host: sniHost,
     ).timeout(socketFutureTimeout);
   }
 

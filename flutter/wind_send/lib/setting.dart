@@ -11,7 +11,7 @@ import 'package:settings_ui/settings_ui.dart';
 
 import 'cnf.dart';
 import 'language.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'device.dart';
 
 class SettingPage extends StatefulWidget {

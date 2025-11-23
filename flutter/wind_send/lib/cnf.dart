@@ -20,7 +20,7 @@ import 'dart:developer' as dev;
 import 'theme.dart';
 import 'language.dart';
 import 'device.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
 var globalLocalDeviceName = 'uninitialized';

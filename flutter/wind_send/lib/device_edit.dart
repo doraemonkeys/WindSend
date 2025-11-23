@@ -7,7 +7,7 @@ import 'dart:io' show Platform;
 import 'package:wind_send/protocol/relay/handshake.dart';
 import 'cnf.dart';
 import 'language.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'device.dart';
 import 'toast.dart';
 import 'device_card.dart';

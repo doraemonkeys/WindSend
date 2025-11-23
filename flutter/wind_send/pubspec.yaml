@@ -81,6 +81,7 @@ dependencies:
   cryptography_plus: ^2.7.1
   cryptography_flutter_plus: ^2.3.4
   intl: ^0.20.2
+  basic_utils: ^5.8.2
 
 dev_dependencies:
   flutter_test:

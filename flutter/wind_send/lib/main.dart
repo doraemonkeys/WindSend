@@ -19,7 +19,7 @@ import 'cnf.dart';
 import 'theme.dart';
 import 'language.dart';
 import 'setting.dart';
-import 'utils.dart';
+import 'utils/utils.dart';
 import 'sorting.dart';
 import 'about.dart';
 import 'device.dart';

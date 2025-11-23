@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 // import 'dart:math';
 import 'package:convert/convert.dart';
-import 'package:wind_send/utils.dart';
+import 'package:wind_send/utils/utils.dart';
 import 'dart:async';
 import 'package:cryptography_plus/cryptography_plus.dart';
 import 'package:cryptography_plus/cryptography_plus.dart' as cp;

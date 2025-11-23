@@ -5,7 +5,7 @@ import 'package:wind_send/crypto/aes.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:wind_send/utils.dart';
+import 'package:wind_send/utils/utils.dart';
 
 // import 'package:pasteboard/pasteboard.dart';
 
