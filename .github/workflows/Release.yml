@@ -251,7 +251,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             windSend-rs/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          # use the specific path windSend-rs/Cargo.lock instead of the wildcard pattern **/Cargo.lock
+          key: ${{ runner.os }}-cargo-${{ hashFiles('windSend-rs/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Setup Rust
