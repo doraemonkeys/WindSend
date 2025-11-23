@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ACTIONS_STEP_DEBUG: true
 
 jobs:
   build-linux:
@@ -251,8 +252,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             windSend-rs/target/
-          # use the specific path windSend-rs/Cargo.lock instead of the wildcard pattern **/Cargo.lock
-          key: ${{ runner.os }}-cargo-${{ hashFiles('windSend-rs/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Setup Rust
