@@ -39,7 +39,7 @@ dependencies:
   flutter_localization: ^0.3.3
   device_info_plus: ^11.5.0
   path_provider: ^2.1.1
-  file_picker: ^10.2.0
+  file_picker: ^10.3.7
   share_handler: ^0.0.23
   # https://github.com/ShoutSocial/share_handler/tree/main/share_handler
   #listen_sharing_intent: ^1.9.2
@@ -55,9 +55,9 @@ dependencies:
   cookie_jar: ^4.0.8
   dio_cookie_manager: ^3.1.1
   dio: ^5.8.0
-  crypto: ^3.0.5
+  crypto: ^3.0.7
   path: ^1.8.3
-  logger: ^2.6.0
+  logger: ^2.6.2
 
   custom_refresh_indicator: ^4.0.0
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
@@ -65,8 +65,8 @@ dependencies:
   super_clipboard: ^0.9.1
   network_info_plus: ^6.1.1
   collection: ^1.18.0
-  share_plus: ^11.0.0
-  fluttertoast: ^8.2.10
+  share_plus: ^11.1.0
+  fluttertoast: ^8.2.14
   # open_filex: ^4.6.0
   open_filex:
     git:
