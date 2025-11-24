@@ -9,9 +9,6 @@ use std::{
 };
 use time::{OffsetDateTime, ext::NumericalDuration};
 
-/// Base domain name used for TLS certificate generation
-const BASE_DOMAIN: &str = "cdu.edu.cn";
-
 fn random_domain_label(min_len: usize, max_len: usize) -> String {
     use rand::Rng;
     let mut rng = rand::rng();
@@ -26,15 +23,16 @@ fn random_domain_label(min_len: usize, max_len: usize) -> String {
 
 fn generate_domain_by_mode(mode: u8) -> String {
     match mode {
-        1 => BASE_DOMAIN.to_string(),
-        2 => format!("{}.{}", random_domain_label(4, 12), BASE_DOMAIN),
-        3 => format!("{}.com", random_domain_label(7, 15)),
+        2 => String::from("localhost"),
+        // Be careful of man-in-the-middle attack
+        3 => format!("{}.com", random_domain_label(12, 20)),
         4 => format!(
             "{}.{}",
             random_domain_label(5, 12),
             random_domain_label(3, 6)
         ),
-        _ => format!("{}.internal", random_domain_label(5, 12)),
+        // Default domain
+        _ => format!("{}.internal", random_domain_label(5, 14)),
     }
 }
 

@@ -250,7 +250,7 @@ fn init_global_config() -> Config {
         && !parent_dir.exists()
         && let Err(err) = std::fs::create_dir_all(parent_dir)
     {
-                panic!("Failed to create config directory: {err}");
+        panic!("Failed to create config directory: {err}");
     }
 
     if !CONFIG_FILE_PATH.exists() {
