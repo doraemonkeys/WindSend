@@ -2,6 +2,8 @@ package com.doraemon.wind_send
 
 import android.app.Activity
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
@@ -116,17 +118,24 @@ class UriInfoHandler(private val activity: Activity) {
             var fileName: String? = null
             var size: Long = -1L
             var mimeType: String? = null
+            var lastModified: Long? = null
 
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val displayNameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    val displayNameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (displayNameIndex != -1 && !cursor.isNull(displayNameIndex)) {
                         fileName = cursor.getString(displayNameIndex)
                     }
 
-                    val sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
                     if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) {
                         size = cursor.getLong(sizeIndex)
+                    }
+
+                    val lastModifiedIndex =
+                        cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                    if (lastModifiedIndex != -1 && !cursor.isNull(lastModifiedIndex)) {
+                        lastModified = cursor.getLong(lastModifiedIndex)
                     }
                 }
             }
@@ -134,7 +143,7 @@ class UriInfoHandler(private val activity: Activity) {
             mimeType = contentResolver.getType(uri)
 
             if (fileName != null || size != -1L) {
-                FileInfo(fileName, size, mimeType, null)
+                FileInfo(fileName, size, mimeType, lastModified)
             } else {
                 null
             }
