@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../cnf.dart';
+import '../../db/shared_preferences/cnf.dart';
 import '../../language.dart';
 import '../../utils/utils.dart';
 import '../../device.dart';
+import 'log_view.dart';
 
 class SettingPage extends StatefulWidget {
   final List<Locale> languageCodes;
@@ -65,6 +66,7 @@ class _SettingPageState extends State<SettingPage> {
               autoSelectShareDeviceSetting(context),
             ],
           ),
+          _SettingsSection(children: [logViewSetting(context)]),
         ],
       ),
     );
@@ -75,7 +77,7 @@ class _SettingPageState extends State<SettingPage> {
       title: Text(context.formatString(AppLocale.followSystemTheme, [])),
       secondary: const Icon(Icons.brightness_auto),
       value: followSystemTheme,
-      activeColor: Theme.of(context).colorScheme.primary,
+      activeThumbColor: Theme.of(context).colorScheme.primary,
       onChanged: (value) {
         setState(() {
           followSystemTheme = value;
@@ -275,6 +277,19 @@ class _SettingPageState extends State<SettingPage> {
           });
           LocalConfig.setDefaultShareDevice(result);
         }
+      },
+    );
+  }
+
+  Widget logViewSetting(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.text_snippet),
+      title: Text(context.formatString(AppLocale.logView, [])),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LogViewPage()),
+        );
       },
     );
   }

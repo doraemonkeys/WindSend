@@ -94,6 +94,11 @@ mixin AppLocale {
   static const String domains = 'domains';
   static const String noDomains = 'noDomains';
   static const String sniDomain = 'sniDomain';
+  static const String logView = 'logView';
+  static const String exportLog = 'exportLog';
+  static const String clearLog = 'clearLog';
+  static const String logLevel = 'logLevel';
+  static const String logCleared = 'logCleared';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -192,6 +197,11 @@ mixin AppLocale {
     domains: '域名',
     noDomains: '无域名',
     sniDomain: 'SNI域名',
+    logView: '日志',
+    exportLog: '导出日志',
+    clearLog: '清空日志',
+    logLevel: '日志级别',
+    logCleared: '日志已清空',
   };
 
   static const Map<String, dynamic> en = {
@@ -294,6 +304,11 @@ mixin AppLocale {
     domains: 'Domains',
     noDomains: 'No domains',
     sniDomain: 'SNI Domain',
+    logView: 'Log',
+    exportLog: 'Export Log',
+    clearLog: 'Clear Log',
+    logLevel: 'Log Level',
+    logCleared: 'Log cleared',
   };
 
   static List<String> getSupportLanguageCode() {

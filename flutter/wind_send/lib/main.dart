@@ -15,7 +15,7 @@ import 'package:share_handler/share_handler.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
-import 'cnf.dart';
+import 'db/shared_preferences/cnf.dart';
 import 'theme.dart';
 import 'language.dart';
 import 'ui/setting/setting.dart';
@@ -25,6 +25,7 @@ import 'about.dart';
 import 'device.dart';
 import 'device_card.dart';
 import 'toast.dart';
+import 'utils/logger.dart';
 
 const String appName = 'WindSend';
 // bool _showRefreshCompleteIndicator = false;
@@ -35,8 +36,12 @@ Future<void> init() async {
   WidgetsFlutterBinding.ensureInitialized();
   final f1 = FlutterLocalization.instance.ensureInitialized();
   final f2 = LocalConfig.initInstance();
-  final f3 = SharedLogger.initFileLogger(appName);
-  await Future.wait([f1, f2, f3]);
+  await f2;
+  final f3 = SharedLogger.initFileLogger(
+    appName,
+    logLevel: LocalConfig.appLogLevel,
+  );
+  await Future.wait([f1, f3]);
 }
 
 void main() async {

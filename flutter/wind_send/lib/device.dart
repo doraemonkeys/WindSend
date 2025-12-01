@@ -26,12 +26,13 @@ import 'file_transfer.dart';
 import 'utils/utils.dart';
 import 'utils/x509.dart';
 import 'web.dart';
-import 'cnf.dart';
+import 'db/shared_preferences/cnf.dart';
 import 'protocol/protocol.dart';
 import 'file_picker/filepicker.dart';
 // import 'main.dart';
 import 'protocol/relay/handshake.dart';
 import 'socket.dart';
+import 'utils/logger.dart';
 
 // import 'package:flutter/services.dart' show rootBundle;
 

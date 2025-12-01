@@ -1,21 +1,19 @@
 import 'dart:async';
-import 'dart:developer' as dev;
+// import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:logger/logger.dart';
 import 'dart:io';
-import 'package:path/path.dart' as filepathpkg;
-import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/clipboard/clipboard_service.dart';
 // import 'package:wind_send/main.dart';
 import '../language.dart';
+import 'logger.dart';
 
 Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   if (clipboard == null) {
@@ -372,74 +370,6 @@ bool hasVideoExtension(String name) {
     'ts',
   ];
   return extList.contains(ext);
-}
-
-class MyLogFilter extends LogFilter {
-  @override
-  bool shouldLog(LogEvent event) {
-    var shouldLog = false;
-    if (event.level.value >= level!.value) {
-      shouldLog = true;
-    }
-    return shouldLog;
-  }
-}
-
-class SharedLogger {
-  static SharedLogger? _instance;
-  static late final Logger _logger;
-
-  SharedLogger._internal([Logger? l]) {
-    _logger =
-        l ??
-        Logger(
-          printer: PrettyPrinter(
-            methodCount: 0,
-            errorMethodCount: 4,
-            lineLength: 50,
-            colors: true,
-            printEmojis: true,
-            dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-          ),
-          level: Level.trace,
-        );
-  }
-
-  static Future<void> initFileLogger(String programName) async {
-    var appDocDir = await getApplicationDocumentsDirectory();
-    var logDir = Directory(
-      filepathpkg.join(appDocDir.path, programName, 'logs'),
-    );
-    if (!logDir.existsSync()) {
-      logDir.createSync(recursive: true);
-    }
-    var logFile = File(filepathpkg.join(logDir.path, '$programName.log'));
-    dev.log('log file: ${logFile.path}');
-    if (!logFile.existsSync()) {
-      logFile.createSync();
-    }
-    var l = Logger(
-      filter: MyLogFilter(),
-      printer: PrettyPrinter(
-        methodCount: 0,
-        errorMethodCount: 10,
-        lineLength: 50,
-        colors: true,
-        printEmojis: true,
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-      ),
-      level: Level.trace,
-      output: MultiOutput([ConsoleOutput(), FileOutput(file: logFile)]),
-    );
-    _instance = SharedLogger._internal(l);
-  }
-
-  factory SharedLogger() {
-    _instance ??= SharedLogger._internal();
-    return _instance!;
-  }
-
-  Logger get logger => _logger;
 }
 
 Future<void> checkOrRequestPermission() async {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:wind_send/protocol/relay/handshake.dart';
-import '../../cnf.dart';
+import '../../db/shared_preferences/cnf.dart';
 import '../../language.dart';
 import '../../utils/utils.dart';
 import '../../device.dart';

@@ -17,10 +17,12 @@ import 'dart:io';
 import 'dart:developer' as dev;
 // import 'package:path/path.dart' as p;
 
-import 'theme.dart';
-import 'language.dart';
-import 'device.dart';
-import 'utils/utils.dart';
+import 'package:logger/logger.dart';
+
+import '../../theme.dart';
+import '../../language.dart';
+import '../../device.dart';
+import '../../utils/utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
 var globalLocalDeviceName = 'uninitialized';
@@ -316,6 +318,22 @@ class LocalConfig {
   //     _sp.setBool('IsLocationPermissionDialogShown', value);
   static Future<bool> setIsLocationPermissionDialogShown(bool value) async {
     return await _sp.setBool('IsLocationPermissionDialogShown', value);
+  }
+
+  /// App log level
+  static Level get appLogLevel {
+    final int? level = _sp.getInt('AppLogLevel');
+    if (level == null) {
+      return Level.trace;
+    }
+    return Level.values.firstWhere(
+      (element) => element.value == level,
+      orElse: () => Level.trace,
+    );
+  }
+
+  static Future<bool> setAppLogLevel(Level value) async {
+    return await _sp.setInt('AppLogLevel', value.value);
   }
 
   /// Language

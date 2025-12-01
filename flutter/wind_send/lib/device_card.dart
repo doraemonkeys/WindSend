@@ -16,9 +16,10 @@ import 'text_edit.dart';
 import 'utils/utils.dart';
 import 'ui/device_setting/device_edit.dart';
 import 'device.dart';
-import 'cnf.dart';
+import 'db/shared_preferences/cnf.dart';
 import 'toast.dart';
 import 'indicator.dart';
+import 'utils/logger.dart';
 
 class DeviceCard extends StatefulWidget {
   final Device device;
