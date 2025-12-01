@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as filepath;
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:convert/convert.dart';
 import 'package:intl/intl.dart';
@@ -29,7 +28,7 @@ import 'utils/x509.dart';
 import 'web.dart';
 import 'cnf.dart';
 import 'protocol/protocol.dart';
-import 'file_picker_service.dart';
+import 'file_picker/filepicker.dart';
 // import 'main.dart';
 import 'protocol/relay/handshake.dart';
 import 'socket.dart';
@@ -51,6 +50,15 @@ class Device {
   String trustedCertificate = '';
   // use third party file picker
   String filePickerPackageName = '';
+  bool useFastFilePicker = false;
+
+  IFilePicker get filePicker {
+    return IFilePicker.create(
+      androidFilePickerPackageName: filePickerPackageName,
+      checkPermission: checkOrRequestPermission,
+      useFastFilePicker: useFastFilePicker,
+    );
+  }
 
   bool enableRelay = false;
   String relayServerAddress = '';
@@ -86,6 +94,7 @@ class Device {
     required this.secretKey,
     this.trustedCertificate = '',
     this.filePickerPackageName = '',
+    this.useFastFilePicker = false,
     this.port = defaultPort,
     this.autoSelect = true,
     this.downloadThread = 6,
@@ -107,6 +116,7 @@ class Device {
     secretKey = device.secretKey;
     trustedCertificate = device.trustedCertificate;
     filePickerPackageName = device.filePickerPackageName;
+    useFastFilePicker = device.useFastFilePicker;
     autoSelect = device.autoSelect;
     downloadThread = device.downloadThread;
     uploadThread = device.uploadThread;
@@ -137,6 +147,7 @@ class Device {
     secretKey = json['SecretKey'] ?? '';
     trustedCertificate = json['TrustedCertificate'] ?? '';
     filePickerPackageName = json['FilePickerPackageName'] ?? '';
+    useFastFilePicker = json['UseFastFilePicker'] ?? false;
     autoSelect = json['AutoSelect'] ?? autoSelect;
     downloadThread = json['DownloadThread'] ?? downloadThread;
     uploadThread = json['UploadThread'] ?? uploadThread;
@@ -162,6 +173,7 @@ class Device {
     // data['subtitle'] = subtitle;
     data['IP'] = iP;
     data['FilePickerPackageName'] = filePickerPackageName;
+    data['UseFastFilePicker'] = useFastFilePicker;
     data['port'] = port;
     data['AutoSelect'] = autoSelect;
     data['SecretKey'] = secretKey;
@@ -1502,57 +1514,15 @@ class Device {
   }
 
   Future<List<String>> pickFiles() async {
-    // check permission
-    await checkOrRequestPermission();
-    List<String> selectedFilePaths;
-    if (Platform.isAndroid && filePickerPackageName.isNotEmpty) {
-      try {
-        final result = await FilePickerService.pickFiles(filePickerPackageName);
-        if (result.isEmpty) {
-          throw UserCancelPickException();
-        }
-        selectedFilePaths = result;
-      } catch (e) {
-        throw FilePickerException(filePickerPackageName, e.toString());
-      }
-    } else {
-      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-      if (result == null || result.files.isEmpty) {
-        throw UserCancelPickException();
-      }
-      selectedFilePaths = result.files.map((file) => file.path!).toList();
-    }
-    return selectedFilePaths;
+    return await filePicker.pickFiles();
   }
 
   void clearTemporaryFiles() {
-    // delete cache file
-    // for (var file in selectedFilesPath) {
-    //   if (file.startsWith('/data/user/0/com.doraemon.clipboard/cache')) {
-    //     File(file).delete();
-    //   }
-    // }
-    // FilePicker.platform.clearTemporaryFiles();
-    if (Platform.isAndroid || Platform.isIOS) {
-      FilePicker.platform.clearTemporaryFiles();
-    }
+    filePicker.clearTemporaryFiles();
   }
 
   Future<String> pickDir() async {
-    // check permission
-    await checkOrRequestPermission();
-    var selectedDirPath = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirPath == null || selectedDirPath.isEmpty) {
-      throw UserCancelPickException();
-    }
-
-    if (selectedDirPath.endsWith('/') || selectedDirPath.endsWith('\\')) {
-      selectedDirPath = selectedDirPath.substring(
-        0,
-        selectedDirPath.length - 1,
-      );
-    }
-    return selectedDirPath;
+    return await filePicker.pickFolder();
   }
 
   // ============================ super_clipboard code  ============================

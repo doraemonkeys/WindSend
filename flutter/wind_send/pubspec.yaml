@@ -49,7 +49,6 @@ dependencies:
   #     ref: 2cea396843cd3ab1b5ec4334be4233864637874e
   permission_handler: ^12.0.0
   convert: ^3.1.1
-  settings_ui: ^2.0.2
   url_launcher: ^6.2.2
   line_icons: ^2.0.3
   cookie_jar: ^4.0.8
@@ -82,6 +81,9 @@ dependencies:
   cryptography_flutter_plus: ^2.3.4
   intl: ^0.20.2
   basic_utils: ^5.8.2
+  saf_stream: ^0.12.3
+  saf_util: ^0.11.0
+  fast_file_picker: ^0.4.8
 
 dev_dependencies:
   flutter_test:

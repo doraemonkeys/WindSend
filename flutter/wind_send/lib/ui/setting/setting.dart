@@ -1,18 +1,11 @@
-// import 'dart:isolate';
-// import 'dart:typed_data';
-
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:settings_ui/settings_ui.dart';
-// import 'package:filesaverz/filesaverz.dart';
 
-import 'cnf.dart';
-import 'language.dart';
-import 'utils/utils.dart';
-import 'device.dart';
+import '../../cnf.dart';
+import '../../language.dart';
+import '../../utils/utils.dart';
+import '../../device.dart';
 
 class SettingPage extends StatefulWidget {
   final List<Locale> languageCodes;
@@ -45,25 +38,30 @@ class _SettingPageState extends State<SettingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(context.formatString(AppLocale.setting, []))),
-      body: SettingsList(
-        sections: [
-          SettingsSection(
-            tiles: [
+      body: ListView(
+        children: [
+          _SettingsSection(
+            children: [
               languageSetting(context),
+              _SettingsSection.defaultDivider(context),
               followSystemThemeSetting(context),
             ],
           ),
-          SettingsSection(
-            tiles: [
+          _SettingsSection(
+            children: [
               localDeviceNameSetting(context),
+              _SettingsSection.defaultDivider(context),
               fileSavePathSetting(context),
+              _SettingsSection.defaultDivider(context),
               imageSavePathSetting(context),
             ],
           ),
-          SettingsSection(
-            tiles: [
+          _SettingsSection(
+            children: [
               defaultSyncDeviceSetting(context),
+              _SettingsSection.defaultDivider(context),
               defaultShareDeviceSetting(context),
+              _SettingsSection.defaultDivider(context),
               autoSelectShareDeviceSetting(context),
             ],
           ),
@@ -72,13 +70,13 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile followSystemThemeSetting(BuildContext context) {
-    return SettingsTile.switchTile(
+  Widget followSystemThemeSetting(BuildContext context) {
+    return SwitchListTile(
       title: Text(context.formatString(AppLocale.followSystemTheme, [])),
-      leading: const Icon(Icons.brightness_auto),
-      initialValue: followSystemTheme,
-      activeSwitchColor: Theme.of(context).colorScheme.primary,
-      onToggle: (value) {
+      secondary: const Icon(Icons.brightness_auto),
+      value: followSystemTheme,
+      activeColor: Theme.of(context).colorScheme.primary,
+      onChanged: (value) {
         setState(() {
           followSystemTheme = value;
         });
@@ -87,15 +85,15 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile autoSelectShareDeviceSetting(BuildContext context) {
-    return SettingsTile.switchTile(
+  Widget autoSelectShareDeviceSetting(BuildContext context) {
+    return SwitchListTile(
       title: Text(
         context.formatString(AppLocale.autoSelectShareSyncDevice, []),
       ),
-      leading: const Icon(Icons.wifi),
-      initialValue: autoSelectShareDeviceByBssid,
-      activeSwitchColor: Theme.of(context).colorScheme.primary,
-      onToggle: (value) async {
+      secondary: const Icon(Icons.wifi),
+      value: autoSelectShareDeviceByBssid,
+      activeColor: Theme.of(context).colorScheme.primary,
+      onChanged: (value) async {
         if (value) {
           try {
             await checkOrRequestNetworkPermission();
@@ -117,27 +115,15 @@ class _SettingPageState extends State<SettingPage> {
         });
         LocalConfig.setAutoSelectShareSyncDeviceByBssid(value);
       },
-      onPressed: (context) {
-        // show auto select share device by bssid dialog
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(
-              context.formatString(AppLocale.autoSelectShareSyncDevice, []),
-            ),
-            content: Text(jsonEncode(LocalConfig.bssidDeviceNameMap)),
-          ),
-        );
-      },
     );
   }
 
-  SettingsTile imageSavePathSetting(BuildContext context) {
-    return SettingsTile(
+  Widget imageSavePathSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.image),
       title: Text(context.formatString(AppLocale.imageSavePath, [])),
-      value: Text(imageSavePath),
-      onPressed: (context) async {
+      subtitle: Text(imageSavePath),
+      onTap: () async {
         String? result = await FilePicker.platform.getDirectoryPath(
           initialDirectory: imageSavePath,
         );
@@ -151,12 +137,12 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile fileSavePathSetting(BuildContext context) {
-    return SettingsTile(
+  Widget fileSavePathSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.folder),
       title: Text(context.formatString(AppLocale.fileSavePath, [])),
-      value: Text(fileSavePath),
-      onPressed: (context) async {
+      subtitle: Text(fileSavePath),
+      onTap: () async {
         String? result = await FilePicker.platform.getDirectoryPath(
           initialDirectory: fileSavePath,
         );
@@ -170,12 +156,12 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile localDeviceNameSetting(BuildContext context) {
-    return SettingsTile(
+  Widget localDeviceNameSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.devices),
       title: Text(context.formatString(AppLocale.deviceNameLocal, [])),
-      value: Text(deviceName),
-      onPressed: (context) async {
+      subtitle: Text(deviceName),
+      onTap: () async {
         var controller = TextEditingController(text: deviceName);
         await showAlertDialog(
           context,
@@ -185,6 +171,7 @@ class _SettingPageState extends State<SettingPage> {
             autofocus: true,
             decoration: InputDecoration(
               hintText: context.formatString(AppLocale.deviceName, []),
+              border: const OutlineInputBorder(),
             ),
           ),
           onConfirmed: () {
@@ -200,30 +187,16 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile defaultSyncDeviceSetting(BuildContext context) {
-    return SettingsTile(
+  Widget defaultSyncDeviceSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.devices),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            context.formatString(AppLocale.defaultSyncDevice, []),
-            style: TextStyle(
-              fontSize: Theme.of(context).textTheme.titleMedium?.fontSize,
-            ),
-          ),
-          Text(
-            defaultSyncDevice.isEmpty
-                ? context.formatString(AppLocale.disableSync, [])
-                : defaultSyncDevice,
-            style: TextStyle(
-              fontSize: Theme.of(context).textTheme.titleSmall?.fontSize,
-            ),
-          ),
-        ],
+      title: Text(context.formatString(AppLocale.defaultSyncDevice, [])),
+      subtitle: Text(
+        defaultSyncDevice.isEmpty
+            ? context.formatString(AppLocale.disableSync, [])
+            : defaultSyncDevice,
       ),
-      onPressed: (context) async {
+      onTap: () async {
         String? result = await showDialog(
           context: context,
           builder: (context) {
@@ -266,28 +239,12 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile defaultShareDeviceSetting(BuildContext context) {
-    return SettingsTile(
+  Widget defaultShareDeviceSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.devices),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            context.formatString(AppLocale.defaultShareDevice, []),
-            style: TextStyle(
-              fontSize: Theme.of(context).textTheme.titleMedium?.fontSize,
-            ),
-          ),
-          Text(
-            defaultShareDevice,
-            style: TextStyle(
-              fontSize: Theme.of(context).textTheme.titleSmall?.fontSize,
-            ),
-          ),
-        ],
-      ),
-      onPressed: (context) async {
+      title: Text(context.formatString(AppLocale.defaultShareDevice, [])),
+      subtitle: Text(defaultShareDevice),
+      onTap: () async {
         String? result = await showDialog(
           context: context,
           builder: (context) {
@@ -322,12 +279,12 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  SettingsTile languageSetting(BuildContext context) {
-    return SettingsTile(
+  Widget languageSetting(BuildContext context) {
+    return ListTile(
       leading: const Icon(Icons.language),
       title: const Text("Language"),
-      value: Text(language.toString()),
-      onPressed: (context) async {
+      subtitle: Text(language.toString()),
+      onTap: () async {
         Locale? result = await showDialog(
           context: context,
           builder: (context) {
@@ -355,6 +312,48 @@ class _SettingPageState extends State<SettingPage> {
           widget.onLanguageChanged(result);
         }
       },
+    );
+  }
+}
+
+class _SettingsSection extends StatelessWidget {
+  final String? title;
+  final List<Widget> children;
+  const _SettingsSection({this.title, required this.children});
+
+  static Divider defaultDivider(BuildContext context) {
+    return Divider(color: Theme.of(context).colorScheme.surface, height: 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 10, bottom: 6),
+            child: Text(
+              title!,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        Card(
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 18),
+          clipBehavior: Clip.antiAlias,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Column(children: children),
+        ),
+      ],
     );
   }
 }

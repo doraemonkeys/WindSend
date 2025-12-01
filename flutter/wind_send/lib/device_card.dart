@@ -14,7 +14,7 @@ import 'package:wind_send/file_transfer.dart';
 import 'language.dart';
 import 'text_edit.dart';
 import 'utils/utils.dart';
-import 'device_edit.dart';
+import 'device_setting/device_edit.dart';
 import 'device.dart';
 import 'cnf.dart';
 import 'toast.dart';

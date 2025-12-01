@@ -10,7 +10,7 @@ class BroadcastSocket implements Socket {
 
   Stream<Uint8List> get stream => _stream;
 
-  updateStream(Stream<Uint8List> value) {
+  void updateStream(Stream<Uint8List> value) {
     _stream = value;
   }
 

@@ -75,6 +75,25 @@ mixin AppLocale {
   static const String invalidSecretKeyError = 'invalidSecretKeyError';
   static const String fileTooLargeTip = 'fileTooLargeTip';
   static const String fileTooLargeTitle = 'fileTooLargeTitle';
+  static const String selectFilePicker = 'selectFilePicker';
+  static const String defaultFilePicker = 'defaultFilePicker';
+  static const String fastFilePicker = 'fastFilePicker';
+  static const String customFilePicker = 'customFilePicker';
+  static const String fastFilePickerTip = 'fastFilePickerTip';
+  static const String certificate = 'certificate';
+  static const String parse = 'parse';
+  static const String save = 'save';
+  static const String parseError = 'parseError';
+  static const String certificateInfo = 'certificateInfo';
+  static const String serialNumber = 'serialNumber';
+  static const String issuer = 'issuer';
+  static const String subject = 'subject';
+  static const String validity = 'validity';
+  static const String publicKeyAlgorithm = 'publicKeyAlgorithm';
+  static const String signatureAlgorithm = 'signatureAlgorithm';
+  static const String domains = 'domains';
+  static const String noDomains = 'noDomains';
+  static const String sniDomain = 'sniDomain';
 
   static const Map<String, dynamic> zh = {
     appBarTitle: '风传',
@@ -154,6 +173,25 @@ mixin AppLocale {
     invalidSecretKeyError: '无效的密钥',
     fileTooLargeTip: '文件过大(%a)，使用中转服务会花费较多时间，是否允许使用？',
     fileTooLargeTitle: '或许即将使用中转服务',
+    selectFilePicker: '选择文件选择器',
+    defaultFilePicker: '默认 (file_picker)',
+    fastFilePicker: '快速 (fast_file_picker)',
+    customFilePicker: '自定义应用',
+    fastFilePickerTip: '有效避免大文件uri选择后复制的问题',
+    certificate: '证书',
+    parse: '解析',
+    save: '保存',
+    parseError: '解析错误',
+    certificateInfo: '证书信息',
+    serialNumber: '序列号',
+    issuer: '颁发者',
+    subject: '主体',
+    validity: '有效期',
+    publicKeyAlgorithm: '公钥算法',
+    signatureAlgorithm: '签名算法',
+    domains: '域名',
+    noDomains: '无域名',
+    sniDomain: 'SNI域名',
   };
 
   static const Map<String, dynamic> en = {
@@ -237,6 +275,25 @@ mixin AppLocale {
     fileTooLargeTip:
         'The file is too large (%a), using relay service will take more time, allow?',
     fileTooLargeTitle: 'Maybe using relay service soon',
+    selectFilePicker: 'Select File Picker',
+    defaultFilePicker: 'Default (file_picker)',
+    fastFilePicker: 'Fast (fast_file_picker)',
+    customFilePicker: 'Custom App',
+    fastFilePickerTip: 'Avoids copying large files',
+    certificate: 'Certificate',
+    parse: 'Parse',
+    save: 'Save',
+    parseError: 'Parse Error',
+    certificateInfo: 'Certificate Information',
+    serialNumber: 'Serial Number',
+    issuer: 'Issuer',
+    subject: 'Subject',
+    validity: 'Validity',
+    publicKeyAlgorithm: 'Public Key Algorithm',
+    signatureAlgorithm: 'Signature Algorithm',
+    domains: 'Domains',
+    noDomains: 'No domains',
+    sniDomain: 'SNI Domain',
   };
 
   static List<String> getSupportLanguageCode() {

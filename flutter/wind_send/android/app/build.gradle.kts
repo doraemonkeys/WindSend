@@ -74,3 +74,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Enable Coroutines for Android
+    // implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}

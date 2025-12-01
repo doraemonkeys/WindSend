@@ -18,7 +18,7 @@ import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 import 'cnf.dart';
 import 'theme.dart';
 import 'language.dart';
-import 'setting.dart';
+import 'ui/setting/setting.dart';
 import 'utils/utils.dart';
 import 'sorting.dart';
 import 'about.dart';
