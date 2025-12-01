@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:wind_send/protocol/relay/handshake.dart';
-import '../cnf.dart';
-import '../language.dart';
-import '../utils/utils.dart';
-import '../device.dart';
-import '../toast.dart';
-import '../device_card.dart';
+import '../../cnf.dart';
+import '../../language.dart';
+import '../../utils/utils.dart';
+import '../../device.dart';
+import '../../toast.dart';
+import '../../device_card.dart';
 import 'settings_section.dart';
 
 enum ConnectionTestStatus { none, testing, success, error }

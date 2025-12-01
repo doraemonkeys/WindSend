@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:basic_utils/basic_utils.dart';
-import '../language.dart';
-import '../device.dart';
-import '../utils/x509.dart';
+import '../../language.dart';
+import '../../device.dart';
+import '../../utils/x509.dart';
 
 class CertificateDetailPage extends StatefulWidget {
   final Device device;
