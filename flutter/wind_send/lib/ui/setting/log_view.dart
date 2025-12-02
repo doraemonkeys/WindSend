@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:logger/logger.dart';
@@ -5,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../db/shared_preferences/cnf.dart';
 import '../../language.dart';
 import '../../utils/logger.dart';
+import '../../utils/utils.dart';
 
 class LogViewPage extends StatefulWidget {
   const LogViewPage({super.key});
@@ -15,6 +19,8 @@ class LogViewPage extends StatefulWidget {
 
 class _LogViewPageState extends State<LogViewPage> {
   String logContent = '';
+  String logSize = '';
+  bool _isLoading = false;
   Level logLevel = LocalConfig.appLogLevel;
   final ScrollController _scrollController = ScrollController();
 
@@ -31,13 +37,38 @@ class _LogViewPageState extends State<LogViewPage> {
   }
 
   Future<void> _loadLog() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+
     final file = SharedLogger.logFile;
     if (file != null && await file.exists()) {
       try {
-        final content = await file.readAsString();
+        final length = await file.length();
+        String sizeStr;
+        sizeStr = formatBytes(length);
+
+        String content;
+        const int maxBytes = 1024 * 1024;
+        if (length > maxBytes) {
+          final raf = await file.open(mode: FileMode.read);
+          try {
+            await raf.setPosition(length - maxBytes);
+            final bytes = await raf.read(maxBytes);
+            content = utf8.decode(bytes, allowMalformed: true);
+            content = '... [Log truncated, showing last 1MB]\n$content';
+          } finally {
+            await raf.close();
+          }
+        } else {
+          content = await file.readAsString();
+        }
+
         if (mounted) {
           setState(() {
             logContent = content;
+            logSize = sizeStr;
           });
           // Scroll to bottom after frame build
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,6 +83,7 @@ class _LogViewPageState extends State<LogViewPage> {
         if (mounted) {
           setState(() {
             logContent = 'Error reading log: $e';
+            logSize = 'Error';
           });
         }
       }
@@ -59,8 +91,15 @@ class _LogViewPageState extends State<LogViewPage> {
       if (mounted) {
         setState(() {
           logContent = '';
+          logSize = '0 B';
         });
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -148,6 +187,9 @@ class _LogViewPageState extends State<LogViewPage> {
                     }
                   },
                 ),
+                const Spacer(),
+                Text(logSize),
+                const SizedBox(width: 8),
               ],
             ),
           ),
