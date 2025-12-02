@@ -18,7 +18,7 @@ class LogViewPage extends StatefulWidget {
 }
 
 class _LogViewPageState extends State<LogViewPage> {
-  List<String> logLines = [];
+  String logContent = '';
   String logSize = '';
   bool _isLoading = false;
   Level logLevel = LocalConfig.appLogLevel;
@@ -57,7 +57,8 @@ class _LogViewPageState extends State<LogViewPage> {
             await raf.setPosition(length - maxBytes);
             final bytes = await raf.read(maxBytes);
             content = utf8.decode(bytes, allowMalformed: true);
-            content = '... [Log truncated, showing last 1MB]\n$content';
+            content =
+                '... [Log truncated, showing last ${formatBytes(maxBytes)}]\n$content';
           } finally {
             await raf.close();
           }
@@ -65,11 +66,9 @@ class _LogViewPageState extends State<LogViewPage> {
           content = await file.readAsString();
         }
 
-        final lines = const LineSplitter().convert(content);
-
         if (mounted) {
           setState(() {
-            logLines = lines;
+            logContent = content;
             logSize = sizeStr;
           });
           // Scroll to bottom after frame build
@@ -84,7 +83,7 @@ class _LogViewPageState extends State<LogViewPage> {
       } catch (e) {
         if (mounted) {
           setState(() {
-            logLines = ['Error reading log: $e'];
+            logContent = 'Error reading log: $e';
             logSize = 'Error';
           });
         }
@@ -92,7 +91,7 @@ class _LogViewPageState extends State<LogViewPage> {
     } else {
       if (mounted) {
         setState(() {
-          logLines = [];
+          logContent = '';
           logSize = '0 B';
         });
       }
@@ -200,19 +199,11 @@ class _LogViewPageState extends State<LogViewPage> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(8.0),
-              child: SelectionArea(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: logLines.length,
-                  itemBuilder: (context, index) {
-                    return Text(
-                      logLines[index],
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    );
-                  },
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: SelectableText(
+                  logContent,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
               ),
             ),
