@@ -260,5 +260,3 @@ cargo build --release
 ## Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or open issues on the [GitHub repository](https://github.com/doraemonkeys/WindSend).
-
-The author is not good at mobile UI design and development, so if you are interested in redesigning the UI or adding a shortcut for Android or adding new features, please contact me, and I will do my best to help.
