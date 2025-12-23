@@ -50,9 +50,31 @@ impl StartHelper {
 
     fn set_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         match self.set_win_auto_start_with_reg() {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                // 注册表方式成功后，清理旧的 VBS 启动脚本
+                if let Err(e) = self.cleanup_vbs_start_file() {
+                    tracing::warn!("failed to cleanup vbs start file: {}", e);
+                }
+                Ok(())
+            }
             Err(_) => self.set_win_auto_start_with_vbs(),
         }
+    }
+
+    fn cleanup_vbs_start_file(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let win_user_home_dir =
+            home::home_dir().ok_or("failed to get current windows user home dir")?;
+        let start_file = format!(
+            r#"{}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\{}_start.vbs"#,
+            win_user_home_dir.to_str().unwrap(),
+            self.exe_name
+        );
+
+        if std::path::Path::new(&start_file).exists() {
+            std::fs::remove_file(&start_file)?;
+            tracing::debug!("cleaned up vbs start file: {}", start_file);
+        }
+        Ok(())
     }
 
     fn set_win_auto_start_with_vbs(&self) -> Result<(), Box<dyn std::error::Error>> {
