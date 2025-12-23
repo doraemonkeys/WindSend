@@ -262,8 +262,8 @@ impl HeartbeatReq {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RelayReq {
-    #[serde(flatten)]
-    pub common: CommonReq,
-}
+// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// pub struct RelayReq {
+//     #[serde(flatten)]
+//     pub common: CommonReq,
+// }

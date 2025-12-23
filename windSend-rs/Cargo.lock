@@ -1444,7 +1444,7 @@ checksum = "a8cbf17b871570c1f8612b763bac3e86290602bcf5dc3c5ce657e0e1e9071d9e"
 dependencies = [
  "serde",
  "serde_derive",
- "winreg",
+ "winreg 0.5.1",
 ]
 
 [[package]]
@@ -5488,6 +5488,7 @@ dependencies = [
  "win-toast-notify",
  "windres",
  "winit",
+ "winreg 0.55.0",
  "x25519-dalek",
 ]
 
@@ -6030,6 +6031,16 @@ checksum = "a27a759395c1195c4cc5cda607ef6f8f6498f64e78f7900f5de0a127a424704a"
 dependencies = [
  "serde",
  "winapi",
+]
+
+[[package]]
+name = "winreg"
+version = "0.55.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb5a765337c50e9ec252c2069be9bf91c7df47afb103b642ba3a53bf8101be97"
+dependencies = [
+ "cfg-if",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

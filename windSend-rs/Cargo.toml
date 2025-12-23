@@ -49,6 +49,7 @@ cipher = "0.4"
 chrono = "0.4.42"
 subslice = "0.2.3"
 regex = "1.12"
+winreg = "0.55"
 arboard = { version = "3.6", features = [
     "core-graphics",
     "image",

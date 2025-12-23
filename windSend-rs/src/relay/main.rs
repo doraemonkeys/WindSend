@@ -418,8 +418,8 @@ impl SaltCache {
             && *p == *pwd
             && *s == *salt_b64
         {
-                return self.kdf_key;
-            }
+            return self.kdf_key;
+        }
         let salt = match BASE64_STANDARD.decode(salt_b64) {
             Ok(salt) => salt,
             Err(e) => {

@@ -283,13 +283,13 @@ pub fn get_system_lang() -> String {
         && let Ok(output) = std::process::Command::new("cmd")
             .args(["/c", "chcp"])
             .output()
-        {
-            match String::from_utf8_lossy(&output.stdout) {
-                s if s.contains("936") => lang = "zh_CN".to_string(),
-                s if s.contains("437") => lang = "en_US".to_string(),
-                _ => {}
-            }
+    {
+        match String::from_utf8_lossy(&output.stdout) {
+            s if s.contains("936") => lang = "zh_CN".to_string(),
+            s if s.contains("437") => lang = "en_US".to_string(),
+            _ => {}
         }
+    }
     lang
 }
 
@@ -415,5 +415,36 @@ pub fn log_path_info() {
     match std::env::current_dir() {
         Ok(path) => info!("Current directory path: {:?}", path),
         Err(e) => error!("Failed to get current directory path: {}", e),
+    }
+}
+
+/// Set working directory to the executable's directory.
+pub fn fix_working_directory_if_needed() {
+    use tracing::{info, warn};
+
+    let exe_path = match std::env::current_exe() {
+        Ok(path) => path,
+        Err(e) => {
+            warn!("Failed to get executable path: {}", e);
+            return;
+        }
+    };
+
+    let exe_dir = match exe_path.parent() {
+        Some(dir) => dir,
+        None => {
+            warn!("Failed to get executable directory");
+            return;
+        }
+    };
+
+    let current_dir = std::env::current_dir().ok();
+    if let Err(e) = std::env::set_current_dir(exe_dir) {
+        warn!("Failed to set current directory to {:?}: {}", exe_dir, e);
+    } else if current_dir.as_ref() != Some(&exe_dir.to_path_buf()) {
+        info!(
+            "Changed working directory from {:?} to {:?}",
+            current_dir, exe_dir
+        );
     }
 }

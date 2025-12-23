@@ -71,6 +71,7 @@ fn panic_hook(info: &std::panic::PanicHookInfo) {
 }
 
 fn main() {
+    utils::fix_working_directory_if_needed();
     init();
     utils::log_path_info();
 

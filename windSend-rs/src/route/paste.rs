@@ -34,9 +34,10 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     const URL_SEARCH_LIMIT: usize = 300;
 
     if (body.trim_start().starts_with("http") || body.len() <= URL_SEARCH_LIMIT)
-        && let Some(m) = URL_REGEX.find(body.as_bytes()) {
-            notification_url = std::str::from_utf8(m.as_bytes()).ok();
-        }
+        && let Some(m) = URL_REGEX.find(body.as_bytes())
+    {
+        notification_url = std::str::from_utf8(m.as_bytes()).ok();
+    }
 
     crate::utils::inform(&body, &head.device_name, notification_url);
 }
@@ -66,12 +67,13 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
     if let Some(body) = body {
         // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
         if cur_clipboard_text != body
-            && let Err(e) = crate::config::CLIPBOARD.write_text(body) {
-                let msg = format!("set clipboard text failed, err: {e}");
-                error!("{}", msg);
-                let _ = resp_common_error_msg(conn, &msg).await;
-                return;
-            }
+            && let Err(e) = crate::config::CLIPBOARD.write_text(body)
+        {
+            let msg = format!("set clipboard text failed, err: {e}");
+            error!("{}", msg);
+            let _ = resp_common_error_msg(conn, &msg).await;
+            return;
+        }
     }
 
     send_msg_with_body(

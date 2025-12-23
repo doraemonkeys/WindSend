@@ -2,7 +2,8 @@
 
 use std::borrow::Cow;
 use tracing::error;
-
+use winreg::RegKey;
+use winreg::enums::*;
 pub struct StartHelper {
     exe_name: String,
     icon_relative_path: Option<String>,
@@ -48,6 +49,13 @@ impl StartHelper {
     }
 
     fn set_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.set_win_auto_start_with_reg() {
+            Ok(_) => Ok(()),
+            Err(_) => self.set_win_auto_start_with_vbs(),
+        }
+    }
+
+    fn set_win_auto_start_with_vbs(&self) -> Result<(), Box<dyn std::error::Error>> {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
         let win_user_home_dir =
@@ -85,6 +93,21 @@ impl StartHelper {
             .open(&start_file)?;
         use std::io::Write;
         file.write_all(&content_bytes)?;
+        Ok(())
+    }
+
+    fn set_win_auto_start_with_reg(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let exe_path = std::env::current_exe()?;
+        let exe_path_str = exe_path.to_str().ok_or("exe path contains invalid UTF-8")?;
+
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let (key, _disposition) =
+            hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run")?;
+
+        // 用双引号包裹路径，避免路径包含空格时被错误解析
+        let quoted_path = format!("\"{}\"", exe_path_str);
+        key.set_value(&self.exe_name, &quoted_path)?;
+
         Ok(())
     }
 
@@ -155,6 +178,15 @@ impl StartHelper {
     }
 
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // 删除注册表项
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(key) =
+            hkcu.open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_WRITE)
+        {
+            let _ = key.delete_value(&self.exe_name); // 忽略不存在的情况
+        }
+
+        // 同时清理旧的 VBS 文件（兼容性处理）
         let win_user_home_dir =
             home::home_dir().ok_or("failed to get current windows user home dir")?;
         let start_file = format!(
