@@ -42,40 +42,79 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
     crate::utils::inform(&body, &head.device_name, notification_url);
 }
 
-pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) {
-    // let cur_clipboard_text = crate::config::CLIPBOARD.lock().unwrap().get_text();
+/// Returns whether should continue loop (like no socket error)
+pub async fn sync_content_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
+    // For file parts (File/Dir), use paste_file_handler for proper acknowledgment
+    if matches!(
+        head.upload_type,
+        crate::route::protocol::UploadType::File | crate::route::protocol::UploadType::Dir
+    ) {
+        return paste_file_handler(conn, head).await;
+    }
+
+    // For UploadInfo, handle the operation and then send clipboard content
+    if matches!(
+        head.upload_type,
+        crate::route::protocol::UploadType::UploadInfo
+    ) {
+        if !sync_file_operation_handler(conn, &head).await {
+            return false;
+        }
+        return send_clipboard_response(conn).await;
+    }
+
+    // Handle clipboard image sync
+    if matches!(head.sync_data_type, RouteDataType::ClipImage) {
+        return sync_clipboard_image_handler(conn, &head).await;
+    }
+
+    // Handle text sync
     let mut body: Option<_> = None;
     let mut body_buf = vec![0u8; head.data_len as usize];
     if head.data_len > 0 {
         let r = conn.read_exact(&mut body_buf).await;
         if let Err(e) = r {
             error!("read body failed, err: {}", e);
+        } else {
+            body = Some(String::from_utf8_lossy(&body_buf));
+            debug!("sync text received: {}", body.as_ref().unwrap());
         }
-        body = Some(String::from_utf8_lossy(&body_buf));
-        debug!("paste text data: {}", body.as_ref().unwrap());
     }
 
-    let cur_clipboard_text = match crate::config::CLIPBOARD.read_text() {
-        Ok(text) => text,
-        Err(e) => {
-            let msg = format!("read clipboard text failed, err: {e}");
-            info!("{}", msg);
-            // let _ = resp_common_error_msg(conn, &msg).await;
-            String::new()
-        }
-    };
-    if let Some(body) = body {
+    if let Some(body) = &body {
         // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
-        if cur_clipboard_text != body
-            && let Err(e) = crate::config::CLIPBOARD.write_text(body)
-        {
-            let msg = format!("set clipboard text failed, err: {e}");
-            error!("{}", msg);
-            let _ = resp_common_error_msg(conn, &msg).await;
-            return;
+        let cur_text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
+        if cur_text != *body {
+            if let Err(e) = crate::config::CLIPBOARD.write_text(body.to_string()) {
+                let msg = format!("set clipboard text failed, err: {e}");
+                error!("{}", msg);
+                let _ = resp_common_error_msg(conn, &msg).await;
+                return true;
+            }
         }
     }
 
+    send_clipboard_response(conn).await
+}
+
+/// Sends clipboard content (image if available, otherwise text)
+async fn send_clipboard_response(conn: &mut TlsStream<TcpStream>) -> bool {
+    // Try to send clipboard image first, if available
+    if let Some(image_data) = try_get_clipboard_image_png() {
+        let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
+
+        // Save sent image to local file
+        if let Err(e) = save_image_to_file(&image_data, "sent").await {
+            warn!("save sent clipboard image to file failed, err: {}", e);
+        }
+
+        return send_msg_with_body(conn, &image_name, RouteDataType::ClipImage, &image_data)
+            .await
+            .is_ok();
+    }
+
+    // Fallback to text
+    let cur_clipboard_text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
     send_msg_with_body(
         conn,
         &"".to_string(),
@@ -83,7 +122,163 @@ pub async fn sync_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvH
         cur_clipboard_text.as_ref(),
     )
     .await
-    .ok();
+    .is_ok()
+}
+
+/// Handles receiving clipboard image from client and sends back current clipboard content
+async fn sync_clipboard_image_handler(
+    conn: &mut TlsStream<TcpStream>,
+    head: &RouteRecvHead,
+) -> bool {
+    let mut body_buf = vec![0u8; head.data_len as usize];
+    if head.data_len > 0 {
+        if let Err(e) = conn.read_exact(&mut body_buf).await {
+            error!("read clipboard image body failed, err: {}", e);
+            return false;
+        }
+        debug!(
+            "sync clipboard image received, size: {} bytes",
+            body_buf.len()
+        );
+
+        // Save received image to local file
+        if let Err(e) = save_image_to_file(&body_buf, "received").await {
+            warn!("save received clipboard image to file failed, err: {}", e);
+        }
+
+        // Write image to clipboard
+        if let Err(e) = crate::config::CLIPBOARD.write_image_from_bytes(&body_buf) {
+            let msg = format!("set clipboard image failed, err: {e}");
+            error!("{}", msg);
+            let _ = resp_common_error_msg(conn, &msg).await;
+            return true;
+        }
+    }
+
+    send_clipboard_response(conn).await
+}
+
+/// Handles sync file operation info (similar to paste_file_operation_handler but without sending response)
+async fn sync_file_operation_handler(
+    conn: &mut TlsStream<TcpStream>,
+    head: &RouteRecvHead,
+) -> bool {
+    let mut data_buf = vec![0u8; head.data_len as usize];
+    if let Err(e) = conn.read_exact(&mut data_buf).await {
+        error!("read body failed, err: {}", e);
+        return false;
+    }
+    let op_info: crate::route::protocol::UploadOperationInfo =
+        match serde_json::from_slice(&data_buf) {
+            Ok(info) => info,
+            Err(e) => {
+                error!("parse upload operation info failed, err: {}", e);
+                return false;
+            }
+        };
+    info!(
+        "sync file operation, total size: {}, total count: {}",
+        op_info.files_size_in_this_op, op_info.files_count_in_this_op
+    );
+    debug!("sync file operation info: {:?}", op_info);
+
+    if let Err(e) = crate::file::GLOBAL_RECEIVER_SESSION_MANAGER
+        .create_op_info(head, &op_info)
+        .await
+    {
+        error!("create op info failed, err: {}", e);
+        let _ = resp_common_error_msg(conn, &e).await;
+        return false;
+    };
+
+    let save_path = crate::config::GLOBAL_CONFIG
+        .read()
+        .unwrap()
+        .save_path
+        .clone();
+    let download_dir = std::path::PathBuf::from(&save_path);
+
+    use crate::utils::NormalizePath;
+    if let Some(empty_dir) = &op_info.empty_dirs {
+        for dir in empty_dir {
+            let dir = dir.normalize_path();
+            let r = tokio::fs::create_dir_all(download_dir.join(dir)).await;
+            if let Err(err) = r {
+                error!("create dir error: {}", err);
+                let _ = resp_common_error_msg(conn, &err.to_string()).await;
+                return false;
+            }
+        }
+    }
+
+    if op_info.empty_dirs.is_some() && op_info.files_count_in_this_op == 0 {
+        crate::utils::inform(
+            LanguageKey::DirCreatedSuccessfully.translate(),
+            &head.device_name,
+            Some(&save_path),
+        );
+    }
+    true
+}
+
+/// Saves image data to a file in the configured save path
+async fn save_image_to_file(image_data: &[u8], prefix: &str) -> Result<String, String> {
+    let save_path = crate::config::GLOBAL_CONFIG
+        .read()
+        .unwrap()
+        .save_path
+        .clone();
+
+    let file_name = format!(
+        "{}_{}.png",
+        prefix,
+        chrono::Local::now().format("%Y%m%d%H%M%S%3f")
+    );
+    let file_path = std::path::PathBuf::from(&save_path).join(&file_name);
+
+    if let Err(e) = tokio::fs::create_dir_all(&save_path).await {
+        return Err(format!("create save directory failed: {e}"));
+    }
+
+    if let Err(e) = tokio::fs::write(&file_path, image_data).await {
+        return Err(format!("write image file failed: {e}"));
+    }
+
+    let path_str = file_path.to_string_lossy().to_string();
+    info!("clipboard image saved to: {}", path_str);
+    Ok(path_str)
+}
+
+fn try_get_clipboard_image_png() -> Option<Vec<u8>> {
+    use clipboard_rs::common::RustImage;
+
+    let raw_image = match crate::config::CLIPBOARD.read_image() {
+        Ok(img) => img,
+        Err(_) => return None,
+    };
+
+    let dyn_img: image::DynamicImage;
+    let mut cursor_buf: std::io::Cursor<Vec<u8>>;
+
+    if let Some(image1) = raw_image.image1 {
+        let img_buf = image::ImageBuffer::from_vec(
+            image1.width as u32,
+            image1.height as u32,
+            image1.bytes.into_owned(),
+        )?;
+        cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
+        dyn_img = image::DynamicImage::ImageRgba8(img_buf);
+    } else if let Some(image2) = raw_image.image2 {
+        dyn_img = image2.get_dynamic_image().ok()?;
+        cursor_buf = std::io::Cursor::new(Vec::with_capacity(1024 * 100));
+    } else {
+        return None;
+    }
+
+    dyn_img
+        .write_to(&mut cursor_buf, image::ImageFormat::Png)
+        .ok()?;
+    Some(cursor_buf.into_inner())
 }
 
 /// return whether should continue loop(like no socket error)

@@ -48,7 +48,7 @@ mixin AppLocale {
   static const String copySuccess = 'copySuccess';
   static const String pasteSuccess = 'pasteSuccess';
   static const String filesSaved = 'filesSaved';
-  static const String syncTextSuccess = 'syncTextSuccess';
+  static const String syncOpSuccess = 'syncOpSuccess';
   static const String sendSuccess = 'sendSuccess';
   static const String push = 'push';
   static const String useThirdPartyFilePicker = 'useThirdPartyFilePicker';
@@ -151,7 +151,7 @@ mixin AppLocale {
     copySuccess: '复制成功',
     pasteSuccess: '粘贴成功',
     filesSaved: '%a 个文件已保存',
-    syncTextSuccess: '同步文本成功',
+    syncOpSuccess: '同步成功',
     sendSuccess: '发送成功',
     useThirdPartyFilePicker: '使用第三方文件选择器',
     filePickerPackageNameHint: '文件管理应用的包名',
@@ -255,7 +255,7 @@ mixin AppLocale {
     copySuccess: 'Copied',
     pasteSuccess: 'Paste successfully',
     filesSaved: '%a files saved',
-    syncTextSuccess: 'Sync text success',
+    syncOpSuccess: 'Sync operation success',
     sendSuccess: 'Send successfully',
     useThirdPartyFilePicker: 'Use third party file picker',
     filePickerPackageNameHint: 'The package name of the file manager app',

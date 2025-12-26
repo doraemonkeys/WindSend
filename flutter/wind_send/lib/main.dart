@@ -83,16 +83,13 @@ class _MyAppState extends State<MyApp> {
       initLanguageCode: LocalConfig.locale.languageCode,
     );
     _localization.onTranslatedLanguage = _onTranslatedLanguage;
-    // ThemeMode
     themeMode = getThemeMode();
-    // colorSelected
     colorSelected = LocalConfig.themeColor;
 
-    // -------------------------------- share --------------------------------
+    // share_handler only works on mobile platforms
     if (Platform.isAndroid || Platform.isIOS) {
       initPlatformState();
     }
-    // -------------------------------- share --------------------------------
 
     super.initState();
   }
@@ -203,13 +200,13 @@ class _MyHomePageState extends State<MyHomePage> {
   // Do not put List<Device> in _MyAppState
   List<Device> devices = LocalConfig.devices;
 
-  // Do not depend on LocalConfig.devices,
-  // because the modification of LocalConfig may be asynchronous
+  /// Do not depend on LocalConfig.devices,
+  /// because the modification of LocalConfig may be asynchronous
+  ///
+  /// Triggers UI rebuild. Pass [ds] when device list order/content changes,
+  /// since LocalConfig updates are async and may not reflect immediately.
   void devicesRebuild([List<Device>? ds]) {
     dev.log('devicesRebuild');
-    // for (var device in devices) {
-    //   print('device3333: ${device.targetDeviceName}');
-    // }
     setState(() {
       if (ds != null) {
         devices = ds;
@@ -217,7 +214,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  // @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -432,6 +428,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
           autoSelect: autoSelect,
           trustedCertificate: trustedCertificateController.text,
         );
+        // Web device uses relay for clipboard only, disable local actions
         if (newDevice.iP.toLowerCase() == Device.webIP) {
           newDevice.iP = Device.webIP;
           newDevice.actionCopy = false;
@@ -476,7 +473,7 @@ class _MainBodyState extends State<MainBody> {
   void initState() {
     super.initState();
 
-    // ping device to scan device ip
+    // Pre-resolve default device IP at startup for faster first action
     resolveTargetDevice(defaultShareDevice: true).then((value) {
       if (widget.devices.isEmpty) {
         return;
@@ -491,12 +488,11 @@ class _MainBodyState extends State<MainBody> {
         'enableRelay: ${defaultDevice.enableRelay}',
       );
 
-      // Only ping when using relay, lazy load when not using relay
+      // When relay is enabled, try direct connection first to avoid relay overhead
       if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
-        // print('ping device: ${defaultDevice.targetDeviceName}');
         defaultDevice.pingDevice().then((_) {}).catchError((e) async {
           dev.log(
-            'The default device ${defaultDevice.targetDeviceName} is using relay, and the direct connection failed, try to refresh ip',
+            'Direct connection failed for ${defaultDevice.targetDeviceName}, refreshing IP',
           );
           try {
             final ip = await compute((Device d) async {
@@ -523,9 +519,8 @@ class _MainBodyState extends State<MainBody> {
       }
     });
 
-    // -------------------------------- share --------------------------------
+    // Share intent handling only works on mobile
     if (!Platform.isAndroid && !Platform.isIOS) {
-      // unsupported platform
       return;
     }
 
@@ -581,23 +576,6 @@ class _MainBodyState extends State<MainBody> {
             defaultDevice.targetDeviceName,
           ]);
 
-          // var lastSharedMedia = LocalConfig.lastSharedMedia;
-          // if (lastSharedMedia != null &&
-          //     lastSharedMedia.length == shared.length) {
-          //   var same = true;
-          //   for (var i = 0; i < lastSharedMedia.length; i++) {
-          //     if (lastSharedMedia[i] != jsonEncode(shared[i].toMap())) {
-          //       same = false;
-          //       break;
-          //     }
-          //   }
-          //   if (same) {
-          //     return ToastResult(message: shareSuccessMsg);
-          //   }
-          // }
-
-          // final recipient = shared.speakableGroupName;
-
           List<String> fileList = [];
           String? text = sharedMedia.content;
           for (var element in shared) {
@@ -605,15 +583,8 @@ class _MainBodyState extends State<MainBody> {
               continue;
             }
             fileList.add(element.path);
-            // if (element.mimeType == 'text/html') {
-            //   if (await File(element.path).exists()) {
-            //     fileList.add(element.path);
-            //   } else {
-            //     text = element.path;
-            //   }
-            //   continue;
-            // }
           }
+          // Web relay doesn't support file transfer, only clipboard text sync
           if (defaultDevice.iP == Device.webIP && text == null) {
             throw 'Unsupported operation, web device only support text';
           }
@@ -631,7 +602,6 @@ class _MainBodyState extends State<MainBody> {
               await defaultDevice.doPasteTextAction(text: text);
             }
           }
-          // await LocalConfig.setLastSharedMedia(shared);
           return ToastResult(message: shareSuccessMsg);
         },
         progressReceivePort: rp,
@@ -639,22 +609,22 @@ class _MainBodyState extends State<MainBody> {
       );
     }
 
+    // Stream for receiving shares while app is running
     ShareDataModel().sharedStream
         .handleError(handleOnError)
         .asyncMap(handleSharedMediaFile)
         .listen((_) {}, onError: handleOnError);
 
+    // Handle share that launched the app (cold start)
     ShareDataModel().shared
         ?.then((items) async {
           ShareDataModel().shared = null;
           await handleSharedMediaFile(items);
-          // ReceiveSharingIntent.instance.reset().catchError(handleResetError);
           ShareHandlerPlatform.instance.resetInitialSharedMedia().catchError(
             handleResetError,
           );
         }, onError: handleOnError)
         .catchError(handleOnError);
-    // -------------------------------- share --------------------------------
   }
 
   @override
@@ -712,6 +682,7 @@ class _MainBodyState extends State<MainBody> {
           ],
         );
       },
+      // Pull-to-refresh triggers clipboard sync with the default sync device
       onRefresh: () async {
         if (LocalConfig.defaultSyncDevice == null ||
             LocalConfig.defaultSyncDevice!.isEmpty) {
@@ -740,26 +711,56 @@ class _MainBodyState extends State<MainBody> {
             widget.onDevicesChange();
           },
           () async {
-            var (respText, sentText) = await defaultDevice.doSyncTextAction();
+            var (respText, sentText, receivedFilePath) = await defaultDevice
+                .doSyncTextAction();
+            final bool receivedImage = receivedFilePath.isNotEmpty;
+            final bool sentImage = sentText == '[Image]';
+
+            // Only received content
             if (respText.isNotEmpty && sentText.isEmpty) {
+              if (receivedImage) {
+                return ToastResult(
+                  message: context.formatString(AppLocale.copySuccess, []),
+                  shareFile: [receivedFilePath],
+                  openPath: receivedFilePath,
+                );
+              }
               return ToastResult(
                 message:
                     '${context.formatString(AppLocale.copySuccess, [])}\n$respText',
                 shareText: respText,
               );
             }
+
+            // Only sent content
             if (respText.isEmpty && sentText.isNotEmpty) {
               return ToastResult(
                 message: context.formatString(AppLocale.pasteSuccess, []),
               );
             }
+
+            // Both sent and received
+            if (receivedImage) {
+              return ToastResult(
+                message: context.formatString(AppLocale.syncOpSuccess, []),
+                shareFile: [receivedFilePath],
+                openPath: receivedFilePath,
+              );
+            }
+            if (!sentImage && respText.isNotEmpty) {
+              return ToastResult(
+                message: context.formatString(AppLocale.syncOpSuccess, []),
+                shareText: respText,
+              );
+            }
             return ToastResult(
-              message: context.formatString(AppLocale.syncTextSuccess, []),
+              message: context.formatString(AppLocale.syncOpSuccess, []),
             );
           },
           showIndicator: false,
         );
       },
+      // Enable mouse drag for pull-to-refresh on desktop
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(
           dragDevices: {
@@ -776,10 +777,6 @@ class _MainBodyState extends State<MainBody> {
               key: ValueKey(widget.devices[index].uniqueId),
               device: widget.devices[index],
               devices: widget.devices,
-              // saveChange: (device) async {
-              //   widget.devices[index] = device;
-              //   LocalConfig.setDevices(widget.devices);
-              // },
               onDelete: () async {
                 var removed = widget.devices.removeAt(index);
                 LocalConfig.removeDevice(removed.uniqueId);

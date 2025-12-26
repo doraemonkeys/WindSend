@@ -94,6 +94,9 @@ class HeadInfo with HeadWriter {
   int end;
   int dataLen;
   int opID;
+
+  /// The content type for sync operations (text or clip-image)
+  String syncDataType;
   // int filesCountInThisOp;
 
   HeadInfo(
@@ -109,6 +112,7 @@ class HeadInfo with HeadWriter {
     this.end = 0,
     this.dataLen = 0,
     this.opID = 0,
+    this.syncDataType = '',
   });
 
   HeadInfo.fromJson(Map<String, dynamic> json)
@@ -123,7 +127,8 @@ class HeadInfo with HeadWriter {
       start = json['start'],
       end = json['end'],
       dataLen = json['dataLen'],
-      opID = json['opID'];
+      opID = json['opID'],
+      syncDataType = json['syncDataType'] ?? '';
 
   @override
   Map<String, dynamic> toJson() => {
@@ -139,6 +144,7 @@ class HeadInfo with HeadWriter {
     'end': end,
     'dataLen': dataLen,
     'opID': opID,
+    'syncDataType': syncDataType,
   };
 
   Future<void> writeToConn(SecureSocket conn) async {

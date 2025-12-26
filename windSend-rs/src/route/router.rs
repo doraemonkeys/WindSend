@@ -38,7 +38,7 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
                 let _ = match_handler(&mut conn).await;
             }
             RouteAction::SyncText => {
-                crate::route::paste::sync_text_handler(&mut conn, head).await;
+                ok = crate::route::paste::sync_content_handler(&mut conn, head).await;
             }
             RouteAction::SetRelayServer => {
                 let _ = set_relay_server_handler(&mut conn, head).await;

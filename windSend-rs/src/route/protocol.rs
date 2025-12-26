@@ -62,6 +62,9 @@ pub struct RouteRecvHead {
     /// The ID of this upload operation
     #[serde(rename = "opID")]
     pub op_id: u32,
+    /// The content type for sync operations (text, clip-image)
+    #[serde(rename = "syncDataType", default)]
+    pub sync_data_type: RouteDataType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -178,8 +181,9 @@ pub struct MatchActionRespBody {
     pub ca_certificate: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub enum RouteDataType {
+    #[default]
     #[serde(rename = "text")]
     Text,
     #[serde(rename = "clip-image")]
@@ -188,4 +192,7 @@ pub enum RouteDataType {
     Files,
     #[serde(rename = "binary")]
     Binary,
+    /// Handles empty string or unknown values, treated as Text
+    #[serde(other)]
+    Unknown,
 }
