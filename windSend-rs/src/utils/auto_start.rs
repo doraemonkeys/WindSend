@@ -2,7 +2,9 @@
 
 use std::borrow::Cow;
 use tracing::error;
+#[cfg(target_os = "windows")]
 use winreg::RegKey;
+#[cfg(target_os = "windows")]
 use winreg::enums::*;
 pub struct StartHelper {
     exe_name: String,
@@ -22,32 +24,44 @@ impl StartHelper {
     }
 
     pub fn set_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // #[cfg(target_os = "windows")]
-        // {
-        //     self.set_win_auto_start()
-        // }
-        //  #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-        match std::env::consts::OS {
-            "windows" => self.set_win_auto_start(),
-            "macos" => self.set_mac_auto_start(),
-            "linux" => self.set_linux_auto_start(),
-            _ => Err(format!("unsupported os: {}", std::env::consts::OS).into()),
+        #[cfg(target_os = "windows")]
+        {
+            self.set_win_auto_start()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.set_mac_auto_start()
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.set_linux_auto_start()
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            Err(format!("unsupported os: {}", std::env::consts::OS).into())
         }
     }
 
     pub fn unset_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // #[cfg(target_os = "windows")]
-        // {
-        //     self.unset_win_auto_start()
-        // }
-        match std::env::consts::OS {
-            "windows" => self.unset_win_auto_start(),
-            "macos" => self.unset_mac_auto_start(),
-            "linux" => self.unset_linux_auto_start(),
-            _ => Err(format!("unsupported os: {}", std::env::consts::OS).into()),
+        #[cfg(target_os = "windows")]
+        {
+            self.unset_win_auto_start()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            self.unset_mac_auto_start()
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.unset_linux_auto_start()
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            Err(format!("unsupported os: {}", std::env::consts::OS).into())
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn set_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         match self.set_win_auto_start_with_reg() {
             Ok(_) => {
@@ -61,6 +75,7 @@ impl StartHelper {
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn cleanup_vbs_start_file(&self) -> Result<(), Box<dyn std::error::Error>> {
         let win_user_home_dir =
             home::home_dir().ok_or("failed to get current windows user home dir")?;
@@ -77,6 +92,7 @@ impl StartHelper {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
     fn set_win_auto_start_with_vbs(&self) -> Result<(), Box<dyn std::error::Error>> {
         // C:\Users\*\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
         // 获取当前Windows用户的home directory.
@@ -118,6 +134,7 @@ impl StartHelper {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
     fn set_win_auto_start_with_reg(&self) -> Result<(), Box<dyn std::error::Error>> {
         let exe_path = std::env::current_exe()?;
         let exe_path_str = exe_path.to_str().ok_or("exe path contains invalid UTF-8")?;
@@ -199,6 +216,7 @@ impl StartHelper {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
     fn unset_win_auto_start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // 删除注册表项
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);

@@ -49,7 +49,6 @@ cipher = "0.4"
 chrono = "0.4.42"
 subslice = "0.2.3"
 regex = "1.12"
-winreg = "0.55"
 arboard = { version = "3.6", features = [
     "core-graphics",
     "image",
@@ -100,6 +99,7 @@ rfd = "0.16"
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.55"
 win-toast-notify = "0.1.6"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
