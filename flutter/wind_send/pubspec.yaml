@@ -35,12 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.4
   flutter_localization: ^0.3.3
   device_info_plus: ^11.5.0
   path_provider: ^2.1.1
-  file_picker: ^10.3.7
-  share_handler: ^0.0.23
+  file_picker: ^10.3.8
+  # share_handler: ^0.0.23
+  share_handler:
+    git:
+      url: https://github.com/doraemonkeys/share_handler
+      path: share_handler
+      ref: main
   # https://github.com/ShoutSocial/share_handler/tree/main/share_handler
   #listen_sharing_intent: ^1.9.2
   # receive_sharing_intent: 
@@ -62,10 +67,10 @@ dependencies:
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
   super_clipboard: ^0.9.1
-  network_info_plus: ^6.1.1
+  network_info_plus: ^7.0.0
   collection: ^1.18.0
-  share_plus: ^11.1.0
-  fluttertoast: ^8.2.14
+  share_plus: ^12.0.1
+  fluttertoast: ^9.0.0
   # open_filex: ^4.6.0
   open_filex:
     git:
@@ -84,6 +89,7 @@ dependencies:
   saf_stream: ^0.12.3
   saf_util: ^0.11.0
   fast_file_picker: ^0.4.8
+
 
 dev_dependencies:
   flutter_test:

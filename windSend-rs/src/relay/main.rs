@@ -398,8 +398,8 @@ impl SaltCache {
         if let (Some(p), Some(_)) = (&self.cur_pwd, &self.salt_b64)
             && *p == *pwd
         {
-                return (self.kdf_key, self.salt_b64.clone());
-            }
+            return (self.kdf_key, self.salt_b64.clone());
+        }
         (None, None)
     }
 
