@@ -84,13 +84,13 @@ pub async fn sync_content_handler(conn: &mut TlsStream<TcpStream>, head: RouteRe
     if let Some(body) = &body {
         // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
         let cur_text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
-        if cur_text != *body {
-            if let Err(e) = crate::config::CLIPBOARD.write_text(body.to_string()) {
-                let msg = format!("set clipboard text failed, err: {e}");
-                error!("{}", msg);
-                let _ = resp_common_error_msg(conn, &msg).await;
-                return true;
-            }
+        if cur_text != *body
+            && let Err(e) = crate::config::CLIPBOARD.write_text(body.to_string())
+        {
+            let msg = format!("set clipboard text failed, err: {e}");
+            error!("{}", msg);
+            let _ = resp_common_error_msg(conn, &msg).await;
+            return true;
         }
     }
 
