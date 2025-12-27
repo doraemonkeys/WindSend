@@ -22,6 +22,7 @@ import 'package:cryptography_plus/cryptography_plus.dart' as cp;
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
+import 'device_validators.dart' as validators;
 import 'file_transfer.dart';
 import 'utils/utils.dart';
 import 'utils/x509.dart';
@@ -566,81 +567,30 @@ class Device {
     return _getAES192KeySelector(key);
   }
 
+  // Validators - delegated to device_validators.dart for code organization
   static String? Function(String?) deviceNameValidator(
     BuildContext context,
     List<Device> devices,
-  ) {
-    return (String? value) {
-      if (value == null || value.isEmpty) {
-        return context.formatString(AppLocale.deviceNameEmptyHint, []);
-      }
-      for (final element in devices) {
-        if (element.targetDeviceName == value) {
-          return context.formatString(AppLocale.deviceNameRepeatHint, []);
-        }
-      }
-      return null;
-    };
-  }
+  ) => validators.deviceNameValidator(context, devices);
 
-  static String? Function(String?) portValidator(BuildContext context) {
-    return (String? value) {
-      if (value == null || value.isEmpty) {
-        return context.formatString(AppLocale.cannotBeEmpty, ['Port']);
-      }
-      if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-        return context.formatString(AppLocale.mustBeNumber, ['Port']);
-      }
-      final int port = int.parse(value);
-      if (port < 0 || port > 65535) {
-        return context.formatString(AppLocale.invalidPort, []);
-      }
-      return null;
-    };
-  }
+  static String? Function(String?) portValidator(BuildContext context) =>
+      validators.portValidator(context);
 
   static String? Function(String?) ipValidator(
     BuildContext context,
     bool autoSelect,
-  ) {
-    return (String? value) {
-      if (autoSelect) {
-        return null;
-      }
-      if (value == null || value.isEmpty) {
-        return context.formatString(AppLocale.cannotBeEmpty, ['IP']);
-      }
-      return null;
-    };
-  }
+  ) => validators.ipValidator(context, autoSelect);
 
-  static String? Function(String?) secretKeyValidator(BuildContext context) {
-    return (String? value) {
-      if (value == null || value.isEmpty) {
-        return context.formatString(AppLocale.cannotBeEmpty, ['SecretKey']);
-      }
-      return null;
-    };
-  }
+  static String? Function(String?) secretKeyValidator(BuildContext context) =>
+      validators.secretKeyValidator(context);
 
   static String? Function(String?) filePickerPackageNameValidator(
     BuildContext context,
-  ) {
-    return (String? value) {
-      return null;
-    };
-  }
+  ) => validators.filePickerPackageNameValidator(context);
 
   static String? Function(String?) certificateAuthorityValidator(
     BuildContext context,
-  ) {
-    return (String? value) {
-      if (value == null || value.isEmpty) {
-        return context.formatString(AppLocale.cannotBeEmpty, ['Certificate']);
-      }
-      return null;
-    };
-  }
+  ) => validators.certificateAuthorityValidator(context);
 
   /// Automatically scan and update ip
   Future<String?> findServer() async {
