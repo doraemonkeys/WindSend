@@ -36,6 +36,7 @@ import 'socket.dart';
 import 'utils/logger.dart';
 import 'device_state.dart';
 export 'device_state.dart';
+export 'device_discovery.dart';
 
 // import 'package:flutter/services.dart' show rootBundle;
 
@@ -531,98 +532,7 @@ class Device {
     BuildContext context,
   ) => validators.certificateAuthorityValidator(context);
 
-  /// Automatically scan and update ip
-  Future<String?> findServer() async {
-    final state = refState();
-    state.findingServerRunning ??= _findServerInner();
-    final found = await state.findingServerRunning!;
-    state.findingServerRunning = null;
-    if (found != null) {
-      refState().tryDirectConnectErr = Future.value(null);
-    }
-    return found;
-  }
-
-  Future<String?> _findServerInner() async {
-    var myIp = await getDeviceIp();
-    if (myIp == '') {
-      return null;
-    }
-    String mask;
-    // always use 255.255.255.0
-    mask = "255.255.255.0";
-    if (mask != "255.255.255.0") {
-      return null;
-    }
-
-    String result = await pingDeviceLoop(myIp);
-    if (result == '') {
-      return null;
-    }
-    iP = result;
-    return result;
-  }
-
-  static Future<String> getDeviceIp() async {
-    var interfaces = await NetworkInterface.list();
-    String expIp = '';
-    for (var interface in interfaces) {
-      var name = interface.name.toLowerCase();
-      // print('name: $name');
-      if ((name.contains('wlan') ||
-              name.contains('eth') ||
-              name.contains('en0') ||
-              name.contains('en1') ||
-              name.contains('以太网') ||
-              name.contains('wl')) &&
-          (!name.contains('virtual') && !name.contains('vethernet'))) {
-        for (var addr in interface.addresses) {
-          if (addr.type == InternetAddressType.IPv4) {
-            expIp = addr.address;
-          }
-        }
-      }
-    }
-    return expIp;
-  }
-
-  Future<String> pingDeviceLoop(String myIp) async {
-    const rangeNum = 254;
-    StreamSubscription<String>? subscription;
-    final msgController = StreamController<String>();
-    // add a listener immediately
-    final ipFuture = msgController.stream
-        .take(rangeNum)
-        .firstWhere((element) => element != '', orElse: () => '')
-        .whenComplete(() => subscription?.cancel());
-
-    Stream<String> tryStream = _ipRanges(myIp);
-
-    subscription = tryStream.listen((ip) {
-      var device = Device.copy(this);
-      device.iP = ip;
-      _pingDevice2(msgController, device, timeout: const Duration(seconds: 3));
-    });
-    return ipFuture;
-  }
-
-  Future<void> _pingDevice2(
-    StreamController<String> msgController,
-    Device device, {
-    Duration timeout = const Duration(seconds: 2),
-  }) async {
-    // print('start pingDevice2: ${device.iP}');
-    bool ok;
-    try {
-      await device.pingDevice(timeout: timeout);
-      ok = true;
-    } catch (e) {
-      // print('pingDevice2 error: ${device.iP} ${e}');
-      ok = false;
-    }
-    // print('pingDevice2 result: ${device.iP} $ok');
-    msgController.add(ok ? device.iP : '');
-  }
+  // Device discovery methods moved to device_discovery.dart
 
   Future<void> pingDevice({
     Duration timeout = const Duration(seconds: 2),
@@ -680,116 +590,6 @@ class Device {
     }
     dev.log('device: $targetDeviceName,host: $iP, direct ping ok');
     refState().tryDirectConnectErr = Future.value(null);
-  }
-
-  static Future<Device> _matchDeviceLoop(
-    StreamController<Device> msgController,
-    String myIp,
-  ) async {
-    const rangeNum = 254;
-    StreamSubscription<String>? subscription;
-
-    // add a listener immediately
-    var resultFuture = msgController.stream
-        .take(rangeNum)
-        .firstWhere(
-          (element) => element.secretKey != '',
-          orElse: () => throw Exception('no device found'),
-        )
-        .whenComplete(() => subscription?.cancel());
-
-    Stream<String> tryStream = _ipRanges(myIp);
-    subscription = tryStream.listen((ip) {
-      _matchDevice(msgController, ip, timeout: const Duration(seconds: 3));
-    });
-
-    return resultFuture;
-  }
-
-  /// Scan nearby IPs first (±15 from current), then scan the rest.
-  /// Nearby devices are more likely to be the target.
-  static Stream<String> _ipRanges(String myIp) async* {
-    var myIpPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
-    int ipSuffix = int.parse(myIp.substring(myIp.lastIndexOf('.') + 1));
-    int mainStart = max(ipSuffix - 15, 1);
-    int mainEnd = min(ipSuffix + 15, 254);
-    for (var i = mainStart; i <= mainEnd; i++) {
-      yield '$myIpPrefix.$i';
-    }
-    // Give nearby IPs time to respond before scanning the rest
-    await Future.delayed(const Duration(milliseconds: 500));
-    for (var i = 1; i < mainStart; i++) {
-      yield '$myIpPrefix.$i';
-    }
-    for (var i = mainEnd + 1; i < 255; i++) {
-      yield '$myIpPrefix.$i';
-    }
-  }
-
-  static Future<void> _matchDevice(
-    StreamController<Device> msgController,
-    String ip, {
-    Duration timeout = const Duration(seconds: 2),
-  }) async {
-    // print('matchDevice: $ip');
-    var device = Device(targetDeviceName: '', iP: ip, secretKey: '');
-    SecureSocket conn;
-    try {
-      conn = await SecureSocket.connect(
-        ip,
-        Device.defaultPort,
-        onBadCertificate: (X509Certificate certificate) {
-          return true;
-        },
-        timeout: timeout,
-      );
-    } catch (_) {
-      // print('matchDevice: $ip port ${Device.defaultPort} error');
-      msgController.add(device);
-      return;
-    }
-    var headInfo = HeadInfo(
-      globalLocalDeviceName,
-      DeviceAction.matchDevice,
-      'no need',
-      '',
-    );
-    await headInfo.writeToConn(conn);
-    await conn.flush();
-
-    Future<void> destroy() async {
-      await conn.flush();
-      await conn.close();
-      conn.destroy();
-    }
-
-    RespHead respHead;
-    try {
-      (respHead, _) = await RespHead.readHeadAndBodyFromConn(conn);
-    } catch (_) {
-      msgController.add(device);
-      return;
-    }
-    await destroy();
-
-    if (respHead.code != respOkCode || respHead.msg == null) {
-      // throw Exception('unexpected match response: ${respHead.msg}');
-      msgController.add(device);
-      return;
-    }
-    var resp = MatchActionResp.fromJson(jsonDecode(respHead.msg!));
-    device.secretKey = resp.secretKeyHex;
-    device.targetDeviceName = resp.deviceName;
-    device.trustedCertificate = resp.caCertificate;
-    msgController.add(device);
-  }
-
-  static Future<Device> search() async {
-    var myIp = await getDeviceIp();
-    if (myIp == '') {
-      throw Exception('no local ip found');
-    }
-    return await _matchDeviceLoop(StreamController<Device>(), myIp);
   }
 
   void _refreshConnectionState() {

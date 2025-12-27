@@ -310,7 +310,7 @@ class _AddNewDeviceDialogState extends State<AddNewDeviceDialog> {
               dynamic err;
               Device? newDevice;
               try {
-                newDevice = await Device.search();
+                newDevice = await DeviceDiscoveryUtils.search();
               } catch (e, s) {
                 err = e;
                 failDoneMsg = e.toString();
