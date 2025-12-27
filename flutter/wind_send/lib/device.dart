@@ -17,12 +17,12 @@ import 'package:crypto/crypto.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:wind_send/protocol/relay/model.dart' as relay_model;
 import 'dart:developer' as dev;
-import 'package:cryptography_plus/cryptography_plus.dart' as cp;
 // import 'package:pointycastle/export.dart'; // PointyCastle core exports
 // import 'package:pasteboard/pasteboard.dart';
 
 import 'language.dart';
 import 'device_validators.dart' as validators;
+import 'device_crypto.dart' as crypto;
 import 'file_transfer.dart';
 import 'utils/utils.dart';
 import 'utils/x509.dart';
@@ -253,7 +253,10 @@ class Device {
     if (relaySecretKey != null) {
       _relayKdfSecretB64 = await compute((_) async {
         return base64Encode(
-          await aes192KeyKdf(relaySecretKey!, base64Decode(_relayKdfSaltB64!)),
+          await crypto.aes192KeyKdf(
+            relaySecretKey!,
+            base64Decode(_relayKdfSaltB64!),
+          ),
         );
       }, null);
     }
@@ -476,64 +479,6 @@ class Device {
     return d;
   }
 
-  /// Derives a 192-bit (24-byte) key suitable for AES-192 using PBKDF2.
-  ///
-  /// Mimics the Go function AES192KeyKDF.
-  ///
-  /// Parameters:
-  ///   - [password]: The input password string.
-  ///   - [salt]: A unique salt for this password (Uint8List).
-  ///
-  /// Returns:
-  ///   A 24-byte key (Uint8List).
-  static Future<List<int>> aes192KeyKdf(String password, Uint8List salt) async {
-    // 1. Define parameters (matching the Go function)
-    const int iterations = 10000;
-    const int keyLengthBytes = 192 ~/ 8; // 24 bytes for AES-192
-
-    // 2. Convert password string to bytes (UTF-8 is standard)
-    // final Uint8List passwordBytes = Uint8List.fromList(utf8.encode(password));
-
-    // 3. Create the PBKDF2 key derivator
-    // PBKDF2 uses an underlying HMAC function. We need HMAC-SHA256 here.
-    // SHA-256 has a block size of 64 bytes.
-    // final keyDerivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64));
-
-    // // 4. Initialize the derivator with parameters
-    // final params = Pbkdf2Parameters(salt, iterations, keyLengthBytes);
-    // keyDerivator.init(params);
-
-    final keyDerivator = cp.Pbkdf2(
-      macAlgorithm: cp.Hmac(cp.Sha256()),
-      iterations: iterations,
-      bits: keyLengthBytes * 8,
-    );
-
-    // 5. Derive the key from the password bytes
-    final key = await keyDerivator.deriveKeyFromPassword(
-      password: password,
-      nonce: salt,
-    );
-
-    return key.extractBytes();
-  }
-
-  // static Uint8List hashToAES192Key(String c) {
-  //   // if (c.isEmpty) {
-  //   //   throw Exception('unreachable: Invalid input string');
-  //   // }
-  //   final hash = sha256.convert(utf8.encode(c)).bytes;
-  //   return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
-  // }
-
-  static Uint8List hashToAES192Key2(List<int> c) {
-    // if (c.isEmpty) {
-    //   throw Exception('unreachable: Invalid input string');
-    // }
-    final hash = sha256.convert(c).bytes;
-    return Uint8List.fromList(hash).sublist(0, 192 ~/ 8);
-  }
-
   Uint8List? relaySecretAuthKey() {
     if (relaySecretKey == null) {
       return null;
@@ -550,12 +495,6 @@ class Device {
     return hex.encode(hash2).substring(0, 16);
   }
 
-  /// return 4 bytes encoded in hex
-  static String _getAES192KeySelector(Uint8List key) {
-    final hash = sha256.convert(key).bytes;
-    return hex.encode(hash.sublist(0, 4));
-  }
-
   String? relaySecretKeySelector() {
     if (relaySecretKey == null) {
       return null;
@@ -564,7 +503,7 @@ class Device {
     if (key == null) {
       return null;
     }
-    return _getAES192KeySelector(key);
+    return crypto.getAES192KeySelector(key);
   }
 
   // Validators - delegated to device_validators.dart for code organization

@@ -8,6 +8,7 @@ import 'package:wind_send/protocol/relay/model.dart' as model;
 import 'package:wind_send/utils/utils.dart';
 import 'package:wind_send/crypto/aes.dart';
 import 'package:wind_send/device.dart';
+import 'package:wind_send/device_crypto.dart' as crypto;
 import 'package:wind_send/db/shared_preferences/cnf.dart';
 import 'package:cryptography_plus/cryptography_plus.dart'
     show SimplePublicKey, SimpleKeyPair, X25519;
@@ -87,7 +88,7 @@ Future<Uint8List> resolveSharedSecret(
     remotePublicKey: remotePublicKey,
   );
   final sharedSecretBytes = await sharedSecret.extractBytes();
-  return Device.hashToAES192Key2(sharedSecretBytes);
+  return crypto.hashToAES192Key(sharedSecretBytes);
 }
 
 Future<(model.HandshakeReq, SimpleKeyPair)> resolveHandshakeReq(
