@@ -28,6 +28,7 @@ import 'utils/utils.dart';
 import 'utils/x509.dart';
 import 'web.dart';
 import 'db/shared_preferences/cnf.dart';
+import 'db/sqlite/history_service.dart';
 import 'protocol/protocol.dart';
 import 'file_picker/filepicker.dart';
 // import 'main.dart';
@@ -668,6 +669,12 @@ class Device {
     if (respHead.dataType == RespHead.dataTypeText) {
       final content = utf8.decode(respBody);
       await Clipboard.setData(ClipboardData(text: content));
+      // Record history (non-blocking)
+      HistoryService.instance.recordIncomingText(
+        text: content,
+        fromDeviceId: targetDeviceName,
+        dataSize: respBody.length,
+      );
       return (content, <DownloadInfo>[], <String>[]);
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
@@ -678,6 +685,12 @@ class Device {
       if (Platform.isAndroid) {
         MediaScanner.loadMedia(path: filePath);
       }
+      // Record history (non-blocking)
+      HistoryService.instance.recordIncomingImage(
+        imagePath: filePath,
+        fromDeviceId: targetDeviceName,
+        dataSize: respBody.length,
+      );
       final clipboard = SystemClipboard.instance;
       if (clipboard == null) {
         return (null, <DownloadInfo>[], [filePath]);
@@ -702,6 +715,13 @@ class Device {
         respPaths,
         respHead.totalFileSize!,
         progressSendPort: progressSendPort,
+      );
+      // Record history (non-blocking)
+      HistoryService.instance.recordIncomingFiles(
+        downloadInfos: respPaths,
+        realSavePaths: realSavePaths,
+        fromDeviceId: targetDeviceName,
+        totalSize: respHead.totalFileSize!,
       );
       return (null, respPaths, realSavePaths);
     }
@@ -832,6 +852,37 @@ class Device {
     } else {
       sentDescription = pasteText;
     }
+
+    // Record history for sync operation (non-blocking)
+    // Determine what was sent and received, record appropriately
+    String? sentTextForHistory;
+    String? receivedTextForHistory;
+    String? sentImagePath;
+    String? receivedImagePathForHistory;
+
+    if (dataType == RespHead.dataTypeImage && imageData != null) {
+      // Sent an image
+      sentImagePath = null; // We don't have the saved path readily available
+    } else if (pasteText.isNotEmpty) {
+      sentTextForHistory = pasteText;
+    }
+
+    if (respHead.dataType == RespHead.dataTypeImage && respBody.isNotEmpty) {
+      receivedImagePathForHistory = receivedFilePath;
+    } else if (receivedDescription.isNotEmpty &&
+        receivedDescription != '[Image]') {
+      receivedTextForHistory = utf8.decode(respBody);
+    }
+
+    HistoryService.instance.recordSync(
+      sentText: sentTextForHistory,
+      receivedText: receivedTextForHistory,
+      sentImagePath: sentImagePath,
+      receivedImagePath: receivedImagePathForHistory,
+      remoteDeviceId: targetDeviceName,
+      sentDataSize: bodyData.length,
+      receivedDataSize: respBody.length,
+    );
 
     return (receivedDescription, sentDescription, receivedFilePath);
   }
@@ -1307,6 +1358,22 @@ class Device {
     );
     // await Isolate.spawn(uploadFiles, args);
     await compute(uploadFiles, args);
+
+    // Record history with thumbnail generation
+    // MUST await to ensure thumbnail is generated BEFORE clearTemporaryFiles() is called
+    // (temporary files from FilePicker are cleaned after doSendAction returns)
+    // Determine if paths are real filesystem paths (vs cache paths)
+    // Real paths are used by fast picker, custom picker, or non-Android platforms
+    final bool isRealPath =
+        useFastFilePicker ||
+        filePickerPackageName.isNotEmpty ||
+        !Platform.isAndroid;
+    await HistoryService.instance.recordOutgoingFiles(
+      filePaths: paths,
+      toDeviceId: targetDeviceName,
+      totalSize: totalSize,
+      isRealPath: isRealPath,
+    );
   }
 
   Future<List<String>> pickFiles() async {
@@ -1448,6 +1515,13 @@ class Device {
     } else {
       refState().tryDirectConnectErr = Future.value(null);
     }
+
+    // Record history (non-blocking)
+    HistoryService.instance.recordOutgoingText(
+      text: text,
+      toDeviceId: targetDeviceName,
+      dataSize: pasteTextUint8.length,
+    );
   }
 
   Future<void> doPasteSingleSmallFileAction({
@@ -1457,6 +1531,29 @@ class Device {
     var uploader = FileUploader(this, globalLocalDeviceName);
     await uploader.uploadByBytes(data, fileName);
     await uploader.close();
+
+    // Record history with thumbnail generation
+    // Await to ensure thumbnail is generated before function returns
+    final ext = filepath.extension(fileName).toLowerCase();
+    const imageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'};
+    if (imageExtensions.contains(ext)) {
+      // Save image to temporary file for history tracking
+      final savedPath = await _saveClipboardImageToFile(data, 'sent');
+      await HistoryService.instance.recordOutgoingImage(
+        imagePath: savedPath,
+        imageBytes: data,
+        toDeviceId: targetDeviceName,
+        dataSize: data.length,
+      );
+    } else {
+      // fileName is not a real path, just a name for bytes sent
+      await HistoryService.instance.recordOutgoingFiles(
+        filePaths: [fileName],
+        toDeviceId: targetDeviceName,
+        totalSize: data.length,
+        isRealPath: false,
+      );
+    }
   }
 
   Future<void> doPasteTextActionWeb({String? text}) async {

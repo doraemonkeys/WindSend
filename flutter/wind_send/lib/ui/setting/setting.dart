@@ -34,6 +34,8 @@ class _SettingPageState extends State<SettingPage> {
   String fileSavePath = LocalConfig.fileSavePath;
   String imageSavePath = LocalConfig.imageSavePath;
   List<Device> devices = LocalConfig.devices;
+  int maxHistoryDays = LocalConfig.maxHistoryDays;
+  int maxHistoryCount = LocalConfig.maxHistoryCount;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +69,14 @@ class _SettingPageState extends State<SettingPage> {
             ],
           ),
           _SettingsSection(children: [logViewSetting(context)]),
+          _SettingsSection(
+            title: context.formatString(AppLocale.historySettings, []),
+            children: [
+              historyMaxDaysSetting(context),
+              _SettingsSection.defaultDivider(context),
+              historyMaxCountSetting(context),
+            ],
+          ),
         ],
       ),
     );
@@ -326,6 +336,216 @@ class _SettingPageState extends State<SettingPage> {
           });
           widget.onLanguageChanged(result);
         }
+      },
+    );
+  }
+
+  /// Get display text for max days value
+  String _getMaxDaysDisplayText(BuildContext context, int days) {
+    switch (days) {
+      case 0:
+        return context.formatString(AppLocale.daysForever, []);
+      case 7:
+        return context.formatString(AppLocale.days7, []);
+      case 30:
+        return context.formatString(AppLocale.days30, []);
+      case 90:
+        return context.formatString(AppLocale.days90, []);
+      case 180:
+        return context.formatString(AppLocale.days180, []);
+      case 365:
+        return context.formatString(AppLocale.days365, []);
+      default:
+        return context.formatString(AppLocale.daysCustom, [days.toString()]);
+    }
+  }
+
+  /// Get display text for max count value
+  String _getMaxCountDisplayText(BuildContext context, int count) {
+    switch (count) {
+      case 0:
+        return context.formatString(AppLocale.countUnlimited, []);
+      case 100:
+        return context.formatString(AppLocale.count100, []);
+      case 500:
+        return context.formatString(AppLocale.count500, []);
+      case 1000:
+        return context.formatString(AppLocale.count1000, []);
+      case 5000:
+        return context.formatString(AppLocale.count5000, []);
+      default:
+        return context.formatString(AppLocale.countCustom, [count.toString()]);
+    }
+  }
+
+  Widget historyMaxDaysSetting(BuildContext context) {
+    final presetDays = [0, 7, 30, 90, 180, 365];
+    final isCustomValue = !presetDays.contains(maxHistoryDays);
+
+    return ListTile(
+      leading: const Icon(Icons.calendar_today),
+      title: Text(context.formatString(AppLocale.historyMaxDays, [])),
+      subtitle: Text(_getMaxDaysDisplayText(context, maxHistoryDays)),
+      onTap: () async {
+        int? result = await showDialog<int>(
+          context: context,
+          builder: (context) {
+            return SimpleDialog(
+              title: Text(context.formatString(AppLocale.historyMaxDays, [])),
+              children: [
+                ...presetDays.map(
+                  (days) => RadioListTile<int>(
+                    title: Text(_getMaxDaysDisplayText(context, days)),
+                    subtitle: days == 0
+                        ? Text(
+                            context.formatString(
+                              AppLocale.historyMaxDaysHint,
+                              [],
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          )
+                        : null,
+                    value: days,
+                    groupValue: isCustomValue ? -1 : maxHistoryDays,
+                    onChanged: (value) => Navigator.pop(context, value),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: Text(
+                    context.formatString(AppLocale.enterCustomValue, []),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final customValue = await _showCustomValueDialog(
+                      context,
+                      context.formatString(AppLocale.historyMaxDays, []),
+                      maxHistoryDays,
+                    );
+                    if (customValue != null && mounted) {
+                      setState(() {
+                        maxHistoryDays = customValue;
+                      });
+                      await LocalConfig.setMaxHistoryDays(customValue);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+        if (result != null) {
+          setState(() {
+            maxHistoryDays = result;
+          });
+          await LocalConfig.setMaxHistoryDays(result);
+        }
+      },
+    );
+  }
+
+  Widget historyMaxCountSetting(BuildContext context) {
+    final presetCounts = [0, 100, 500, 1000, 5000];
+    final isCustomValue = !presetCounts.contains(maxHistoryCount);
+
+    return ListTile(
+      leading: const Icon(Icons.storage),
+      title: Text(context.formatString(AppLocale.historyMaxCount, [])),
+      subtitle: Text(_getMaxCountDisplayText(context, maxHistoryCount)),
+      onTap: () async {
+        int? result = await showDialog<int>(
+          context: context,
+          builder: (context) {
+            return SimpleDialog(
+              title: Text(context.formatString(AppLocale.historyMaxCount, [])),
+              children: [
+                ...presetCounts.map(
+                  (count) => RadioListTile<int>(
+                    title: Text(_getMaxCountDisplayText(context, count)),
+                    subtitle: count == 0
+                        ? Text(
+                            context.formatString(
+                              AppLocale.historyMaxCountHint,
+                              [],
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          )
+                        : null,
+                    value: count,
+                    groupValue: isCustomValue ? -1 : maxHistoryCount,
+                    onChanged: (value) => Navigator.pop(context, value),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: Text(
+                    context.formatString(AppLocale.enterCustomValue, []),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final customValue = await _showCustomValueDialog(
+                      context,
+                      context.formatString(AppLocale.historyMaxCount, []),
+                      maxHistoryCount,
+                    );
+                    if (customValue != null && mounted) {
+                      setState(() {
+                        maxHistoryCount = customValue;
+                      });
+                      await LocalConfig.setMaxHistoryCount(customValue);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+        if (result != null) {
+          setState(() {
+            maxHistoryCount = result;
+          });
+          await LocalConfig.setMaxHistoryCount(result);
+        }
+      },
+    );
+  }
+
+  Future<int?> _showCustomValueDialog(
+    BuildContext context,
+    String title,
+    int currentValue,
+  ) async {
+    final controller = TextEditingController(text: currentValue.toString());
+    return showDialog<int>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: context.formatString(AppLocale.enterCustomValue, []),
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.formatString(AppLocale.cancel, [])),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = int.tryParse(controller.text);
+                if (value != null && value >= 0) {
+                  Navigator.pop(context, value);
+                }
+              },
+              child: Text(context.formatString(AppLocale.confirm, [])),
+            ),
+          ],
+        );
       },
     );
   }

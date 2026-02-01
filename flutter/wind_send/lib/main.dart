@@ -16,9 +16,13 @@ import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 // import 'package:filesaverz/filesaverz.dart';
 
 import 'db/shared_preferences/cnf.dart';
+import 'db/sqlite/database.dart';
+import 'db/sqlite/history_cleanup_service.dart';
+import 'db/sqlite/history_service.dart';
 import 'theme.dart';
 import 'language.dart';
 import 'ui/setting/setting.dart';
+import 'ui/transfer_history/history_page.dart';
 import 'utils/utils.dart';
 import 'sorting.dart';
 import 'about.dart';
@@ -42,6 +46,24 @@ Future<void> init() async {
     logLevel: LocalConfig.appLogLevel,
   );
   await Future.wait([f1, f3]);
+
+  // Initialize SQLite database for transfer history
+  try {
+    final db = await AppDatabase.getInstance();
+    await HistoryService.init(db);
+    dev.log('Transfer history database initialized');
+  } catch (e, s) {
+    // Database initialization failure should not block app startup
+    // Use SharedLogger for production error logging (consistent with app-wide error handling)
+    SharedLogger().logger.e(
+      'Failed to initialize transfer history database',
+      error: e,
+      stackTrace: s,
+    );
+  }
+
+  // Run history cleanup in background if enabled (Section 3.3)
+  HistoryCleanupService.instance.runStartupCleanupIfEnabled();
 }
 
 void main() async {
@@ -876,6 +898,17 @@ class _BuildPopupMenuButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
+                const Icon(Icons.history_outlined),
+                _sizedBoxW10,
+                Text(context.formatString(AppLocale.transferHistory, [])),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
                 const Icon(Icons.info_outline),
                 _sizedBoxW10,
                 Text(context.formatString(AppLocale.about, [])),
@@ -915,6 +948,12 @@ class _BuildPopupMenuButton extends StatelessWidget {
             }
             break;
           case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const HistoryPage()),
+            );
+            break;
+          case 3:
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AboutPage()),

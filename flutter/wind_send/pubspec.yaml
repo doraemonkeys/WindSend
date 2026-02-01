@@ -70,6 +70,7 @@ dependencies:
   network_info_plus: ^7.0.0
   collection: ^1.18.0
   share_plus: ^12.0.1
+  image_gallery_saver_plus: ^4.0.1
   fluttertoast: ^9.0.0
   # open_filex: ^4.6.0
   open_filex:
@@ -89,6 +90,12 @@ dependencies:
   saf_stream: ^0.12.3
   saf_util: ^0.11.0
   fast_file_picker: ^0.4.8
+  # Database
+  drift: ^2.24.0
+  sqlite3_flutter_libs: ^0.5.30
+  image: ^4.7.2
+  flutter_image_compress: ^2.4.0
+  uuid: ^4.0.0
 
 
 dev_dependencies:
@@ -101,6 +108,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # Database code generation
+  drift_dev: ^2.24.0
+  build_runner: ^2.4.15
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

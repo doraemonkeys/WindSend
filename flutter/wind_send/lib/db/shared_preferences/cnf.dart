@@ -336,6 +336,39 @@ class LocalConfig {
     return await _sp.setInt('AppLogLevel', value.value);
   }
 
+  // =========================================================================
+  // History Cleanup Configuration (Section 3.3)
+  // =========================================================================
+
+  static const String _maxHistoryDaysKey = 'MaxHistoryDays';
+  static const String _maxHistoryCountKey = 'MaxHistoryCount';
+  static const String _cleanupOnStartupKey = 'CleanupOnStartup';
+
+  /// Maximum age of history records in days.
+  /// Default: 30 days. Set to 0 for permanent storage (no age-based cleanup).
+  /// Records older than this are automatically deleted (except pinned items).
+  static int get maxHistoryDays => _sp.getInt(_maxHistoryDaysKey) ?? 30;
+
+  static Future<bool> setMaxHistoryDays(int value) async {
+    return await _sp.setInt(_maxHistoryDaysKey, value);
+  }
+
+  /// Maximum number of history records.
+  /// Default: 1000 records. Set to 0 for unlimited storage (no count-based cleanup).
+  /// When exceeded, oldest records are deleted (except pinned items).
+  static int get maxHistoryCount => _sp.getInt(_maxHistoryCountKey) ?? 1000;
+
+  static Future<bool> setMaxHistoryCount(int value) async {
+    return await _sp.setInt(_maxHistoryCountKey, value);
+  }
+
+  /// Whether to run cleanup automatically on app startup (default: true)
+  static bool get cleanupOnStartup => _sp.getBool(_cleanupOnStartupKey) ?? true;
+
+  static Future<bool> setCleanupOnStartup(bool value) async {
+    return await _sp.setBool(_cleanupOnStartupKey, value);
+  }
+
   /// Language
   static Locale get locale {
     String? language = _sp.getString('Language');

@@ -6,14 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/clipboard/clipboard_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 // import 'package:wind_send/main.dart';
 import '../language.dart';
 import 'logger.dart';
+import 'dart:developer' as dev;
 
 Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
   if (clipboard == null) {
@@ -661,4 +665,394 @@ Uint8List generateSecureRandomBytes(int length) {
     bytes[i] = secureRandom.nextInt(256);
   }
   return bytes;
+}
+
+// ============================================================================
+// Cross-Platform File Operations
+// ============================================================================
+
+/// Application subdirectory name for WindSend data.
+const String _appSubdirectory = 'wind_send';
+
+/// Returns the base storage directory for history data.
+///
+/// Platform-specific behavior:
+/// - macOS: Uses Application Support directory (sandbox compatible)
+/// - Other platforms: Uses Application Documents directory
+///
+/// The returned path includes the 'wind_send' subdirectory.
+Future<String> getHistoryStoragePath() async {
+  Directory baseDir;
+
+  if (Platform.isMacOS) {
+    // macOS: Use Application Support for sandbox compatibility
+    baseDir = await getApplicationSupportDirectory();
+  } else {
+    // Other platforms: Use Application Documents
+    baseDir = await getApplicationDocumentsDirectory();
+  }
+
+  final historyDir = p.join(baseDir.path, _appSubdirectory);
+
+  // Ensure directory exists
+  final dir = Directory(historyDir);
+  if (!await dir.exists()) {
+    await dir.create(recursive: true);
+  }
+
+  return historyDir;
+}
+
+/// Returns the directory for storing large payload files.
+///
+/// This is used for:
+/// - Text content >4MB
+/// - Binary data ≥100KB
+/// - Thumbnails
+///
+/// The directory is created under the history storage path.
+Future<String> getPayloadDirectory() async {
+  final historyPath = await getHistoryStoragePath();
+  final payloadDir = p.join(historyPath, 'payloads');
+
+  // Ensure directory exists
+  final dir = Directory(payloadDir);
+  if (!await dir.exists()) {
+    await dir.create(recursive: true);
+  }
+
+  return payloadDir;
+}
+
+/// Returns the directory for storing thumbnail images.
+Future<String> getThumbnailDirectory() async {
+  final historyPath = await getHistoryStoragePath();
+  final thumbnailDir = p.join(historyPath, 'thumbnails');
+
+  // Ensure directory exists
+  final dir = Directory(thumbnailDir);
+  if (!await dir.exists()) {
+    await dir.create(recursive: true);
+  }
+
+  return thumbnailDir;
+}
+
+/// Opens the system file manager at the specified path.
+///
+/// Platform-specific behavior:
+/// - Windows: Uses `explorer /select, <path>` to select the file
+/// - macOS: Uses `open -R <path>` to reveal in Finder
+/// - Linux: Tries `xdg-open`, falls back to `nautilus`, then `dolphin`
+/// - Mobile (iOS/Android): Uses url_launcher to open the parent directory
+///
+/// Returns `true` if the operation was successful, `false` otherwise.
+Future<bool> openInFileManager(String path) async {
+  try {
+    // Normalize path separators
+    path = normalizePath(path);
+
+    if (Platform.isWindows) {
+      return await _openInWindowsExplorer(path);
+    } else if (Platform.isMacOS) {
+      return await _openInMacOSFinder(path);
+    } else if (Platform.isLinux) {
+      return await _openInLinuxFileManager(path);
+    } else if (Platform.isIOS || Platform.isAndroid) {
+      return await _openOnMobile(path);
+    }
+
+    return false;
+  } catch (e) {
+    SharedLogger().logger.e('openInFileManager error: $e');
+    return false;
+  }
+}
+
+/// Opens file in Windows Explorer with the file selected.
+Future<bool> _openInWindowsExplorer(String path) async {
+  // Handle Windows long path if needed
+  final normalizedPath = handleWindowsLongPath(path);
+
+  // Check if path exists
+  final fileExists = await File(path).exists();
+  final dirExists = await Directory(path).exists();
+
+  if (!fileExists && !dirExists) {
+    SharedLogger().logger.w('Path does not exist: $path');
+    return false;
+  }
+
+  // Use /select to highlight the file, or just open directory
+  // Note: We don't await the result since explorer.exe returns immediately
+  // and its exit code is not reliable (often returns 1 even on success)
+  await Process.run(
+    'explorer',
+    dirExists ? [normalizedPath] : ['/select,', normalizedPath],
+    runInShell: true,
+  );
+
+  return true;
+}
+
+/// Opens file in macOS Finder with the file revealed.
+Future<bool> _openInMacOSFinder(String path) async {
+  final fileExists = await File(path).exists();
+  final dirExists = await Directory(path).exists();
+
+  if (!fileExists && !dirExists) {
+    SharedLogger().logger.w('Path does not exist: $path');
+    return false;
+  }
+
+  // -R flag reveals the file in Finder (selects it)
+  final result = await Process.run('open', ['-R', path]);
+
+  return result.exitCode == 0;
+}
+
+/// Opens file in Linux file manager with progressive fallback.
+Future<bool> _openInLinuxFileManager(String path) async {
+  final fileExists = await File(path).exists();
+  final dirExists = await Directory(path).exists();
+
+  if (!fileExists && !dirExists) {
+    SharedLogger().logger.w('Path does not exist: $path');
+    return false;
+  }
+
+  // For files, open the parent directory; for directories, open directly
+  final targetPath = fileExists ? p.dirname(path) : path;
+
+  // Try file managers in order of preference
+  final fileManagers = [
+    ['xdg-open', targetPath],
+    ['nautilus', targetPath],
+    ['dolphin', targetPath],
+    ['nemo', targetPath],
+    ['thunar', targetPath],
+  ];
+
+  for (final command in fileManagers) {
+    try {
+      final result = await Process.run(command[0], [
+        command[1],
+      ], runInShell: true);
+      if (result.exitCode == 0) {
+        return true;
+      }
+    } catch (e) {
+      // Command not found, try next
+      continue;
+    }
+  }
+
+  return false;
+}
+
+/// Opens path on mobile using platform-appropriate methods.
+///
+/// On Android, uses OpenFilex which properly handles FileProvider to avoid
+/// FileUriExposedException. Note: Opening directories in file managers is
+/// not reliably supported on Android.
+///
+/// On iOS, uses url_launcher as a fallback.
+Future<bool> _openOnMobile(String path) async {
+  dev.log('openOnMobile: $path');
+  final fileExists = await File(path).exists();
+  final dirExists = await Directory(path).exists();
+
+  if (!fileExists && !dirExists) {
+    SharedLogger().logger.w('Path does not exist: $path');
+    return false;
+  }
+
+  if (Platform.isAndroid) {
+    // On Android, we can only reliably open files (not directories)
+    // OpenFilex uses FileProvider internally to avoid FileUriExposedException
+    if (fileExists) {
+      try {
+        final result = await OpenFilex.open(path);
+        // ResultType.done means success, ResultType.noAppToOpen means no app can handle it
+        return result.type == ResultType.done;
+      } catch (e) {
+        SharedLogger().logger.e('OpenFilex error: $e');
+        return false;
+      }
+    } else {
+      // Opening directories in file manager is not reliably supported on Android
+      // Different devices have different file managers with no standard intent
+      SharedLogger().logger.w(
+        'Opening directories in file manager is not supported on Android',
+      );
+      return false;
+    }
+  }
+
+  // iOS: use url_launcher
+  if (Platform.isIOS) {
+    // On iOS, we can try to open files directly
+    if (fileExists) {
+      try {
+        final result = await OpenFilex.open(path);
+        return result.type == ResultType.done;
+      } catch (e) {
+        SharedLogger().logger.e('OpenFilex error on iOS: $e');
+      }
+    }
+
+    // Fallback to url_launcher for directories
+    final targetPath = fileExists ? p.dirname(path) : path;
+    final uri = Uri.file(targetPath, windows: false);
+
+    if (await canLaunchUrl(uri)) {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  return false;
+}
+
+// ============================================================================
+// Windows Long Path Handling
+// ============================================================================
+
+/// Maximum path length on Windows without long path prefix.
+const int _windowsMaxPathLength = 260;
+
+/// Windows long path prefix for paths exceeding 260 characters.
+const String _windowsLongPathPrefix = r'\\?\';
+
+/// Handles Windows long path by adding the \\?\ prefix if needed.
+///
+/// This is necessary for paths exceeding 260 characters on Windows.
+/// On non-Windows platforms, returns the path unchanged.
+///
+/// The function also normalizes path separators to backslashes on Windows.
+String handleWindowsLongPath(String path) {
+  if (!Platform.isWindows) {
+    return path;
+  }
+
+  // Normalize separators to backslashes on Windows
+  path = path.replaceAll('/', r'\');
+
+  // Check if prefix is already applied
+  if (path.startsWith(_windowsLongPathPrefix)) {
+    return path;
+  }
+
+  // Apply prefix only if path exceeds max length
+  if (path.length > _windowsMaxPathLength) {
+    // For UNC paths (\\server\share), convert to \\?\UNC\server\share
+    if (path.startsWith(r'\\')) {
+      return r'\\?\UNC\' + path.substring(2);
+    }
+    return _windowsLongPathPrefix + path;
+  }
+
+  return path;
+}
+
+/// Removes the Windows long path prefix if present.
+///
+/// Useful for displaying paths to users or for APIs that don't support the prefix.
+String removeWindowsLongPathPrefix(String path) {
+  if (!Platform.isWindows) {
+    return path;
+  }
+
+  // Handle UNC path prefix
+  if (path.startsWith(r'\\?\UNC\')) {
+    return r'\\' + path.substring(8);
+  }
+
+  // Handle regular long path prefix
+  if (path.startsWith(_windowsLongPathPrefix)) {
+    return path.substring(_windowsLongPathPrefix.length);
+  }
+
+  return path;
+}
+
+/// Normalizes path separators for the current platform.
+///
+/// - Windows: Converts forward slashes to backslashes
+/// - Other platforms: Converts backslashes to forward slashes
+String normalizePath(String path) {
+  if (Platform.isWindows) {
+    return path.replaceAll('/', r'\');
+  } else {
+    return path.replaceAll(r'\', '/');
+  }
+}
+
+/// Checks if a path is valid and accessible.
+///
+/// Returns `true` if the path exists as either a file or directory.
+Future<bool> pathExists(String path) async {
+  return await File(path).exists() || await Directory(path).exists();
+}
+
+/// Converts an absolute path to a relative path based on the payload directory.
+///
+/// This is used for storing paths in the database that remain valid
+/// across sandbox migrations or directory changes.
+///
+/// Returns `null` if the path is not under the payload directory.
+Future<String?> toRelativePayloadPath(String absolutePath) async {
+  final payloadDir = await getPayloadDirectory();
+  final normalizedAbsolute = normalizePath(absolutePath);
+  final normalizedPayloadDir = normalizePath(payloadDir);
+
+  if (normalizedAbsolute.startsWith(normalizedPayloadDir)) {
+    // Remove the payload directory prefix and leading separator
+    var relativePath = normalizedAbsolute.substring(
+      normalizedPayloadDir.length,
+    );
+    if (relativePath.startsWith('/') || relativePath.startsWith(r'\')) {
+      relativePath = relativePath.substring(1);
+    }
+    return relativePath;
+  }
+
+  return null;
+}
+
+/// Converts a relative path (from database) to an absolute path.
+///
+/// The relative path is resolved against the payload directory.
+Future<String> toAbsolutePayloadPath(String relativePath) async {
+  final payloadDir = await getPayloadDirectory();
+  return p.join(payloadDir, relativePath);
+}
+
+/// Creates a unique filename in the specified directory.
+///
+/// If a file with the same name exists, appends a number suffix.
+/// Example: "file.txt" -> "file(1).txt" -> "file(2).txt"
+Future<String> createUniquePayloadFilename(String filename) async {
+  final payloadDir = await getPayloadDirectory();
+  var targetPath = p.join(payloadDir, filename);
+
+  if (!await File(targetPath).exists()) {
+    return targetPath;
+  }
+
+  // File exists, create unique name
+  final ext = p.extension(filename);
+  final nameWithoutExt = p.basenameWithoutExtension(filename);
+
+  for (var i = 1; i < 10000; i++) {
+    final newName = ext.isNotEmpty
+        ? '$nameWithoutExt($i)$ext'
+        : '$nameWithoutExt($i)';
+    targetPath = p.join(payloadDir, newName);
+
+    if (!await File(targetPath).exists()) {
+      return targetPath;
+    }
+  }
+
+  throw Exception('Failed to create unique filename for: $filename');
 }
