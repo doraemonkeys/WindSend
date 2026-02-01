@@ -221,7 +221,7 @@ class Device {
   }
 
   /// Only stored in the memory, you should call [LocalConfig.setDevice] to save the cache.
-  void setRelayKdfCache(RelayKdfCache? value) async {
+  void setRelayKdfCache(RelayKdfCache? value) {
     if (value == null) {
       _relaySecretKey = null;
       _relayKdfSaltB64 = null;

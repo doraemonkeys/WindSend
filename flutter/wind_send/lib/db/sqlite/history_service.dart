@@ -782,8 +782,9 @@ class HistoryService {
     List<FileInfo> files = [];
     for (int i = 0; i < downloadInfos.length; i++) {
       final info = downloadInfos[i];
-      final path =
-          (i < realSavePaths.length) ? realSavePaths[i] : info.remotePath;
+      final path = (i < realSavePaths.length)
+          ? realSavePaths[i]
+          : info.remotePath;
       files.add(
         FileInfo(
           name: p.basename(path),

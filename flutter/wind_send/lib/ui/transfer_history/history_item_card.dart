@@ -405,7 +405,10 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                       children: [
                         Expanded(
                           child: Text(
-                            context.formatString(AppLocale.transferTypeText, []),
+                            context.formatString(
+                              AppLocale.transferTypeText,
+                              [],
+                            ),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -413,7 +416,7 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                             ),
                           ),
                         ),
-                        if (widget.item.isPinned) _buildPinIcon(colorScheme),
+                        _buildPinButton(colorScheme),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -486,11 +489,7 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                         ),
                       ),
                     ),
-                    if (widget.item.isPinned)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: _buildPinIcon(colorScheme),
-                      ),
+                    _buildPinButton(colorScheme),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -561,11 +560,7 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                         ),
                       ),
                     ),
-                    if (widget.item.isPinned)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: _buildPinIcon(colorScheme),
-                      ),
+                    _buildPinButton(colorScheme),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -694,7 +689,7 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                             ),
                           ),
                         ),
-                        if (widget.item.isPinned) _buildPinIcon(colorScheme),
+                        _buildPinButton(colorScheme),
                         const SizedBox(width: 4),
                         _buildExpandButton(colorScheme),
                       ],
@@ -806,11 +801,24 @@ class _HistoryItemCardState extends State<HistoryItemCard>
     );
   }
 
-  Widget _buildPinIcon(ColorScheme colorScheme) {
-    return Icon(
-      Icons.push_pin_rounded,
-      size: 16,
-      color: colorScheme.primary,
+  Widget _buildPinButton(ColorScheme colorScheme) {
+    return InkWell(
+      onTap: widget.onPinToggle != null
+          ? () => widget.onPinToggle!(widget.item)
+          : null,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Icon(
+          widget.item.isPinned
+              ? Icons.push_pin_rounded
+              : Icons.push_pin_outlined,
+          size: 18,
+          color: widget.item.isPinned
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
+      ),
     );
   }
 
@@ -894,7 +902,8 @@ class _HistoryItemCardState extends State<HistoryItemCard>
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         children: [
