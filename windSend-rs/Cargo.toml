@@ -15,7 +15,7 @@ disable-systray-support = []
 log = "0.4"
 aes = "0.8.3"
 hex = "0.4.3"
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 # x25519 依赖rand v0.8
 rand = "0.9"
 x25519-dalek = { version = "3.0.0-pre.0", features = ["os_rng"] }
@@ -64,11 +64,11 @@ rustls-pemfile = "2.2"
 tokio-rustls = "0.26"
 hostname = "0.4"
 walkdir = "2.4"
-socket2 = { features = ["all"], version = "0.6" }
-clipboard-rs = "0.3.1"
+socket2 = { features = ["all"], version = "0.6.2" }
+clipboard-rs = "0.3.2"
 dirs = "6.0"
 base64 = "0.22"
-aes-gcm = "0.10.3"                                # Or latest version
+aes-gcm = "0.10.3"                                  # Or latest version
 thiserror = "2"
 
 
@@ -95,7 +95,7 @@ tao = "0.34"
 tray-icon = "0.21"
 reqwest = { version = "0.12", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
-rfd = "0.16"
+rfd = "0.17"
 
 # windows dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -104,7 +104,7 @@ win-toast-notify = "0.1.6"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 # notify-rust4.10依赖zbus_names v2.6.0导致ubuntu编译失败
-notify-rust = "4.11"
+notify-rust = "4.12"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26.1"

@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  clipshare_clipboard_listener
   file_selector_windows
   flutter_localization
   irondash_engine_context

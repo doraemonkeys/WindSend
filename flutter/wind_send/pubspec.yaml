@@ -95,7 +95,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.30
   image: ^4.7.2
   flutter_image_compress: ^2.4.0
-  uuid: ^4.0.0
+  clipshare_clipboard_listener: ^1.2.8
 
 
 dev_dependencies:

@@ -21,6 +21,8 @@ import 'toast.dart';
 import 'indicator.dart';
 import 'utils/logger.dart';
 
+import 'package:wind_send/ui/clipboard_sync/clipboard_sync_page.dart';
+
 class DeviceCard extends StatefulWidget {
   final Device device;
   final List<Device> devices;
@@ -284,6 +286,27 @@ class _DeviceCardState extends State<DeviceCard> {
                   const Icon(Icons.edit_outlined),
                   const SizedBox(width: 10),
                   Text(context.formatString(AppLocale.editDeviceItem, [])),
+                ],
+              ),
+            ),
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ClipboardSyncPage(
+                      device: widget.device,
+                    ),
+                  ),
+                );
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const Icon(Icons.sync_alt),
+                  const SizedBox(width: 10),
+                  const Text('Clipboard Sync'),
                 ],
               ),
             ),
