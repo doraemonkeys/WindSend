@@ -13,8 +13,8 @@ import 'package:wind_send/protocol/protocol.dart';
 
 import 'device.dart';
 import 'utils/utils.dart';
-import 'spmc.dart';
 import 'indicator.dart';
+import 'spmc.dart';
 
 class FileUploader {
   final Device device;
@@ -64,26 +64,25 @@ class FileUploader {
 
   Future<void> close() async {
     try {
-      await Future.wait(smallFileTasks);
-      if (_connectionManager.connsContainRelay) {
+      await Future.wait(smallFileTasks, eagerError: false);
+      if (_connectionManager.isRelay) {
         for (var e in _connectionManager.conns) {
-          // print('close, send end connection1');
-          if (e.isRelay) {
-            await device.doSendEndConnection(
-              e.conn,
-              localDeviceName: loaclDeviceName,
-            );
-            await e.conn.flush();
-            await e.stream
-                .drain()
-                .timeout(const Duration(milliseconds: 20))
-                .catchError((_) {
-                  e.stream
-                      .drain()
-                      .timeout(const Duration(milliseconds: 30))
-                      .catchError((_) {});
-                });
-          }
+          // Signal orderly shutdown so the server can clean up the relay
+          // tunnel via the Some(conn) path, instead of error-path teardown.
+          await device.doSendEndConnection(
+            e.conn,
+            localDeviceName: loaclDeviceName,
+          );
+          await e.conn.flush();
+          await e.stream
+              .drain()
+              .timeout(const Duration(milliseconds: 20))
+              .catchError((_) {
+                e.stream
+                    .drain()
+                    .timeout(const Duration(milliseconds: 30))
+                    .catchError((_) {});
+              });
         }
       }
     } catch (e) {
@@ -397,25 +396,25 @@ class FileDownloader {
 
   Future<void> close() async {
     try {
-      await Future.wait(smallFileTasks);
-      if (_connectionManager.connsContainRelay) {
+      await Future.wait(smallFileTasks, eagerError: false);
+      if (_connectionManager.isRelay) {
         for (var e in _connectionManager.conns) {
-          if (e.isRelay) {
-            await device.doSendEndConnection(
-              e.conn,
-              localDeviceName: localDeviceName,
-            );
-            await e.conn.flush();
-            await e.stream
-                .drain()
-                .timeout(const Duration(milliseconds: 20))
-                .catchError((_) {
-                  e.stream
-                      .drain()
-                      .timeout(const Duration(milliseconds: 30))
-                      .catchError((_) {});
-                });
-          }
+          // Signal orderly shutdown so the server can clean up the relay
+          // tunnel via the Some(conn) path, instead of error-path teardown.
+          await device.doSendEndConnection(
+            e.conn,
+            localDeviceName: localDeviceName,
+          );
+          await e.conn.flush();
+          await e.stream
+              .drain()
+              .timeout(const Duration(milliseconds: 20))
+              .catchError((_) {
+                e.stream
+                    .drain()
+                    .timeout(const Duration(milliseconds: 30))
+                    .catchError((_) {});
+              });
         }
       }
     } catch (e) {
@@ -598,15 +597,6 @@ class FileDownloader {
     DownloadInfo targetFile,
     String fileSaveDir,
   ) async {
-    if (_connectionManager.totalConnNum == 0) {
-      // Pre-create a connection to check if it is a relay connection (internal judgment)
-      final c = await _connectionManager.getConnection(
-        forceDirectFirst: forceDirectFirst,
-        onlyDirect: onlyDirectConn,
-      );
-      _connectionManager.putConnection(c);
-    }
-
     var smallFileThreadNum = min(threadNum * 2, 35);
     if (targetFile.size < minPartSize) {
       // print('''addTask, size: ${targetFile.size},
@@ -636,83 +626,162 @@ class ConnectionBox {
   ConnectionBox(this.conn, this.stream, this.isRelay);
 }
 
+enum _ConnMode { unknown, direct, relay }
+
 class ConnectionManager {
   final Device device;
   Duration? timeout;
   int totalConnNum = 0;
   int get idleConnNum => conns.length;
   List<ConnectionBox> conns = [];
-  bool connsContainRelay = false;
-  // StreamController<()> connNotifier = StreamController<()>.broadcast();
-  final connNotifier = SpmcChannel<()>();
-  final connCompleters = <Completer<()>>[];
+
+  _ConnMode _mode = _ConnMode.unknown;
+  bool get isRelay => _mode == _ConnMode.relay;
+  static const int _maxRelayConns = 2;
+
+  /// Non-null while the leader probe is in-flight; followers await this.
+  Completer<_ConnMode>? _probeCompleter;
+
+  /// Non-null while a relay connection is being created; serializes relay
+  /// creation so only one connectAuto is in-flight at a time.
+  Completer<void>? _relayCreating;
+
+  /// Notifies workers waiting for a relay connection to be returned to the pool.
+  final SpmcChannel<void> _relayReturnNotifier = SpmcChannel<void>();
 
   ConnectionManager(this.device, {this.timeout});
 
+  /// Returns an idle connection from the pool, or creates a new one.
+  ///
+  /// The first call when mode is unknown becomes a **probe** that determines
+  /// direct vs relay. Concurrent callers wait for the probe result, then
+  /// fan out: direct connections are created in parallel, relay connections
+  /// are serialized to align with the server's one-idle-bridge model.
   Future<ConnectionBox> getConnection({
     bool forceDirectFirst = false,
     bool onlyDirect = false,
     bool onlyRelay = false,
   }) async {
-    if (connsContainRelay) {
-      // Only one relay connection is allowed,
-      // after connecting to a relay, no new connection is allowed
-      if (conns.isNotEmpty) {
-        return conns.removeLast();
-      }
-      await connNotifier.waitTask();
+    if (conns.isNotEmpty) {
       return conns.removeLast();
     }
-    if (conns.isEmpty) {
-      SecureSocket conn;
-      bool isRelay;
-      var completer = Completer<()>();
-      try {
-        connCompleters.add(completer);
-        (conn, isRelay) = await device.connectAuto(
-          timeout: timeout,
+    switch (_mode) {
+      case _ConnMode.unknown:
+        return _probeOrWait(
           forceDirectFirst: forceDirectFirst,
           onlyDirect: onlyDirect,
           onlyRelay: onlyRelay,
         );
-      } catch (e) {
-        completer.complete(()); // complete self
-        // print('connectAuto failed: $e');
-        for (var completer in connCompleters) {
-          await completer.future;
-        }
-        if (!connsContainRelay) {
-          rethrow;
-        }
-        await connNotifier.waitTask();
-        return conns.removeLast();
-      }
-      if (isRelay && !connsContainRelay) {
-        // first relay connection
-        connsContainRelay = true;
-      }
-      var stream = conn.asBroadcastStream();
-      totalConnNum++;
-      completer.complete(());
-      return ConnectionBox(conn, stream, isRelay);
+      case _ConnMode.direct:
+        return _createConnection(onlyDirect: true);
+      case _ConnMode.relay:
+        return _serializedRelayCreate();
     }
-    return conns.removeLast();
   }
 
-  /// The conn that has been idle for more than two minutes will be closed by the server
+  /// Leader/follower coordination for the initial mode probe.
+  Future<ConnectionBox> _probeOrWait({
+    required bool forceDirectFirst,
+    required bool onlyDirect,
+    required bool onlyRelay,
+  }) async {
+    if (_probeCompleter != null) {
+      // Follower: wait for the leader's probe to finish, then create via
+      // the now-known mode.
+      await _probeCompleter!.future;
+      return getConnection(
+        forceDirectFirst: forceDirectFirst,
+        onlyDirect: onlyDirect,
+        onlyRelay: onlyRelay,
+      );
+    }
+
+    // Leader: run the probe.
+    _probeCompleter = Completer<_ConnMode>();
+    try {
+      var box = await _createConnection(
+        forceDirectFirst: forceDirectFirst,
+        onlyDirect: onlyDirect,
+        onlyRelay: onlyRelay,
+      );
+      _mode = box.isRelay ? _ConnMode.relay : _ConnMode.direct;
+      _probeCompleter!.complete(_mode);
+      return box;
+    } catch (e) {
+      _probeCompleter!.completeError(e);
+      rethrow;
+    } finally {
+      _probeCompleter = null;
+    }
+  }
+
+  /// Sequential gate for relay connections: only one connectAuto in-flight,
+  /// and total relay connections capped at [_maxRelayConns].
+  Future<ConnectionBox> _serializedRelayCreate() async {
+    // At cap: wait for an in-flight creation or a putConnection return.
+    if (totalConnNum >= _maxRelayConns || _relayCreating != null) {
+      if (_relayCreating != null) {
+        // Ignore creation errors from the leader; we'll retry via
+        // getConnection() which will attempt a fresh creation.
+        await _relayCreating!.future.catchError((_) {});
+      } else {
+        // All connections checked out; block until one is returned.
+        await _relayReturnNotifier.waitTask();
+      }
+      return getConnection();
+    }
+
+    _relayCreating = Completer<void>();
+    try {
+      var box = await _createConnection(onlyRelay: true);
+      _relayCreating!.complete();
+      return box;
+    } catch (e) {
+      _relayCreating!.completeError(e);
+      rethrow;
+    } finally {
+      _relayCreating = null;
+    }
+  }
+
+  /// Shared helper: calls connectAuto and wraps the result.
+  Future<ConnectionBox> _createConnection({
+    bool forceDirectFirst = false,
+    bool onlyDirect = false,
+    bool onlyRelay = false,
+  }) async {
+    var (conn, isRelay) = await device.connectAuto(
+      timeout: timeout,
+      forceDirectFirst: forceDirectFirst,
+      onlyDirect: onlyDirect,
+      onlyRelay: onlyRelay,
+    );
+    var stream = conn.asBroadcastStream();
+    totalConnNum++;
+    return ConnectionBox(conn, stream, isRelay);
+  }
+
   void putConnection(ConnectionBox conn) {
     conns.add(conn);
-
-    if (connsContainRelay && connNotifier.waitingWorkerCount > 0) {
-      connNotifier.send(());
+    if (_mode == _ConnMode.relay && _relayReturnNotifier.waitingWorkerCount > 0) {
+      _relayReturnNotifier.send(());
     }
   }
 
   Future<void> closeAllConn() async {
-    await Future.wait(conns.map((e) => e.conn.flush()));
-    await Future.wait(conns.map((e) => e.conn.close()));
-    conns.map((e) => e.conn.destroy());
+    final snapshot = conns.toList();
     conns.clear();
+    totalConnNum = 0;
+    for (var e in snapshot) {
+      try {
+        await e.conn.flush();
+        await e.conn.close();
+      } catch (_) {
+        // Best-effort; ensure destroy runs regardless.
+      } finally {
+        e.conn.destroy();
+      }
+    }
   }
 }
 

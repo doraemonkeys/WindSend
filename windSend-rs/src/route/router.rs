@@ -44,6 +44,8 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
                 let _ = set_relay_server_handler(&mut conn, head).await;
             }
             RouteAction::EndConnection => {
+                // Relay-only: lets the caller distinguish clean shutdown (Some)
+                // from error teardown (None) for orderly tunnel cleanup.
                 info!("client {} send end connection request", head.device_name);
                 return Some(conn);
             }

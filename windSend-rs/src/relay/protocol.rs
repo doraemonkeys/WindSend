@@ -7,6 +7,8 @@ pub enum StatusCode {
     Success = -1,
     AuthFailed = 1,
     KdfSaltMismatch = 2,
+    DeviceBusy = 3,
+    DeviceOffline = 4,
 }
 
 impl Serialize for StatusCode {
@@ -27,6 +29,8 @@ impl TryFrom<i32> for StatusCode {
             -1 => Ok(StatusCode::Success),
             1 => Ok(StatusCode::AuthFailed),
             2 => Ok(StatusCode::KdfSaltMismatch),
+            3 => Ok(StatusCode::DeviceBusy),
+            4 => Ok(StatusCode::DeviceOffline),
             _ => Err(format!("Invalid StatusCode value: {value}")),
         }
     }

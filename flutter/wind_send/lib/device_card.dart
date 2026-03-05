@@ -73,6 +73,11 @@ class DeviceCard extends StatefulWidget {
         // const noRetryErrorTypes = {HandshakeException};
         // return noRetryErrorTypes.contains(err.runtimeType);
 
+        // Relay-specific errors: retrying or rediscovering the server won't help
+        if (err is DeviceBusyException || err is DeviceOfflineException) {
+          return true;
+        }
+
         if (err is HandshakeException) {
           const errorStrings = {'terminated during handshake'};
           for (var errorString in errorStrings) {
@@ -156,6 +161,16 @@ class DeviceCard extends StatefulWidget {
     }
     try {
       result = await commonActionFunc(device, onChanged, task);
+    } on DeviceBusyException {
+      result = ToastResult(
+        message: 'Device is busy, please try again in a moment',
+        status: ToastStatus.failure,
+      );
+    } on DeviceOfflineException {
+      result = ToastResult(
+        message: 'Device is offline and unreachable via relay',
+        status: ToastStatus.failure,
+      );
     } catch (e) {
       result = ToastResult(message: e.toString(), status: ToastStatus.failure);
     }

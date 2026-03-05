@@ -1,7 +1,21 @@
 use crate::utils::encrypt::aes192_key_kdf;
+use std::future::Future;
+use std::pin::Pin;
 
-/// return true if connect to relay  success
-pub async fn relay_main() -> bool {
+pub enum RelayExitReason {
+    /// Relay request received; carries the future to spawn for handling it.
+    Spawned(Pin<Box<dyn Future<Output = ()> + Send>>),
+    /// Connection closed normally or heartbeat timeout.
+    Disconnected,
+    /// Unrecoverable error during request handling.
+    Failed,
+}
+
+/// Connects to the relay server, performs handshake + registration, then
+/// enters the request loop. Returns `None` if connection setup fails
+/// (triggering backoff in the outer loop), or `Some(reason)` describing
+/// why the request loop exited.
+pub async fn relay_main() -> Option<RelayExitReason> {
     use crate::config;
     use tracing::{debug, error};
 
@@ -12,29 +26,31 @@ pub async fn relay_main() -> bool {
         Ok(tcp_stream) => tcp_stream,
         Err(e) => {
             error!("connect relay server error: {}", e);
-            return false;
+            return None;
         }
     };
 
     let cipher = match handshake(&mut tcp_stream).await {
         Some(cipher) => cipher,
-        None => return false,
+        None => return None,
     };
 
     match send_connection_req(&mut tcp_stream, &cipher).await {
         Ok(_) => (),
-        Err(_) => return false,
+        Err(_) => return None,
     }
 
     tracing::info!("connect to relay server success");
 
     update_relay_server_status(true);
 
-    handle_request(tcp_stream, Some(cipher)).await;
+    let reason = _handle_request(tcp_stream, Some(cipher)).await;
 
-    update_relay_server_status(false);
+    if !matches!(reason, RelayExitReason::Spawned(_)) {
+        update_relay_server_status(false);
+    }
 
-    true
+    Some(reason)
 }
 
 pub fn update_relay_server_status(connected: bool) {
@@ -242,94 +258,114 @@ async fn write_handshake_req(
 
 // async fn fetch_relay_salt(mut conn: tokio::net::TcpStream) -> Option<String> {}
 
-async fn handle_request(
-    conn: tokio::net::TcpStream,
-    cipher: Option<crate::utils::encrypt::AesGcmCipher>,
-) {
-    if let Some(mut conn) = _handle_request(conn, cipher).await {
-        use tokio::io::AsyncWriteExt;
-        conn.shutdown().await.ok();
-    }
-}
-
+/// Request loop: reads commands from the relay server and dispatches them.
+/// Returns immediately with `Spawned` when a Relay arrives (carrying the
+/// future for the outer loop to spawn), `Disconnected` on clean EOF /
+/// heartbeat timeout, or `Failed` on protocol errors.
 async fn _handle_request(
     mut conn: tokio::net::TcpStream,
     cipher: Option<crate::utils::encrypt::AesGcmCipher>,
-) -> Option<tokio::net::TcpStream> {
+) -> RelayExitReason {
     use crate::relay::protocol::{Action, CommonReqHead};
     use tokio::time::Duration;
     use tracing::{debug, error};
     const READ_TIMEOUT_DURATION: Duration = Duration::from_secs(180);
-    let mut last_req_is_relay = false;
 
     loop {
         debug!("waiting for relay server request");
 
         let read_future = CommonReqHead::read_from(&mut conn, cipher.as_ref());
-        let read_result = match last_req_is_relay {
-            false => tokio::time::timeout(READ_TIMEOUT_DURATION, read_future).await,
-            true => tokio::time::timeout(Duration::from_secs(3), read_future).await,
-        };
+        let read_result = tokio::time::timeout(READ_TIMEOUT_DURATION, read_future).await;
         let common_req_head = match read_result {
             Ok(Ok(head)) => head,
-            Ok(Err(_)) => return Some(conn),
+            Ok(Err(_)) => {
+                shutdown_conn(&mut conn).await;
+                return RelayExitReason::Disconnected;
+            }
             Err(_) => {
-                if last_req_is_relay {
-                    error!("Heartbeat timeout after waiting for the relay to finish");
-                } else {
-                    error!("read relay server request timeout");
-                }
-                return Some(conn);
+                error!("read relay server request timeout");
+                shutdown_conn(&mut conn).await;
+                return RelayExitReason::Disconnected;
             }
         };
 
-        last_req_is_relay = false;
-
         match common_req_head.action {
             Action::Relay => {
-                last_req_is_relay = true;
-                conn = match handle_relay(conn, cipher.as_ref()).await {
-                    Ok(conn) => conn,
-                    Err(_) => return None,
-                }
+                debug!("received relay request, building spawned task");
+                // Build an owned future that handles the entire relay session
+                // and closes the connection when done. Cipher is not used
+                // inside handle_relay (see plan 2.5).
+                let fut = Box::pin(handle_relay(conn));
+                return RelayExitReason::Spawned(fut);
             }
             Action::Heartbeat => {
                 match handle_heartbeat(&mut conn, common_req_head, cipher.as_ref()).await {
                     Ok(_) => (),
-                    Err(_) => return Some(conn),
+                    Err(_) => {
+                        shutdown_conn(&mut conn).await;
+                        return RelayExitReason::Disconnected;
+                    }
                 }
             }
             _ => {
                 error!("invalid action: {:?}", common_req_head.action);
-                return Some(conn);
+                shutdown_conn(&mut conn).await;
+                return RelayExitReason::Failed;
             }
         };
     }
 }
 
-async fn handle_relay(
-    conn: tokio::net::TcpStream,
-    _: Option<&crate::utils::encrypt::AesGcmCipher>,
-) -> Result<tokio::net::TcpStream, ()> {
+/// Best-effort TCP shutdown; errors are intentionally ignored because
+/// the connection is being discarded regardless.
+async fn shutdown_conn(conn: &mut tokio::net::TcpStream) {
+    use tokio::io::AsyncWriteExt;
+    conn.shutdown().await.ok();
+}
+
+/// Handles a single relay session end-to-end: TLS accept, request
+/// processing, and connection teardown. Runs as an independent spawned
+/// task — the connection is closed on every exit path.
+///
+/// # Two levels of connection reuse
+///
+/// - **Bridge-level (this function)**: The Rust↔Go TCP connection is
+///   use-once. Once this function returns, the TCP stream is closed and the
+///   outer loop establishes a replacement idle connection.
+///
+/// - **Request-level (inside `main_process`)**: The Flutter↔Rust TLS session
+///   that runs *over* the Go bridge is long-lived. `main_process` loops over
+///   multiple Flutter requests (file chunks, clipboard, etc.) on the same TLS
+///   stream, and Flutter reuses it via `ConnectionManager.get/put` — behavior
+///   identical to the direct-connect path.
+async fn handle_relay(conn: tokio::net::TcpStream) {
     use crate::config;
+    use tokio::io::AsyncWriteExt;
     use tracing::{debug, error};
     debug!("new relay connection");
 
     let tls_stream = match config::TLS_ACCEPTOR.accept(conn).await {
         Ok(tls_stream) => tls_stream,
         Err(err) => {
-            error!("tls accept error: {}", err);
-            return Err(());
+            error!("relay tls accept error: {}", err);
+            // Underlying TCP stream is dropped here, closing the connection.
+            return;
         }
     };
     debug!("relay tls accept success");
-    let conn = match crate::route::main_process(tls_stream).await {
-        Some(conn) => conn,
-        None => return Err(()),
-    };
-    debug!("relay route success");
-    let (io, _) = conn.into_inner();
-    Ok(io)
+
+    match crate::route::main_process(tls_stream).await {
+        Some(tls_conn) => {
+            debug!("relay session completed normally");
+            let (mut io, _) = tls_conn.into_inner();
+            io.shutdown().await.ok();
+        }
+        None => {
+            // main_process returned None -- the TLS stream is already
+            // consumed / dropped, so the underlying TCP connection closes.
+            debug!("relay session ended (main_process returned None)");
+        }
+    }
 }
 
 async fn handle_heartbeat(

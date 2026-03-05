@@ -41,6 +41,24 @@ export 'device_discovery.dart';
 
 // import 'package:flutter/services.dart' show rootBundle;
 
+/// Relay server reports all connections to the target device are busy relaying.
+/// Retrying may succeed once Rust re-establishes an idle connection (100-500ms).
+class DeviceBusyException implements Exception {
+  final String message;
+  DeviceBusyException(this.message);
+  @override
+  String toString() => 'DeviceBusyException: $message';
+}
+
+/// Relay server reports the target device has no connections at all.
+/// Retrying is pointless - the device is genuinely unreachable via relay.
+class DeviceOfflineException implements Exception {
+  final String message;
+  DeviceOfflineException(this.message);
+  @override
+  String toString() => 'DeviceOfflineException: $message';
+}
+
 /*
 I wrote the first version when I was in school, new to flutter, and now I really don't want to refactor it
 */
@@ -333,29 +351,65 @@ class Device {
   Future<SecureSocket> connectToRelay({Duration? timeout}) async {
     dev.log("try to connectToRelay serverAddress: $relayServerAddress");
     Duration socketFutureTimeout = resolveSocketFutureTimeout(timeout);
-    final (sock2, cipher) = await handshakeInner(timeout: timeout);
-    final reqHead = relay_model.ReqHead(action: relay_model.Action.relay);
-    final mainReq = relay_model.RelayReq(id: getDeviceId());
-    await reqHead.writeWithBody(
-      sock2,
-      utf8.encode(jsonEncode(mainReq.toJson())),
-      cipher: cipher,
-    );
-    final respHead = await relay_model.RespHead.fromConn(sock2, cipher: cipher);
-    if (respHead.code != relay_model.StatusCode.success) {
-      throw Exception('connect to relay device failed: ${respHead.msg}');
-    }
-    dev.log('connect to relay success, device online');
-    // await Future.delayed(const Duration(milliseconds: 3000));
-    SecurityContext context = SecurityContext();
-    context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
 
-    final sniHost = selectSniDomain(trustedCertificate);
-    return SecureSocket.secure(
-      sock2.conn,
-      context: context,
-      host: sniHost,
-    ).timeout(socketFutureTimeout);
+    // DEVICE_BUSY warrants retry (Rust is reconnecting, typically 100-500ms).
+    // DEVICE_OFFLINE means no connections exist - retrying is pointless.
+    const int maxBusyRetries = 2;
+    const Duration busyRetryInterval = Duration(milliseconds: 500);
+
+    for (int attempt = 0; ; attempt++) {
+      final (sock2, cipher) = await handshakeInner(timeout: timeout);
+      var upgradedToTls = false;
+      try {
+        final reqHead = relay_model.ReqHead(action: relay_model.Action.relay);
+        final mainReq = relay_model.RelayReq(id: getDeviceId());
+        await reqHead.writeWithBody(
+          sock2,
+          utf8.encode(jsonEncode(mainReq.toJson())),
+          cipher: cipher,
+        );
+        final respHead = await relay_model.RespHead.fromConn(
+          sock2,
+          cipher: cipher,
+        );
+        if (respHead.code == relay_model.StatusCode.success) {
+          dev.log('connect to relay success, device online');
+          SecurityContext context = SecurityContext();
+          context.setTrustedCertificatesBytes(utf8.encode(trustedCertificate));
+
+          final sniHost = selectSniDomain(trustedCertificate);
+          final securedConn = await SecureSocket.secure(
+            sock2.conn,
+            context: context,
+            host: sniHost,
+          ).timeout(socketFutureTimeout);
+          upgradedToTls = true;
+          return securedConn;
+        }
+
+        if (respHead.code == relay_model.StatusCode.deviceOffline) {
+          throw DeviceOfflineException(respHead.msg);
+        }
+        if (respHead.code == relay_model.StatusCode.deviceBusy) {
+          if (attempt < maxBusyRetries) {
+            dev.log(
+              'relay device busy (attempt ${attempt + 1}/$maxBusyRetries), '
+              'retrying in ${busyRetryInterval.inMilliseconds}ms',
+            );
+            await Future.delayed(busyRetryInterval);
+            continue;
+          }
+          throw DeviceBusyException(respHead.msg);
+        }
+
+        throw Exception('connect to relay device failed: ${respHead.msg}');
+      } finally {
+        if (!upgradedToTls) {
+          await sock2.close().catchError((_) {});
+          sock2.destroy();
+        }
+      }
+    }
   }
 
   /// Try direct connection first, fallback to relay if direct fails

@@ -10,6 +10,12 @@ class StatusCode {
   static const authFailed = 1;
   static const unauthKdfSaltMismatch = 2;
 
+  /// Server -> Flutter: target device has connections but all are busy relaying
+  static const deviceBusy = 3;
+
+  /// Server -> Flutter: target device has no connections at all
+  static const deviceOffline = 4;
+
   static StatusCode fromJson(int json) {
     throw Exception('don\'t use this method');
   }
