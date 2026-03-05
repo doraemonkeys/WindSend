@@ -42,3 +42,6 @@ TODO.md
 gitignore_*
 *_gitignore
 .cursor/rules/rules.mdc
+CLAUDE.md
+AGENTS.md
+.claude/
