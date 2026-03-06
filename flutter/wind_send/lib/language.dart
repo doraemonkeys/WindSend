@@ -100,6 +100,7 @@ mixin AppLocale {
   static const String logLevel = 'logLevel';
   static const String logCleared = 'logCleared';
   static const String transferHistory = 'transferHistory';
+  static const String transferMenuLabel = 'transferMenuLabel';
   static const String cleanupHistory = 'cleanupHistory';
   static const String cleanupHistoryTip = 'cleanupHistoryTip';
   static const String cleaningUp = 'cleaningUp';
@@ -374,6 +375,7 @@ mixin AppLocale {
     logLevel: '日志级别',
     logCleared: '日志已清空',
     transferHistory: '传输历史',
+    transferMenuLabel: '传输',
     cleanupHistory: '清理历史',
     cleanupHistoryTip: '将删除过期记录和孤立文件，置顶项不受影响',
     cleaningUp: '正在清理...',
@@ -639,6 +641,7 @@ mixin AppLocale {
     logLevel: 'Log Level',
     logCleared: 'Log cleared',
     transferHistory: 'Transfer History',
+    transferMenuLabel: 'Transfers',
     cleanupHistory: 'Cleanup History',
     cleanupHistoryTip:
         'Delete expired records and orphaned files. Pinned items are preserved.',

@@ -900,7 +900,7 @@ class _BuildPopupMenuButton extends StatelessWidget {
               children: [
                 const Icon(Icons.history_outlined),
                 _sizedBoxW10,
-                Text(context.formatString(AppLocale.transferHistory, [])),
+                Text(context.formatString(AppLocale.transferMenuLabel, [])),
               ],
             ),
           ),
