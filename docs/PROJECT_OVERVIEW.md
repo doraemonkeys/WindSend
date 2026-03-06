@@ -135,6 +135,14 @@ for the `ConnectionManager` lifetime. `commonActionFunc` creates a fresh
 transferer (and thus a fresh `ConnectionManager`) on each retry, so mode
 never needs to revert.
 
+### Relay connection teardown
+
+Only file transfer paths (`FileUploader.close()`, `FileDownloader.close()`)
+send an `endConnection` signal before closing relay connections, enabling the
+server to perform orderly tunnel cleanup. Single-shot operations (`doCopyAction`,
+`doSendClipboard`, `doPasteTextAction`) close the socket directly without
+`endConnection`—the relay server detects disconnection via error-path teardown.
+
 ### Error types and exception hierarchy
 
 | Exception | Source | Meaning |
