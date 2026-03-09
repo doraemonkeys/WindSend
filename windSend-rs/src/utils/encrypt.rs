@@ -717,10 +717,7 @@ mod tests2 {
         assert!(result.is_err());
         assert!(matches!(result, Err(AesGcmError::CiphertextTooShort)));
 
-        // Test exact minimum length (should proceed but likely fail decrypt unless plaintext empty)
-        let _min_len_ct = vec![0u8; AesGcmCipher::NONCE_SIZE + AesGcmCipher::TAG_SIZE];
-        // For a zero-length plaintext, a zero'd buffer might actually decrypt if the tag matches zero data.
-        // Let's try with a real encrypted empty message.
+        // Validate the exact minimum-length ciphertext path with a real encrypted empty message.
         let mut actual_min_ciphertext = cipher.encrypt(b"", AAD).unwrap();
         assert_eq!(
             actual_min_ciphertext.len(),

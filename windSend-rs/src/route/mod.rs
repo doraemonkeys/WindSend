@@ -1,5 +1,6 @@
 mod copy;
 mod paste;
+mod sync_session;
 
 mod router;
 mod transfer;

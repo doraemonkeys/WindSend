@@ -96,6 +96,7 @@ dependencies:
   image: ^4.7.2
   flutter_image_compress: ^2.4.0
   clipshare_clipboard_listener: ^1.2.8
+  unorm_dart: ^0.3.2
 
 
 dev_dependencies:

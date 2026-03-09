@@ -13,7 +13,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/crypto/aes.dart';
-import 'package:crypto/crypto.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:wind_send/protocol/relay/model.dart' as relay_model;
 import 'dart:developer' as dev;
@@ -29,6 +28,7 @@ import 'utils/x509.dart';
 import 'web.dart';
 import 'db/shared_preferences/cnf.dart';
 import 'db/sqlite/history_service.dart';
+import 'clipboard_sync/remote_peer_key.dart';
 import 'protocol/protocol.dart';
 import 'file_picker/filepicker.dart';
 // import 'main.dart';
@@ -48,6 +48,19 @@ class DeviceBusyException implements Exception {
   DeviceBusyException(this.message);
   @override
   String toString() => 'DeviceBusyException: $message';
+}
+
+@immutable
+final class ClipboardSyncTransportConnection {
+  const ClipboardSyncTransportConnection({
+    required this.socket,
+    required this.inboundChunks,
+    required this.isRelay,
+  });
+
+  final SecureSocket socket;
+  final Stream<Uint8List> inboundChunks;
+  final bool isRelay;
 }
 
 /// Relay server reports the target device has no connections at all.
@@ -362,7 +375,7 @@ class Device {
       var upgradedToTls = false;
       try {
         final reqHead = relay_model.ReqHead(action: relay_model.Action.relay);
-        final mainReq = relay_model.RelayReq(id: getDeviceId());
+        final mainReq = relay_model.RelayReq(id: relayRouteId.value);
         await reqHead.writeWithBody(
           sock2,
           utf8.encode(jsonEncode(mainReq.toJson())),
@@ -545,10 +558,84 @@ class Device {
     return base64Decode(relayKdfSecretB64!);
   }
 
+  /// Product/session ownership needs a stable peer identity that does not
+  /// accidentally inherit transport-routing semantics. Deriving it on demand
+  /// keeps the source of truth in one place until session registry lands.
+  RemotePeerKey get remotePeerKey => RemotePeerKey.fromSharedSecret(secretKey);
+
+  /// Relay routing intentionally stays separate from [remotePeerKey] so future
+  /// session/history logic can evolve without perturbing transport addressing.
+  RelayRouteId get relayRouteId => RelayRouteId.fromSharedSecret(secretKey);
+
+  /// Legacy compatibility wrapper for older transport-oriented call sites.
   String getDeviceId() {
-    final hash = sha256.convert(utf8.encode(secretKey)).bytes;
-    final hash2 = sha256.convert(hash).bytes;
-    return hex.encode(hash2).substring(0, 16);
+    return relayRouteId.value;
+  }
+
+  Future<ClipboardSyncTransportConnection> connectClipboardSyncTransport({
+    Duration? timeout,
+  }) async {
+    final (conn, isRelay) = await connectAuto(timeout: timeout);
+    final inboundReader = BufferedUint8StreamReader(conn);
+    try {
+      conn.add(await buildClipboardSyncTransportUpgradeHeadFrame());
+      await conn.flush();
+
+      final (respHead, respBody) = await RespHead.readHeadAndBodyFromReader(
+        inboundReader,
+        timeout: timeout,
+      );
+      if (respHead.code == UnauthorizedException.unauthorizedCode) {
+        conn.destroy();
+        throw UnauthorizedException(respHead.msg ?? '');
+      }
+      if (respHead.code != 200) {
+        conn.destroy();
+        throw Exception(
+          'subscribeClipboard transport upgrade failed: ${respHead.msg ?? respHead.code}',
+        );
+      }
+      if (respBody.isNotEmpty) {
+        conn.destroy();
+        throw const FormatException(
+          'subscribeClipboard transport upgrade must not include a response body.',
+        );
+      }
+
+      return ClipboardSyncTransportConnection(
+        socket: conn,
+        inboundChunks: inboundReader.takeRemainingStream(),
+        isRelay: isRelay,
+      );
+    } catch (_) {
+      conn.destroy();
+      rethrow;
+    }
+  }
+
+  @visibleForTesting
+  Future<HeadInfo> buildClipboardSyncTransportUpgradeHeadInfo() async {
+    final (encryptedTimeIpHex, aadPlain) = await generateAuthHeaderAndAAD();
+    return HeadInfo(
+      targetDeviceName,
+      DeviceAction.subscribeClipboard,
+      encryptedTimeIpHex,
+      aadPlain,
+    );
+  }
+
+  @visibleForTesting
+  Future<Uint8List> buildClipboardSyncTransportUpgradeHeadFrame() async {
+    // The transport-upgrade path historically bypassed HeadInfo.writeToConn()
+    // and hand-wired the auth tuple, which made swapping encrypted `timeIp`
+    // and plaintext `aad` easy. Centralizing the mapping keeps the wire shape
+    // explicit and gives tests one stable place to assert the contract.
+    final headBytes = utf8.encode(
+      jsonEncode((await buildClipboardSyncTransportUpgradeHeadInfo()).toJson()),
+    );
+    final headLengthBytes = Uint8List(4)
+      ..buffer.asByteData().setUint32(0, headBytes.length, Endian.little);
+    return Uint8List.fromList(headLengthBytes + headBytes);
   }
 
   String? relaySecretKeySelector() {

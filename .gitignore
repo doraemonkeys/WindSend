@@ -44,4 +44,5 @@ gitignore_*
 .cursor/rules/rules.mdc
 CLAUDE.md
 AGENTS.md
-.claude/
+.claude/*
+!.claude/*.png

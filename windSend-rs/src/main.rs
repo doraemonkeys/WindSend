@@ -8,6 +8,7 @@ mod language;
 mod relay;
 mod route;
 mod status;
+mod sync;
 mod utils;
 use std::sync::LazyLock;
 

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:wind_send/crypto/aes.dart';
@@ -17,6 +18,7 @@ enum DeviceAction {
   webCopy("webCopy"),
   webPaste("webPaste"),
   syncText("syncText"),
+  subscribeClipboard("subscribeClipboard"),
   ping("ping"),
   matchDevice("match"),
   unKnown("unKnown"),
@@ -338,6 +340,141 @@ class RespHead {
       throw Exception('readHeadAndBodyFromConn: receive extra data');
     }
     return (head!, body ?? Uint8List(0));
+  }
+
+  /// Upgrade-style callers need to keep using the same underlying socket after
+  /// parsing this response, so this variant reads from a buffered handoff
+  /// reader instead of exhausting ownership of the raw stream.
+  static Future<(RespHead, Uint8List)> readHeadAndBodyFromReader(
+    BufferedUint8StreamReader reader, {
+    Duration? timeout,
+  }) {
+    Future<(RespHead, Uint8List)> read() async {
+      void safeCheck(int dataLen) {
+        if (dataLen < 0) {
+          throw Exception('dataLen < 0');
+        }
+        if (dataLen > 1024 * 1024 * 1024) {
+          throw Exception('dataLen > 1024 * 1024 * 1024');
+        }
+      }
+
+      final headLengthBytes = await reader.readExact(4);
+      if (headLengthBytes == null) {
+        throw Exception('stream ended before response head length arrived');
+      }
+      final headLength = ByteData.sublistView(
+        headLengthBytes,
+      ).getInt32(0, Endian.little);
+      safeCheck(headLength);
+
+      final headBytes = await reader.readExact(headLength);
+      if (headBytes == null) {
+        throw Exception('stream ended before response head completed');
+      }
+      final head = RespHead.fromJson(jsonDecode(utf8.decode(headBytes)));
+      safeCheck(head.dataLen);
+
+      final body = head.dataLen == 0
+          ? Uint8List(0)
+          : await reader.readExact(head.dataLen);
+      if (body == null) {
+        throw Exception('stream ended before response body completed');
+      }
+      return (head, body);
+    }
+
+    final future = read();
+    return timeout == null ? future : future.timeout(timeout);
+  }
+}
+
+/// Transport upgrades need a parser that can stop after the handshake without
+/// giving up ownership of the live socket subscription.
+final class BufferedUint8StreamReader {
+  BufferedUint8StreamReader(Stream<Uint8List> chunks, {this.onChunkBuffered})
+    : _iterator = StreamIterator<Uint8List>(chunks);
+
+  final StreamIterator<Uint8List> _iterator;
+  final void Function()? onChunkBuffered;
+  final ListQueue<Uint8List> _chunks = ListQueue<Uint8List>();
+
+  int _availableBytes = 0;
+  int _headOffset = 0;
+  bool _streamHandedOff = false;
+
+  Future<Uint8List?> readExact(int length) async {
+    if (_streamHandedOff) {
+      throw StateError('Cannot keep reading after the stream was handed off.');
+    }
+    while (_availableBytes < length) {
+      final hasMore = await _iterator.moveNext();
+      if (!hasMore) {
+        if (_availableBytes == 0) {
+          return null;
+        }
+        throw StateError(
+          'Stream ended with $_availableBytes buffered bytes while waiting for $length bytes.',
+        );
+      }
+      final chunk = _iterator.current;
+      if (chunk.isEmpty) {
+        continue;
+      }
+      onChunkBuffered?.call();
+      _chunks.add(Uint8List.fromList(chunk));
+      _availableBytes += chunk.lengthInBytes;
+    }
+
+    final output = Uint8List(length);
+    var written = 0;
+    while (written < length) {
+      final current = _chunks.first;
+      final readable = current.lengthInBytes - _headOffset;
+      final copyLength = math.min(length - written, readable);
+      output.setRange(written, written + copyLength, current, _headOffset);
+      written += copyLength;
+      _headOffset += copyLength;
+      _availableBytes -= copyLength;
+      if (_headOffset >= current.lengthInBytes) {
+        _chunks.removeFirst();
+        _headOffset = 0;
+      }
+    }
+    return output;
+  }
+
+  Stream<Uint8List> takeRemainingStream() {
+    if (_streamHandedOff) {
+      throw StateError('Remaining stream has already been taken.');
+    }
+    _streamHandedOff = true;
+    return _remainingStream();
+  }
+
+  Stream<Uint8List> _remainingStream() async* {
+    while (_chunks.isNotEmpty) {
+      final current = _chunks.removeFirst();
+      final start = _headOffset;
+      _headOffset = 0;
+      final remaining = start == 0
+          ? current
+          : Uint8List.sublistView(current, start);
+      if (remaining.isEmpty) {
+        continue;
+      }
+      _availableBytes -= remaining.lengthInBytes;
+      yield remaining;
+    }
+    _availableBytes = 0;
+
+    while (await _iterator.moveNext()) {
+      final chunk = _iterator.current;
+      if (chunk.isEmpty) {
+        continue;
+      }
+      yield Uint8List.fromList(chunk);
+    }
   }
 }
 

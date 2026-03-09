@@ -1,4 +1,9 @@
-use clipboard_rs::{Clipboard, common::RustImage};
+use crate::sync::clipboard_domain::{
+    ClipboardApplyDegradation, ClipboardApplyFailure, ClipboardApplyResult,
+    ClipboardObservationSource, ClipboardPayload, ClipboardPayloadKind, ClipboardSnapshot,
+    ImagePng, TextBundle,
+};
+use clipboard_rs::{Clipboard, ClipboardContent, ContentFormat, common::RustImage};
 use tracing::debug;
 
 pub struct ClipboardManager {
@@ -40,11 +45,94 @@ pub struct ClipboardImage<'a> {
     pub image2: Option<RustImageData>,
 }
 
+fn encode_raw_clipboard_image_as_png(
+    raw_image: ClipboardImage<'_>,
+) -> Result<ImagePng, Box<dyn std::error::Error + Send + Sync>> {
+    let dyn_img = if let Some(image1) = raw_image.image1 {
+        let img_buf = image::ImageBuffer::from_vec(
+            image1.width as u32,
+            image1.height as u32,
+            image1.bytes.into_owned(),
+        )
+        .ok_or("image::ImageBuffer::from_vec failed")?;
+        image::DynamicImage::ImageRgba8(img_buf)
+    } else if let Some(image2) = raw_image.image2 {
+        use clipboard_rs::common::RustImage;
+        image2
+            .get_dynamic_image()
+            .map_err(|error| format!("image2.get_dynamic_image failed, err: {error}"))?
+    } else {
+        return Err("no image in clipboard".into());
+    };
+
+    let mut cursor = std::io::Cursor::new(Vec::new());
+    dyn_img.write_to(&mut cursor, image::ImageFormat::Png)?;
+    Ok(ImagePng::new(cursor.into_inner()))
+}
+
+fn text_bundle_from_contents(contents: Vec<ClipboardContent>) -> Option<TextBundle> {
+    let mut plain_text = None;
+    let mut html = None;
+
+    for content in contents {
+        match content {
+            ClipboardContent::Text(text) => plain_text = Some(text),
+            ClipboardContent::Html(fragment) => html = Some(fragment),
+            _ => {}
+        }
+    }
+
+    plain_text.map(|plain_text| TextBundle::new(plain_text, html))
+}
+
+fn clipboard_contents_for_text_bundle(bundle: &TextBundle) -> Vec<ClipboardContent> {
+    let mut contents = vec![ClipboardContent::Text(bundle.plain_text.clone())];
+    if let Some(html) = &bundle.html {
+        contents.push(ClipboardContent::Html(html.clone()));
+    }
+    contents
+}
+
 impl ClipboardManager {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             instance: std::sync::Mutex::new(ClipboardInstance::new()?),
         })
+    }
+
+    pub fn read_text_bundle(&self) -> Result<TextBundle, Box<dyn std::error::Error + Send + Sync>> {
+        let mut instance = self.instance.lock().unwrap();
+
+        if let Some(ref context) = instance.context
+            && let Ok(contents) = context.get(&[ContentFormat::Text, ContentFormat::Html])
+            && let Some(bundle) = text_bundle_from_contents(contents)
+        {
+            return Ok(bundle);
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        if let Some(ref mut arboard) = instance.arboard {
+            Ok(TextBundle::from_plain_text(arboard.get_text()?))
+        } else {
+            Err("Clipboard not initialized".into())
+        }
+
+        #[cfg(target_os = "linux")]
+        if let Some(ref mut arboard) = instance.arboard {
+            Ok(TextBundle::from_plain_text(arboard.get_text()?))
+        } else {
+            Err("Clipboard not initialized".into())
+        }
+    }
+
+    pub fn read_text_snapshot(
+        &self,
+        source: ClipboardObservationSource,
+    ) -> Result<ClipboardSnapshot, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(ClipboardSnapshot::new(
+            ClipboardPayload::Text(self.read_text_bundle()?),
+            source,
+        ))
     }
 
     pub fn read_text(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -86,6 +174,36 @@ impl ClipboardManager {
             context.set_text(String::from(text.into()))
         } else {
             Err("Clipboard not initialized".into())
+        }
+    }
+
+    pub fn read_image_png(&self) -> Result<ImagePng, Box<dyn std::error::Error + Send + Sync>> {
+        encode_raw_clipboard_image_as_png(self.read_image()?)
+    }
+
+    pub fn read_image_snapshot(
+        &self,
+        source: ClipboardObservationSource,
+    ) -> Result<ClipboardSnapshot, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(ClipboardSnapshot::new(
+            ClipboardPayload::ImagePng(self.read_image_png()?),
+            source,
+        ))
+    }
+
+    pub fn read_supported_snapshot(
+        &self,
+        source: ClipboardObservationSource,
+    ) -> Result<ClipboardSnapshot, Box<dyn std::error::Error + Send + Sync>> {
+        match self.read_image_snapshot(source) {
+            Ok(snapshot) => Ok(snapshot),
+            Err(image_error) => match self.read_text_snapshot(source) {
+                Ok(snapshot) => Ok(snapshot),
+                Err(text_error) => Err(format!(
+                    "no supported clipboard payload available, image error: {image_error}, text error: {text_error}"
+                )
+                .into()),
+            },
         }
     }
 
@@ -166,6 +284,48 @@ impl ClipboardManager {
         Err("Clipboard context not initialized".into())
     }
 
+    pub fn apply_payload(&self, payload: &ClipboardPayload) -> ClipboardApplyResult {
+        match payload {
+            ClipboardPayload::Text(bundle) => self.apply_text_bundle(bundle),
+            ClipboardPayload::ImagePng(image) => self.apply_image_png(image),
+        }
+    }
+
+    pub fn apply_text_bundle(&self, bundle: &TextBundle) -> ClipboardApplyResult {
+        let mut instance = self.instance.lock().unwrap();
+
+        if let Some(ref mut context) = instance.context {
+            let contents = clipboard_contents_for_text_bundle(bundle);
+            match context.set(contents) {
+                Ok(()) => return ClipboardApplyResult::Applied,
+                Err(error) => {
+                    debug!(?error, "rich text apply fell back to plain text");
+                }
+            }
+        }
+
+        match write_plain_text_via_available_backend(&mut instance, bundle.plain_text.as_str()) {
+            Ok(()) if bundle.html.is_some() => ClipboardApplyResult::AppliedWithDegradation(
+                ClipboardApplyDegradation::HtmlDroppedPlainTextOnly,
+            ),
+            Ok(()) => ClipboardApplyResult::Applied,
+            Err(error) => ClipboardApplyResult::Failed(ClipboardApplyFailure::new(
+                ClipboardPayloadKind::TextBundle,
+                error.to_string(),
+            )),
+        }
+    }
+
+    pub fn apply_image_png(&self, image: &ImagePng) -> ClipboardApplyResult {
+        match self.write_image_from_bytes(image.bytes()) {
+            Ok(()) => ClipboardApplyResult::Applied,
+            Err(error) => ClipboardApplyResult::Failed(ClipboardApplyFailure::new(
+                ClipboardPayloadKind::ImagePng,
+                error.to_string(),
+            )),
+        }
+    }
+
     pub fn clear(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut instance = self.instance.lock().unwrap();
         if let Some(ref mut arboard) = instance.arboard {
@@ -178,7 +338,60 @@ impl ClipboardManager {
     }
 }
 
+fn write_plain_text_via_available_backend(
+    instance: &mut ClipboardInstance,
+    text: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(not(target_os = "linux"))]
+    if let Some(ref mut context) = instance.context {
+        context.set_text(text.to_string())
+    } else if let Some(ref mut arboard) = instance.arboard {
+        Ok(arboard.set_text(text)?)
+    } else {
+        Err("Clipboard not initialized".into())
+    }
+
+    #[cfg(target_os = "linux")]
+    if let Some(ref mut arboard) = instance.arboard {
+        Ok(arboard.set_text(text)?)
+    } else if let Some(ref mut context) = instance.context {
+        context.set_text(text.to_string())
+    } else {
+        Err("Clipboard not initialized".into())
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use clipboard_rs::ClipboardContent;
+
+    use super::{clipboard_contents_for_text_bundle, text_bundle_from_contents};
+    use crate::sync::clipboard_domain::TextBundle;
+
+    #[test]
+    fn clipboard_contents_round_trip_text_bundle_with_html() {
+        let bundle = TextBundle::new("hello", Some("<b>hello</b>".to_string()));
+        let contents = clipboard_contents_for_text_bundle(&bundle);
+
+        assert!(matches!(&contents[0], ClipboardContent::Text(text) if text == "hello"));
+        assert!(matches!(&contents[1], ClipboardContent::Html(html) if html == "<b>hello</b>"));
+        assert_eq!(text_bundle_from_contents(contents), Some(bundle));
+    }
+
+    #[test]
+    fn text_bundle_from_contents_ignores_non_text_variants() {
+        let bundle = text_bundle_from_contents(vec![
+            ClipboardContent::Html("<i>hello</i>".to_string()),
+            ClipboardContent::Text("hello".to_string()),
+            ClipboardContent::Rtf("{\\rtf1 hello}".to_string()),
+        ]);
+
+        assert_eq!(
+            bundle,
+            Some(TextBundle::new("hello", Some("<i>hello</i>".to_string())))
+        );
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn test_urlencoding() {

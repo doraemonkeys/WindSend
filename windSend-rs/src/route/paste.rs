@@ -43,7 +43,10 @@ pub async fn paste_text_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecv
 }
 
 /// Returns whether should continue loop (like no socket error)
-pub async fn sync_content_handler(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> bool {
+pub async fn legacy_sync_text_handler(
+    conn: &mut TlsStream<TcpStream>,
+    head: RouteRecvHead,
+) -> bool {
     // For file parts (File/Dir), use paste_file_handler for proper acknowledgment
     if matches!(
         head.upload_type,

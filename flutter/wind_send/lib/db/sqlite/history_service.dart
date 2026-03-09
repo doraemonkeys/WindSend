@@ -9,7 +9,6 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 
 import 'database.dart' hide TransferType;
 import 'history_dao.dart';
@@ -138,8 +137,9 @@ class HistoryService {
       final thumbDir = Directory('${appDir.path}/thumbnails');
       await thumbDir.create(recursive: true);
 
-      // Generate unique filename (use UUID for bytes to avoid same-millisecond conflicts)
-      final hashInput = imagePath ?? const Uuid().v4();
+      // Clipboard-image history may exist only as raw bytes, so use a stable
+      // bytes-derived seed instead of assuming a filesystem path is available.
+      final hashInput = imagePath ?? _generateHash(base64Encode(imageBytes!));
       final hash = _generateHash(hashInput);
       final thumbPath = _toAbsolutePath('${thumbDir.path}/$hash.jpg');
 
@@ -548,17 +548,22 @@ class HistoryService {
 
   /// Record an incoming image transfer.
   ///
-  /// [imagePath] - Local path where image was saved
+  /// [imagePath] - Local path where image was saved when available
+  /// [imageBytes] - Raw clipboard image bytes when the sync flow has no file path
   /// [fromDeviceId] - Source device identifier
   /// [dataSize] - Size of the image in bytes
   Future<void> recordIncomingImage({
-    required String imagePath,
+    String? imagePath,
+    Uint8List? imageBytes,
     required String fromDeviceId,
     required int dataSize,
   }) async {
     // Input validation
-    if (imagePath.isEmpty) {
-      debugPrint('HistoryService: Skipping record - empty imagePath');
+    final hasImagePath = imagePath != null && imagePath.isNotEmpty;
+    if (!hasImagePath && imageBytes == null) {
+      debugPrint(
+        'HistoryService: Skipping record - neither imagePath nor imageBytes was provided',
+      );
       return;
     }
     if (fromDeviceId.isEmpty) {
@@ -573,19 +578,26 @@ class HistoryService {
     }
 
     await _safeRecord(() async {
-      // Generate thumbnail from the saved image
+      // Clipboard sync receives raw PNG bytes without a stable filesystem path,
+      // so history must be able to build a thumbnail and payload entry from
+      // bytes alone instead of assuming file-transfer semantics.
       final thumbnailPath = await generateAndSaveThumbnail(
         imagePath: imagePath,
+        imageBytes: imageBytes,
       );
 
+      final fileName = imagePath != null && imagePath.isNotEmpty
+          ? p.basename(imagePath)
+          : 'clipboard_image.png';
       final filesPayload = FilesPayload(
         files: [
           FileInfo(
-            name: p.basename(imagePath),
+            name: fileName,
             size: dataSize,
-            path: imagePath,
+            path: imagePath ?? '',
             isDirectory: false,
             mimeType: 'image/png',
+            pathType: hasImagePath ? null : 'unavailable',
           ),
         ],
         totalSize: dataSize,

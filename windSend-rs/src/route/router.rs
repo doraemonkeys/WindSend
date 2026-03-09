@@ -1,11 +1,21 @@
 use crate::route::transfer::resp_error_msg;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use tracing::info;
 use tracing::{debug, error, trace, warn};
 
 use crate::route::protocol::*;
+
+pub enum RouterLoopOutcome {
+    Continue,
+    Close,
+    TakeOver(SessionTakeOver),
+}
+
+pub enum SessionTakeOver {
+    ClipboardSubscription,
+}
 
 pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<TcpStream>> {
     loop {
@@ -17,52 +27,86 @@ pub async fn main_process(mut conn: TlsStream<TcpStream>) -> Option<TlsStream<Tc
         let head = head.unwrap();
         info!("recv head: {:?}", head);
 
-        let mut ok = false;
-        match head.action {
-            RouteAction::Ping => {
-                let _ = crate::route::transfer::ping_handler(&mut conn, head).await;
-            }
-            RouteAction::PasteText => {
-                crate::route::paste::paste_text_handler(&mut conn, head).await;
-            }
-            RouteAction::PasteFile => {
-                ok = crate::route::paste::paste_file_handler(&mut conn, head).await;
-            }
-            RouteAction::Copy => {
-                crate::route::copy::copy_handler(&mut conn).await;
-            }
-            RouteAction::Download => {
-                ok = crate::route::copy::download_handler(&mut conn, head).await;
-            }
-            RouteAction::Match => {
-                let _ = match_handler(&mut conn).await;
-            }
-            RouteAction::SyncText => {
-                ok = crate::route::paste::sync_content_handler(&mut conn, head).await;
-            }
-            RouteAction::SetRelayServer => {
-                let _ = set_relay_server_handler(&mut conn, head).await;
-            }
-            RouteAction::EndConnection => {
-                // Relay-only: lets the caller distinguish clean shutdown (Some)
-                // from error teardown (None) for orderly tunnel cleanup.
-                info!("client {} send end connection request", head.device_name);
-                return Some(conn);
-            }
-            RouteAction::Unknown(action) => {
-                let msg = format!("unknown action: {action:?}");
-                let _ = crate::route::transfer::resp_common_error_msg(&mut conn, &msg).await;
-                error!("{}", msg);
+        match route_once(&mut conn, head).await {
+            RouterLoopOutcome::Continue => {}
+            RouterLoopOutcome::Close => return Some(conn),
+            RouterLoopOutcome::TakeOver(take_over) => {
+                if let Err(e) = conn.flush().await {
+                    error!("flush failed before take over, err: {}", e);
+                    return None;
+                }
+                return crate::route::sync_session::handle_take_over(conn, take_over).await;
             }
         }
-        use tokio::io::AsyncWriteExt;
+
         if let Err(e) = conn.flush().await {
             error!("flush failed, err: {}", e);
             return None;
         }
-        if !ok {
-            return Some(conn);
+    }
+}
+
+async fn route_once(conn: &mut TlsStream<TcpStream>, head: RouteRecvHead) -> RouterLoopOutcome {
+    match head.action {
+        RouteAction::Ping => {
+            let _ = crate::route::transfer::ping_handler(conn, head).await;
+            RouterLoopOutcome::Continue
         }
+        RouteAction::PasteText => {
+            crate::route::paste::paste_text_handler(conn, head).await;
+            RouterLoopOutcome::Continue
+        }
+        RouteAction::PasteFile => {
+            continue_or_close(crate::route::paste::paste_file_handler(conn, head).await)
+        }
+        RouteAction::Copy => {
+            crate::route::copy::copy_handler(conn).await;
+            RouterLoopOutcome::Continue
+        }
+        RouteAction::Download => {
+            continue_or_close(crate::route::copy::download_handler(conn, head).await)
+        }
+        RouteAction::Match => {
+            let _ = match_handler(conn).await;
+            RouterLoopOutcome::Continue
+        }
+        RouteAction::SyncText => {
+            continue_or_close(crate::route::paste::legacy_sync_text_handler(conn, head).await)
+        }
+        RouteAction::SubscribeClipboard => {
+            if crate::route::sync_session::prepare_subscription_take_over(conn)
+                .await
+                .is_err()
+            {
+                RouterLoopOutcome::Close
+            } else {
+                RouterLoopOutcome::TakeOver(SessionTakeOver::ClipboardSubscription)
+            }
+        }
+        RouteAction::SetRelayServer => {
+            let _ = set_relay_server_handler(conn, head).await;
+            RouterLoopOutcome::Continue
+        }
+        RouteAction::EndConnection => {
+            // Relay-only: lets the caller distinguish clean shutdown (Some)
+            // from error teardown (None) for orderly tunnel cleanup.
+            info!("client {} send end connection request", head.device_name);
+            RouterLoopOutcome::Close
+        }
+        RouteAction::Unknown(action) => {
+            let msg = format!("unknown action: {action:?}");
+            let _ = crate::route::transfer::resp_common_error_msg(conn, &msg).await;
+            error!("{}", msg);
+            RouterLoopOutcome::Continue
+        }
+    }
+}
+
+fn continue_or_close(should_continue: bool) -> RouterLoopOutcome {
+    if should_continue {
+        RouterLoopOutcome::Continue
+    } else {
+        RouterLoopOutcome::Close
     }
 }
 

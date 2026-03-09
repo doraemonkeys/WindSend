@@ -17,6 +17,8 @@ pub enum RouteAction {
     Match,
     #[serde(rename = "syncText")]
     SyncText,
+    #[serde(rename = "subscribeClipboard")]
+    SubscribeClipboard,
     #[serde(rename = "setRelayServer")]
     SetRelayServer,
     #[serde(rename = "endConnection")]
