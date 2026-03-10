@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:clipshare_clipboard_listener/clipboard_manager.dart';
 import 'package:clipshare_clipboard_listener/enums.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:wind_send/clipboard_sync/clipboard_domain.dart';
 import 'package:wind_send/clipboard_sync/clipboard_domain_adapter.dart';
@@ -372,7 +373,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
   }
 
   Future<void> captureCurrentClipboard() async {
-    final result = await _rawDomainAdapter.captureSnapshot(
+    final result = await _captureSnapshotWithForegroundFallback(
       source: ClipboardObservationSource.manualRead,
     );
     switch (result) {
@@ -417,7 +418,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       );
       final accepted = await session.observeLocalSnapshot(snapshot);
       if (accepted) {
-        _recordOutgoingSnapshot(snapshot);
+        _recordOutgoingSnapshotIfUiLeaseDetached(snapshot);
       }
     }
   }
@@ -547,7 +548,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       return;
     }
 
-    final result = await _rawDomainAdapter.captureSnapshot(
+    final result = await _captureSnapshotWithForegroundFallback(
       source: ClipboardObservationSource.foregroundCatchUp,
     );
     switch (result) {
@@ -556,7 +557,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         if (!accepted) {
           return;
         }
-        _recordOutgoingSnapshot(snapshot);
+        _recordOutgoingSnapshotIfUiLeaseDetached(snapshot);
         _recordStatus(
           'Foreground catch-up captured the final clipboard state from the last non-observable window.',
           icon: Icons.history,
@@ -565,6 +566,22 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       case ClipboardCaptureUnavailable():
       case ClipboardCaptureUnsupported():
     }
+  }
+
+  Future<ClipboardCaptureResult> _captureSnapshotWithForegroundFallback({
+    required ClipboardObservationSource source,
+  }) {
+    return captureSnapshotWithPlainTextFallback(
+      adapter: _rawDomainAdapter,
+      source: source,
+      allowPlainTextFallback: Platform.isAndroid,
+      readPlainTextFallback: _readPlainTextClipboardFallback,
+    );
+  }
+
+  Future<String?> _readPlainTextClipboardFallback() async {
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    return clipboardData?.text;
   }
 
   Future<void> _disposeCoreSession({required SyncCloseCode closeCode}) async {
@@ -694,6 +711,16 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       ),
     );
     notifyListeners();
+  }
+
+  void _recordOutgoingSnapshotIfUiLeaseDetached(ClipboardSnapshot snapshot) {
+    if (_uiEventLease != null) {
+      // When the UI lease is attached, observeLocalSnapshot() already fans the
+      // accepted snapshot back through the event hub and the UI listener records
+      // it once. Recording it eagerly here would duplicate the visible message.
+      return;
+    }
+    _recordOutgoingSnapshot(snapshot);
   }
 
   void _observeInboundEvent(_PendingInboundEvent event) {

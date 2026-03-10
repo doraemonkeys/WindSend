@@ -30,7 +30,7 @@ final class ClipboardSyncWatcherConfig {
 
 @immutable
 final class ClipboardWatchTick {
-  const ClipboardWatchTick({this.changeToken});
+  const ClipboardWatchTick({this.changeToken, this.platformPayload});
 
   /// Optional monotonic token supplied by the platform watcher.
   ///
@@ -38,6 +38,13 @@ final class ClipboardWatchTick {
   /// the watcher boundary keeps the field explicit so later platform adapters can
   /// prefer a stronger duplicate signal over the 100ms fallback window.
   final String? changeToken;
+
+  /// Optional payload supplied by the platform watcher callback itself.
+  ///
+  /// This keeps the watcher pipeline from discarding a platform event and then
+  /// immediately depending on a second clipboard read that may be unavailable in
+  /// the same execution window, as observed on Android background listeners.
+  final ClipboardPayload? platformPayload;
 }
 
 @immutable
@@ -295,7 +302,24 @@ final class ClipshareClipboardWatchDriver
     String content,
     ClipboardSource? source,
   ) {
-    _ticks.add(const ClipboardWatchTick());
+    final platformPayload = _payloadFromPlatformEvent(type, content);
+    _ticks.add(ClipboardWatchTick(platformPayload: platformPayload));
+  }
+
+  ClipboardPayload? _payloadFromPlatformEvent(
+    ClipboardContentType type,
+    String content,
+  ) {
+    return switch (type) {
+      // Text is lossless in the current plugin contract, so preserve it instead
+      // of forcing the watcher to perform a second clipboard read.
+      ClipboardContentType.text => ClipboardPayload.text(
+        TextBundle(plainText: content),
+      ),
+      ClipboardContentType.image ||
+      ClipboardContentType.file ||
+      ClipboardContentType.unknown => null,
+    };
   }
 }
 
@@ -398,9 +422,7 @@ final class FilteringClipboardSyncWatcher implements ClipboardSyncWatcher {
   }
 
   Future<void> _handleTick(ClipboardWatchTick tick) async {
-    final result = await _domainAdapter.captureSnapshot(
-      source: ClipboardObservationSource.systemWatcher,
-    );
+    final result = await _captureObservationForTick(tick);
 
     switch (result) {
       case ClipboardCaptureSuccess(:final snapshot):
@@ -419,6 +441,34 @@ final class FilteringClipboardSyncWatcher implements ClipboardSyncWatcher {
       case ClipboardCaptureUnavailable():
       case ClipboardCaptureUnsupported():
     }
+  }
+
+  Future<ClipboardCaptureResult> _captureObservationForTick(
+    ClipboardWatchTick tick,
+  ) async {
+    final captured = await _domainAdapter.captureSnapshot(
+      source: ClipboardObservationSource.systemWatcher,
+    );
+
+    if (captured case ClipboardCaptureSuccess()) {
+      return captured;
+    }
+
+    final platformPayload = tick.platformPayload;
+    if (platformPayload == null) {
+      return captured;
+    }
+
+    // The platform callback already carried semantic clipboard content, so when
+    // the follow-up clipboard read cannot observe it we preserve the original
+    // event instead of dropping the change on the floor.
+    return ClipboardCaptureSuccess(
+      ClipboardSnapshot.observed(
+        payload: platformPayload,
+        observedAt: DateTime.now().toUtc(),
+        source: ClipboardObservationSource.systemWatcher,
+      ),
+    );
   }
 }
 

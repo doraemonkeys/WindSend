@@ -154,6 +154,45 @@ void main() {
         expect(driver.stopCalls, 1);
       },
     );
+
+    test(
+      'falls back to platform payload when clipboard re-read returns empty',
+      () async {
+        final clock = _FakeClock(DateTime.utc(2026, 3, 8, 0, 0, 0));
+        final driver = _FakeWatchDriver();
+        final adapter = _FakeDomainAdapter.fromResults(
+          const <ClipboardCaptureResult>[ClipboardCaptureEmpty()],
+        );
+        final watcher = FilteringClipboardSyncWatcher(
+          driver: driver,
+          domainAdapter: adapter,
+          now: clock.now,
+        );
+        final emitted = <ClipboardSnapshot>[];
+        final subscription = watcher.localEvents.listen(emitted.add);
+
+        await watcher.start();
+        driver.emit(
+          ClipboardWatchTick(
+            platformPayload: ClipboardPayload.text(
+              const TextBundle(plainText: 'from platform callback'),
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emitted, hasLength(1));
+        expect(
+          emitted.single.payload,
+          ClipboardPayload.text(
+            const TextBundle(plainText: 'from platform callback'),
+          ),
+        );
+
+        await watcher.stop();
+        await subscription.cancel();
+      },
+    );
   });
 
   group('InMemoryClipboardEventHub', () {
@@ -349,6 +388,9 @@ final class _FakeDomainAdapter implements ClipboardDomainAdapter {
     : _results = Queue<ClipboardCaptureResult>.from(
         snapshots.map(ClipboardCaptureSuccess.new),
       );
+
+  _FakeDomainAdapter.fromResults(List<ClipboardCaptureResult> results)
+    : _results = Queue<ClipboardCaptureResult>.from(results);
 
   final Queue<ClipboardCaptureResult> _results;
 

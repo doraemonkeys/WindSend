@@ -6,6 +6,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 import 'clipboard_domain.dart';
 
 typedef ClipboardDomainLogFn = void Function(String message);
+typedef ClipboardPlainTextFallbackReader = Future<String?> Function();
 
 abstract interface class ClipboardDomainAdapter {
   Future<ClipboardCaptureResult> captureSnapshot({
@@ -16,6 +17,38 @@ abstract interface class ClipboardDomainAdapter {
     ClipboardPayload payload, {
     ClipboardApplyOptions options = const ClipboardApplyOptions(),
   });
+}
+
+Future<ClipboardCaptureResult> captureSnapshotWithPlainTextFallback({
+  required ClipboardDomainAdapter adapter,
+  required ClipboardObservationSource source,
+  required bool allowPlainTextFallback,
+  required ClipboardPlainTextFallbackReader readPlainTextFallback,
+  ClipboardDomainLogFn? logger,
+}) async {
+  final captured = await adapter.captureSnapshot(source: source);
+  if (captured case ClipboardCaptureSuccess()) {
+    return captured;
+  }
+  if (!allowPlainTextFallback) {
+    return captured;
+  }
+
+  final plainText = await readPlainTextFallback();
+  if (plainText == null) {
+    return captured;
+  }
+
+  logger?.call(
+    'Plain-text fallback produced clipboard content for ${source.name} after ${captured.runtimeType}.',
+  );
+  return ClipboardCaptureSuccess(
+    ClipboardSnapshot.observed(
+      payload: ClipboardPayload.text(TextBundle(plainText: plainText)),
+      observedAt: DateTime.now().toUtc(),
+      source: source,
+    ),
+  );
 }
 
 /// Bridges `super_clipboard` into Phase 0 domain objects so later sync-session
