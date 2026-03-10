@@ -8,7 +8,6 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:wind_send/clipboard/clipboard_service.dart';
@@ -16,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 // import 'package:wind_send/main.dart';
 import '../language.dart';
+import 'platform_device_info.dart';
 import 'logger.dart';
 import 'dart:developer' as dev;
 
@@ -220,8 +220,8 @@ Future<void> writeFileToClipboard(SystemClipboard? clipboard, File file) async {
 
   if (!itemAdded) {
     if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt < 24) {
+      final androidSdkInt = await readAndroidSdkInt();
+      if (androidSdkInt < 24) {
         await addFileUri(item);
       } else {
         await writeFileChannel(item);
@@ -393,12 +393,12 @@ Future<void> checkOrRequestPermission() async {
 }
 
 Future<void> checkOrRequestAndroidPermission() async {
-  final androidInfo = await DeviceInfoPlugin().androidInfo;
-  if (androidInfo.version.sdkInt >= 30 &&
+  final androidSdkInt = await readAndroidSdkInt();
+  if (androidSdkInt >= 30 &&
       !await Permission.manageExternalStorage.request().isGranted) {
     throw Exception('need manageExternalStorage permission');
   }
-  if (androidInfo.version.sdkInt > 32) {
+  if (androidSdkInt > 32) {
     if (!await Permission.photos.request().isGranted ||
         !await Permission.videos.request().isGranted ||
         !await Permission.audio.request().isGranted) {

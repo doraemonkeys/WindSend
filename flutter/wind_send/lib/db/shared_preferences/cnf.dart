@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 // import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -22,6 +21,7 @@ import 'package:logger/logger.dart';
 import '../../theme.dart';
 import '../../language.dart';
 import '../../device.dart';
+import '../../utils/platform_device_info.dart';
 import '../../utils/utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
@@ -43,33 +43,10 @@ class LocalConfig {
     }
     initialized = true;
     _sp = await SharedPreferences.getInstance();
-    final deviceInfoPlugin = DeviceInfoPlugin();
     if (_sp.getString(_deviceNameKey) == null) {
-      switch (defaultTargetPlatform) {
-        case TargetPlatform.android:
-          final androidInfo = await deviceInfoPlugin.androidInfo;
-          await setDeviceName(androidInfo.model);
-          break;
-        case TargetPlatform.iOS:
-          final iosInfo = await deviceInfoPlugin.iosInfo;
-          await setDeviceName(iosInfo.name);
-          break;
-        case TargetPlatform.windows:
-          final windowsInfo = await deviceInfoPlugin.windowsInfo;
-          await setDeviceName(windowsInfo.computerName);
-          break;
-        case TargetPlatform.linux:
-          final linuxInfo = await deviceInfoPlugin.linuxInfo;
-          await setDeviceName(linuxInfo.prettyName);
-          break;
-        case TargetPlatform.macOS:
-          final macOSInfo = await deviceInfoPlugin.macOsInfo;
-          await setDeviceName(macOSInfo.computerName);
-          break;
-        default:
-          await setDeviceName('Unknown${Random().nextInt(1000)}');
-          break;
-      }
+      await setDeviceName(
+        await resolveDefaultDeviceName(platform: defaultTargetPlatform),
+      );
     }
     globalLocalDeviceName = _sp.getString(_deviceNameKey)!;
     if (_sp.getString(_fileSavePathKey) == null) {

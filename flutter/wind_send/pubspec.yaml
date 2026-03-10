@@ -37,7 +37,7 @@ dependencies:
 
   shared_preferences: ^2.5.4
   flutter_localization: ^0.3.3
-  device_info_plus: ^11.5.0
+  device_info_plus: ^12.3.0
   path_provider: ^2.1.1
   file_picker: ^10.3.8
   # share_handler: ^0.0.23
@@ -112,6 +112,12 @@ dev_dependencies:
   # Database code generation
   drift_dev: ^2.24.0
   build_runner: ^2.4.15
+
+dependency_overrides:
+  # super_clipboard 0.9.1 pulls super_native_extensions 0.9.1, whose pubspec
+  # still caps device_info_plus below 12 even though its Dart usage only reads
+  # stable Android SDK metadata that remains available in 12.x.
+  device_info_plus: ^12.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

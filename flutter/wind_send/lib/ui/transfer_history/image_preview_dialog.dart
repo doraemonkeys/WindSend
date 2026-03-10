@@ -9,10 +9,10 @@ import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 
 import '../../language.dart';
 import '../../utils/utils.dart';
+import '../../utils/platform_device_info.dart';
 import '../../toast.dart';
 import 'history.dart';
 
@@ -210,8 +210,8 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
     if (Platform.isAndroid) {
       // Android 13+ (API 33+) uses granular media permissions
       // For saving images, we need photos permission or storage permission
-      final deviceInfo = await DeviceInfoPlugin().androidInfo;
-      if (deviceInfo.version.sdkInt >= 33) {
+      final androidSdkInt = await readAndroidSdkInt();
+      if (androidSdkInt >= 33) {
         // Android 13+: Request photos permission
         final status = await Permission.photos.request();
         return status.isGranted;
