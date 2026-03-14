@@ -402,16 +402,46 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            context.formatString(
-                              AppLocale.transferTypeText,
-                              [],
-                            ),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onSurface,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                context.formatString(
+                                  AppLocale.transferTypeText,
+                                  [],
+                                ),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                              if (widget.item.textCharCount != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '·',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  context.formatString(
+                                    AppLocale.historyCardCharCount,
+                                    [
+                                      NumberFormat('#,###').format(
+                                        widget.item.textCharCount,
+                                      ),
+                                    ],
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         _buildPinButton(colorScheme),
@@ -419,22 +449,6 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                     ),
                     const SizedBox(height: 4),
                     _buildMetadataRow(colorScheme),
-                    if (widget.item.textCharCount != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        context.formatString(AppLocale.historyCardCharCount, [
-                          NumberFormat('#,###').format(
-                            widget.item.textCharCount,
-                          ),
-                        ]),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.7,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
