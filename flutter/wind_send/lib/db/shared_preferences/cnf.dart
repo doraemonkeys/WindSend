@@ -22,6 +22,8 @@ import '../../theme.dart';
 import '../../language.dart';
 import '../../device.dart';
 import '../../utils/platform_device_info.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../../utils/utils.dart';
 
 const androidAppPackageName = 'com.doraemon.wind_send';
@@ -584,6 +586,12 @@ Future<void> showFirstTimeLocationPermissionDialog(
 
 bool networkPermissionChecked = false;
 
+/// Check if location permission is already granted (without requesting it).
+Future<bool> _hasNetworkPermission() async {
+  if (!Platform.isAndroid && !Platform.isIOS) return true;
+  return Permission.locationWhenInUse.isGranted;
+}
+
 Future<void> saveDeviceWifiBssid(Device device) async {
   if (!LocalConfig.isLocationPermissionDialogShown) {
     // The first network permission request is completed in the dialog
@@ -621,25 +629,22 @@ Future<Device?> resolveTargetDevice({
   bool defaultShareDevice = false,
   bool defaultSyncDevice = false,
 }) async {
-  if (!networkPermissionChecked &&
-      LocalConfig.autoSelectShareSyncDeviceByBssid) {
-    try {
-      networkPermissionChecked = true;
-      await checkOrRequestNetworkPermission();
-    } catch (e) {
-      LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
-    }
-  }
+  // Only use BSSID lookup when permission is already granted.
+  // Never request permission here — showFirstTimeLocationPermissionDialog
+  // handles the first request with a user-facing explanation.
   if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-    final info = NetworkInfo();
-    final wifiBSSID = await info.getWifiBSSID();
-    if (wifiBSSID != null) {
-      final bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
-      Device? device = LocalConfig.devices.firstWhereOrNull(
-        (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
-      );
-      if (device != null) {
-        return device;
+    final hasPermission = await _hasNetworkPermission();
+    if (hasPermission) {
+      final info = NetworkInfo();
+      final wifiBSSID = await info.getWifiBSSID();
+      if (wifiBSSID != null) {
+        final bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
+        Device? device = LocalConfig.devices.firstWhereOrNull(
+          (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
+        );
+        if (device != null) {
+          return device;
+        }
       }
     }
   }

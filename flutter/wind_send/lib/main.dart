@@ -495,7 +495,18 @@ class _MainBodyState extends State<MainBody> {
   void initState() {
     super.initState();
 
-    // Pre-resolve default device IP at startup for faster first action
+    // Warm up the default device connection so the user's first action
+    // (send/paste/sync) doesn't pay the full connection-setup latency.
+    //
+    // 1. resolveTargetDevice: pick the right device — uses WiFi BSSID mapping
+    //    when location permission is already granted, otherwise falls back to
+    //    the user-configured default. (Permission is never *requested* here;
+    //    showFirstTimeLocationPermissionDialog handles that after the first
+    //    successful device action.)
+    //
+    // 2. For relay-enabled devices, probe direct LAN connectivity first.
+    //    If the probe fails, refresh the IP via mDNS/broadcast so subsequent
+    //    actions can skip the relay round-trip.
     resolveTargetDevice(defaultShareDevice: true).then((value) {
       if (widget.devices.isEmpty) {
         return;
@@ -510,7 +521,6 @@ class _MainBodyState extends State<MainBody> {
         'enableRelay: ${defaultDevice.enableRelay}',
       );
 
-      // When relay is enabled, try direct connection first to avoid relay overhead
       if (defaultDevice.autoSelect && defaultDevice.enableRelay) {
         defaultDevice.pingDevice().then((_) {}).catchError((e) async {
           dev.log(
