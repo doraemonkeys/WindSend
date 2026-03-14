@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localization/flutter_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:wind_send/clipboard_sync/clipboard_domain.dart';
+import 'package:wind_send/language.dart';
 
 import 'clipboard_sync_session.dart';
 
@@ -138,7 +140,7 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _buildFooterLabel(),
+                  _buildFooterLabel(context),
                   style: TextStyle(
                     fontSize: 11,
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -200,7 +202,9 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
               });
             },
             child: Text(
-              _isExpanded ? 'Show less' : 'Read more',
+              _isExpanded
+                  ? context.formatString(AppLocale.csShowLess, [])
+                  : context.formatString(AppLocale.csReadMore, []),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -239,7 +243,9 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
         ),
         const SizedBox(height: 8),
         Text(
-          'PNG image • ${(pngBytes.lengthInBytes / 1024).toStringAsFixed(1)} KB',
+          context.formatString(AppLocale.csPngImageSize, [
+            (pngBytes.lengthInBytes / 1024).toStringAsFixed(1),
+          ]),
           style: TextStyle(
             fontSize: 12,
             color: widget.item.isOutgoing
@@ -302,7 +308,8 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
                 if (textPayload != null)
                   ListTile(
                     leading: const Icon(Icons.copy_rounded),
-                    title: const Text('Copy to Clipboard'),
+                    title: Text(context.formatString(
+                        AppLocale.csCopyToClipboard, [])),
                     onTap: () async {
                       await Clipboard.setData(ClipboardData(text: textPayload));
                       if (!mounted) {
@@ -311,7 +318,8 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
                       navigator.pop();
                       ScaffoldMessenger.of(this.context).showSnackBar(
                         SnackBar(
-                          content: const Text('Copied to clipboard'),
+                          content: Text(context.formatString(
+                              AppLocale.csCopiedToClipboard, [])),
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -322,7 +330,8 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
                   ),
                 ListTile(
                   leading: const Icon(Icons.delete_outline_rounded),
-                  title: const Text('Delete Message'),
+                  title: Text(context.formatString(
+                      AppLocale.csDeleteMessage, [])),
                   textColor: theme.colorScheme.error,
                   iconColor: theme.colorScheme.error,
                   onTap: () {
@@ -338,12 +347,22 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
     );
   }
 
-  String _buildFooterLabel() {
+  String _buildFooterLabel(BuildContext context) {
     final timestamp = DateFormat('HH:mm').format(widget.item.createdAt);
-    final source = widget.item.sourceLabel;
+    final source = _resolveLocaleText(context, widget.item.sourceLabel);
     if (widget.item.eventId == null) {
       return '$timestamp • $source';
     }
     return '$timestamp • $source • #${widget.item.eventId}';
+  }
+
+  String _resolveLocaleText(BuildContext context, LocaleText text) {
+    final resolvedArgs = text.args.map((arg) {
+      if (arg is LocaleText) {
+        return _resolveLocaleText(context, arg);
+      }
+      return arg;
+    }).toList();
+    return context.formatString(text.key, resolvedArgs);
   }
 }

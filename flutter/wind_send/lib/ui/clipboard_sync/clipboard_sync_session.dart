@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:clipshare_clipboard_listener/clipboard_manager.dart';
 import 'package:clipshare_clipboard_listener/enums.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,6 +20,7 @@ import 'package:wind_send/clipboard_sync/remote_peer_key.dart';
 import 'package:wind_send/clipboard_sync/sync_session_protocol.dart';
 import 'package:wind_send/clipboard_sync/sync_session_watcher.dart';
 import 'package:wind_send/device.dart';
+import 'package:wind_send/language.dart';
 
 enum ClipboardSyncPagePhase {
   connecting,
@@ -39,6 +41,30 @@ enum ClipboardSyncWatcherMode {
   unavailable,
 }
 
+/// Deferred locale string: stores a key + positional args for resolution
+/// in the UI layer via `context.formatString()`.
+///
+/// Args may contain nested [LocaleText] instances, which are recursively
+/// resolved before the parent string is formatted.
+@immutable
+final class LocaleText {
+  const LocaleText(this.key, [this.args = const []]);
+
+  final String key;
+  final List<Object> args;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is LocaleText &&
+            key == other.key &&
+            listEquals(args, other.args);
+  }
+
+  @override
+  int get hashCode => Object.hash(key, Object.hashAll(args));
+}
+
 @immutable
 final class ClipboardSyncWatcherStatus {
   const ClipboardSyncWatcherStatus({
@@ -48,8 +74,8 @@ final class ClipboardSyncWatcherStatus {
   });
 
   final ClipboardSyncWatcherMode mode;
-  final String label;
-  final String details;
+  final LocaleText label;
+  final LocaleText details;
 
   bool get canObserveContinuously =>
       mode == ClipboardSyncWatcherMode.backgroundEnabled;
@@ -69,11 +95,11 @@ final class ClipboardSyncStatusTimelineItem extends ClipboardSyncTimelineItem {
   const ClipboardSyncStatusTimelineItem({
     required super.id,
     required super.createdAt,
-    required this.message,
+    required this.content,
     this.icon = Icons.info_outline,
   });
 
-  final String message;
+  final LocaleText content;
   final IconData icon;
 }
 
@@ -92,7 +118,7 @@ final class ClipboardSyncEventTimelineItem extends ClipboardSyncTimelineItem {
 
   final ClipboardSyncEventDirection direction;
   final ClipboardPayload payload;
-  final String sourceLabel;
+  final LocaleText sourceLabel;
   final String peerLabel;
   final String? failureMessage;
   final int? eventId;
@@ -223,8 +249,8 @@ final class ClipboardSyncPageSession extends ChangeNotifier
 
   ClipboardSyncWatcherStatus _watcherStatus = const ClipboardSyncWatcherStatus(
     mode: ClipboardSyncWatcherMode.unavailable,
-    label: 'Checking listener',
-    details: 'Probing clipboard listener capabilities.',
+    label: LocaleText(AppLocale.csCheckingListener),
+    details: LocaleText(AppLocale.csProbingCapabilities),
   );
   core_session.ClipboardSyncSessionState? _coreState;
   ClipboardSyncPagePhase _fallbackPhase = ClipboardSyncPagePhase.connecting;
@@ -269,21 +295,6 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     };
   }
 
-  String get phaseLabel {
-    return switch (phase) {
-      ClipboardSyncPagePhase.connecting => 'Connecting',
-      ClipboardSyncPagePhase.subscribing => 'Subscribing',
-      ClipboardSyncPagePhase.active =>
-        transportKind == ClipboardSyncTransportKind.relay
-            ? 'Active (Relay)'
-            : 'Active (Direct)',
-      ClipboardSyncPagePhase.reconnecting => 'Reconnecting',
-      ClipboardSyncPagePhase.paused => 'Paused / Stopped',
-      ClipboardSyncPagePhase.closing => 'Stopping',
-      ClipboardSyncPagePhase.closed => 'Closed',
-    };
-  }
-
   ClipboardSyncTransportKind? get transportKind => _transportKind;
 
   bool get isRunning =>
@@ -309,7 +320,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     clipboardManager.addListener(this);
     await _refreshWatcherStatusAndSyncContinuousObservation();
     _recordStatus(
-      'Session opened for ${_device.targetDeviceName}.',
+      LocaleText(AppLocale.csSessionOpened, [_device.targetDeviceName]),
       icon: Icons.play_circle_outline,
     );
     await _spawnCoreSession(isReconnect: false);
@@ -331,7 +342,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     _shouldAttemptForegroundCatchUpOnResume = false;
     _fallbackPhase = ClipboardSyncPagePhase.connecting;
     _recordStatus(
-      'Created a new session and resumed clipboard monitoring.',
+      const LocaleText(AppLocale.csSessionResumed),
       icon: Icons.restart_alt,
     );
     await _refreshWatcherStatusAndSyncContinuousObservation();
@@ -346,7 +357,10 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     _shouldAttemptForegroundCatchUpOnResume = false;
     _startGeneration += 1;
     if (userInitiated) {
-      _recordStatus('Session stopped.', icon: Icons.pause_circle_outline);
+      _recordStatus(
+        const LocaleText(AppLocale.csSessionStopped),
+        icon: Icons.pause_circle_outline,
+      );
     }
     await _disposeCoreSession(
       closeCode: userInitiated
@@ -377,7 +391,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     final result = await _rawDomainAdapter.applyPayload(payload);
     if (!result.succeeded) {
       _recordStatus(
-        result.message ?? 'Failed to write text into the local clipboard.',
+        LocaleText(AppLocale.csClipboardWriteFailed),
         icon: Icons.error_outline,
       );
       return;
@@ -498,7 +512,10 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         return;
       }
       _fallbackPhase = ClipboardSyncPagePhase.reconnecting;
-      _recordStatus('Reconnect scheduled: $error', icon: Icons.refresh);
+      _recordStatus(
+        LocaleText(AppLocale.csReconnectScheduled, ['$error']),
+        icon: Icons.refresh,
+      );
       notifyListeners();
       await Future<void>.delayed(const Duration(seconds: 1));
       if (_disposed || _stoppedByUser || generation != _startGeneration) {
@@ -537,7 +554,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         }
         _recordOutgoingSnapshotIfUiLeaseDetached(snapshot);
         _recordStatus(
-          'Foreground catch-up captured the final clipboard state from the last non-observable window.',
+          const LocaleText(AppLocale.csForegroundCatchUpCaptured),
           icon: Icons.history,
         );
       case ClipboardCaptureEmpty():
@@ -600,16 +617,21 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       switch (nextState.status) {
         case core_session.ClipboardSyncSessionStatus.connecting:
           if (previous != null) {
-            _recordStatus('Connecting transport…', icon: Icons.sync);
+            _recordStatus(
+              const LocaleText(AppLocale.csConnectingTransport),
+              icon: Icons.sync,
+            );
           }
         case core_session.ClipboardSyncSessionStatus.subscribing:
           _recordStatus(
-            'Transport upgraded. Waiting for subscribe acknowledgment…',
+            const LocaleText(AppLocale.csTransportUpgraded),
             icon: Icons.swap_horiz,
           );
         case core_session.ClipboardSyncSessionStatus.active:
           _recordStatus(
-            'Session is active over ${_transportLabelLabel()}.',
+            LocaleText(AppLocale.csSessionActiveOver, [
+              _transportLabelLocaleText(),
+            ]),
             icon: _transportKind == ClipboardSyncTransportKind.relay
                 ? Icons.alt_route
                 : Icons.lan,
@@ -617,14 +639,17 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         case core_session.ClipboardSyncSessionStatus.reconnecting:
           _recordStatus(
             nextState.errorMessage == null || nextState.errorMessage!.isEmpty
-                ? 'Reconnecting…'
-                : 'Reconnecting: ${nextState.errorMessage}',
+                ? const LocaleText(AppLocale.csReconnecting)
+                : LocaleText(
+                    AppLocale.csReconnectingDetail,
+                    [nextState.errorMessage!],
+                  ),
             icon: Icons.refresh,
           );
         case core_session.ClipboardSyncSessionStatus.closing:
           if (!_stoppedByUser) {
             _recordStatus(
-              'Stopping session…',
+              const LocaleText(AppLocale.csStoppingSession),
               icon: Icons.stop_circle_outlined,
             );
           }
@@ -733,7 +758,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         createdAt: DateTime.now(),
         direction: ClipboardSyncEventDirection.incoming,
         payload: payload,
-        sourceLabel: 'Remote event',
+        sourceLabel: const LocaleText(AppLocale.csSourceRemoteEvent),
         peerLabel: _device.targetDeviceName,
         failureMessage: result.succeeded ? null : result.message,
         eventId: event?.eventId,
@@ -793,92 +818,104 @@ final class ClipboardSyncPageSession extends ChangeNotifier
           notificationGranted) {
         return ClipboardSyncWatcherStatus(
           mode: ClipboardSyncWatcherMode.backgroundEnabled,
-          label: 'Background listener enabled',
-          details: 'Android watcher is active via ${environment.name}.',
+          label: const LocaleText(AppLocale.csBackgroundListenerEnabled),
+          details: LocaleText(
+            AppLocale.csAndroidWatcherActive,
+            [environment.name],
+          ),
         );
       }
 
       if (environment != EnvironmentType.none &&
           (!overlayGranted || !notificationGranted)) {
-        return ClipboardSyncWatcherStatus(
+        return const ClipboardSyncWatcherStatus(
           mode: ClipboardSyncWatcherMode.waitingPermission,
-          label: 'Waiting for overlay permission',
-          details:
-              'Continuous clipboard observation needs overlay and notification permission.',
+          label: LocaleText(AppLocale.csWaitingOverlayPermission),
+          details: LocaleText(AppLocale.csOverlayPermissionNeeded),
         );
       }
 
       return ClipboardSyncWatcherStatus(
         mode: ClipboardSyncWatcherMode.foregroundCatchUp,
-        label: 'Foreground catch-up only',
+        label: const LocaleText(AppLocale.csForegroundCatchUpOnly),
         details: _lastWatcherSubscribeFailure == null
-            ? 'When the app is not continuously observable, the next resume only captures the final clipboard state.'
-            : 'Watcher unavailable: $_lastWatcherSubscribeFailure',
+            ? const LocaleText(AppLocale.csForegroundCatchUpDetail)
+            : LocaleText(
+                AppLocale.csWatcherUnavailable,
+                [_lastWatcherSubscribeFailure!],
+              ),
       );
     }
 
     if (Platform.isIOS) {
       return const ClipboardSyncWatcherStatus(
         mode: ClipboardSyncWatcherMode.foregroundCatchUp,
-        label: 'Foreground catch-up only',
-        details:
-            'iOS may only capture the final clipboard state after the app becomes observable again.',
+        label: LocaleText(AppLocale.csForegroundCatchUpOnly),
+        details: LocaleText(AppLocale.csIosForegroundDetail),
       );
     }
 
     return const ClipboardSyncWatcherStatus(
       mode: ClipboardSyncWatcherMode.backgroundEnabled,
-      label: 'Watcher active',
-      details:
-          'Clipboard changes are observed while this app process stays alive.',
+      label: LocaleText(AppLocale.csWatcherActive),
+      details: LocaleText(AppLocale.csDesktopWatcherDetail),
     );
   }
 
-  void _recordStatus(String message, {required IconData icon}) {
+  void _recordStatus(LocaleText content, {required IconData icon}) {
     final lastItem = _timeline.isEmpty ? null : _timeline.last;
     if (lastItem is ClipboardSyncStatusTimelineItem &&
-        lastItem.message == message) {
+        lastItem.content == content) {
       return;
     }
     _timeline.add(
       ClipboardSyncStatusTimelineItem(
         id: 'status-${DateTime.now().microsecondsSinceEpoch}-${_timeline.length}',
         createdAt: DateTime.now(),
-        message: message,
+        content: content,
         icon: icon,
       ),
     );
     notifyListeners();
   }
 
-  String _sourceLabelForObservation(ClipboardObservationSource source) {
+  LocaleText _sourceLabelForObservation(ClipboardObservationSource source) {
     return switch (source) {
-      ClipboardObservationSource.systemWatcher => 'Watcher',
-      ClipboardObservationSource.manualRead => 'Manual capture',
-      ClipboardObservationSource.foregroundCatchUp => 'Catch-up',
+      ClipboardObservationSource.systemWatcher =>
+        const LocaleText(AppLocale.csSourceWatcher),
+      ClipboardObservationSource.manualRead =>
+        const LocaleText(AppLocale.csSourceManualCapture),
+      ClipboardObservationSource.foregroundCatchUp =>
+        const LocaleText(AppLocale.csSourceCatchUp),
     };
   }
 
-  String _describeClosedState(core_session.ClipboardSyncSessionState state) {
+  LocaleText _describeClosedState(core_session.ClipboardSyncSessionState state) {
     final closeCode = state.closeCode;
     final errorMessage = state.errorMessage;
     if (closeCode == null) {
-      return errorMessage == null || errorMessage.isEmpty
-          ? 'Session closed.'
-          : 'Session closed: $errorMessage';
+      if (errorMessage == null || errorMessage.isEmpty) {
+        return const LocaleText(AppLocale.csSessionClosedPlain);
+      }
+      return LocaleText(AppLocale.csSessionClosedDetail, [errorMessage]);
     }
     final closeCodeLabel = syncCloseCodeToWire(closeCode);
     if (errorMessage == null || errorMessage.isEmpty) {
-      return 'Session closed: $closeCodeLabel';
+      return LocaleText(AppLocale.csSessionClosedDetail, [closeCodeLabel]);
     }
-    return 'Session closed: $closeCodeLabel · $errorMessage';
+    return LocaleText(
+      AppLocale.csSessionClosedCodeAndError,
+      [closeCodeLabel, errorMessage],
+    );
   }
 
-  String _transportLabelLabel() {
+  LocaleText _transportLabelLocaleText() {
     return switch (_transportKind) {
-      ClipboardSyncTransportKind.direct => 'direct transport',
-      ClipboardSyncTransportKind.relay => 'relay transport',
-      null => 'the selected transport',
+      ClipboardSyncTransportKind.direct =>
+        const LocaleText(AppLocale.csDirectTransport),
+      ClipboardSyncTransportKind.relay =>
+        const LocaleText(AppLocale.csRelayTransport),
+      null => const LocaleText(AppLocale.csSelectedTransport),
     };
   }
 }

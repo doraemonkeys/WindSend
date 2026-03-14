@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localization/flutter_localization.dart';
 
 import 'package:wind_send/device.dart';
+import 'package:wind_send/language.dart';
 
 import 'clipboard_bubble.dart';
 import 'clipboard_sync_session.dart';
@@ -67,9 +69,10 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Clipboard Sync',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                Text(
+                  context.formatString(AppLocale.csClipboardSync, []),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 18),
                 ),
                 Row(
                   children: [
@@ -84,7 +87,7 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${widget.device.targetDeviceName} · ${_session.phaseLabel}',
+                        '${widget.device.targetDeviceName} · ${_resolvePhaseLabel(context)}',
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: _statusColor(context),
@@ -97,7 +100,9 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
             ),
             actions: [
               Tooltip(
-                message: isRunning ? 'Stop session' : 'Restart session',
+                message: isRunning
+                    ? context.formatString(AppLocale.csStopSession, [])
+                    : context.formatString(AppLocale.csRestartSession, []),
                 child: Switch(
                   value: isRunning,
                   onChanged: (value) {
@@ -161,7 +166,8 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
                           controller: _textController,
                           enabled: isRunning,
                           decoration: InputDecoration(
-                            hintText: 'Type text to copy...',
+                            hintText: context.formatString(
+                                AppLocale.csTypeTextToCopy, []),
                             hintStyle: TextStyle(
                               color: colorScheme.onSurfaceVariant
                                   .withValues(alpha: 0.7),
@@ -243,7 +249,7 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  watcherStatus.label,
+                  _resolveLocaleText(context, watcherStatus.label),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSecondaryContainer,
@@ -252,7 +258,10 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
               ),
               if (_session.lastRemoteAckUpTo != null)
                 Text(
-                  'Ack ${_session.lastRemoteAckUpTo}',
+                  context.formatString(
+                    AppLocale.csAckLabel,
+                    [_session.lastRemoteAckUpTo!],
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSecondaryContainer
                         .withValues(alpha: 0.8),
@@ -262,7 +271,7 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            watcherStatus.details,
+            _resolveLocaleText(context, watcherStatus.details),
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSecondaryContainer.withValues(alpha: 0.8),
             ),
@@ -295,7 +304,7 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    item.message,
+                    _resolveLocaleText(context, item.content),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -338,7 +347,8 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'No clipboard activity yet',
+                    context.formatString(
+                        AppLocale.csNoClipboardActivity, []),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: theme.colorScheme.onSurface,
@@ -346,7 +356,8 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'This page shows real clipboard session events and lifecycle notes.',
+                    context.formatString(
+                        AppLocale.csEmptyStateDescription, []),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -409,5 +420,39 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
       ClipboardSyncTransportKind.relay => Icons.alt_route,
       null => Icons.sync,
     };
+  }
+
+  String _resolvePhaseLabel(BuildContext context) {
+    return switch (_session.phase) {
+      ClipboardSyncPagePhase.connecting =>
+        context.formatString(AppLocale.csPhaseConnecting, []),
+      ClipboardSyncPagePhase.subscribing =>
+        context.formatString(AppLocale.csPhaseSubscribing, []),
+      ClipboardSyncPagePhase.active =>
+        _session.transportKind == ClipboardSyncTransportKind.relay
+            ? context.formatString(AppLocale.csPhaseActiveRelay, [])
+            : context.formatString(AppLocale.csPhaseActiveDirect, []),
+      ClipboardSyncPagePhase.reconnecting =>
+        context.formatString(AppLocale.csPhaseReconnecting, []),
+      ClipboardSyncPagePhase.paused =>
+        context.formatString(AppLocale.csPhasePaused, []),
+      ClipboardSyncPagePhase.closing =>
+        context.formatString(AppLocale.csPhaseStopping, []),
+      ClipboardSyncPagePhase.closed =>
+        context.formatString(AppLocale.csPhaseClosed, []),
+    };
+  }
+
+  /// Recursively resolves a [LocaleText] to a localized string.
+  ///
+  /// Nested [LocaleText] args are resolved before formatting the parent.
+  String _resolveLocaleText(BuildContext context, LocaleText text) {
+    final resolvedArgs = text.args.map((arg) {
+      if (arg is LocaleText) {
+        return _resolveLocaleText(context, arg);
+      }
+      return arg;
+    }).toList();
+    return context.formatString(text.key, resolvedArgs);
   }
 }

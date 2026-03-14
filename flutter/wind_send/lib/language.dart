@@ -191,6 +191,78 @@ mixin AppLocale {
   static const String historyFileCount = 'historyFileCount';
   static const String emptyPayload = 'emptyPayload';
 
+  // Clipboard Sync - Page
+  static const String csClipboardSync = 'csClipboardSync';
+  static const String csMenuLabel = 'csMenuLabel';
+  static const String csStopSession = 'csStopSession';
+  static const String csRestartSession = 'csRestartSession';
+  static const String csTypeTextToCopy = 'csTypeTextToCopy';
+  static const String csNoClipboardActivity = 'csNoClipboardActivity';
+  static const String csEmptyStateDescription = 'csEmptyStateDescription';
+  static const String csAckLabel = 'csAckLabel';
+
+  // Clipboard Sync - Bubble
+  static const String csShowLess = 'csShowLess';
+  static const String csReadMore = 'csReadMore';
+  static const String csPngImageSize = 'csPngImageSize';
+  static const String csCopyToClipboard = 'csCopyToClipboard';
+  static const String csCopiedToClipboard = 'csCopiedToClipboard';
+  static const String csDeleteMessage = 'csDeleteMessage';
+
+  // Clipboard Sync - Phase Labels
+  static const String csPhaseConnecting = 'csPhaseConnecting';
+  static const String csPhaseSubscribing = 'csPhaseSubscribing';
+  static const String csPhaseActiveRelay = 'csPhaseActiveRelay';
+  static const String csPhaseActiveDirect = 'csPhaseActiveDirect';
+  static const String csPhaseReconnecting = 'csPhaseReconnecting';
+  static const String csPhasePaused = 'csPhasePaused';
+  static const String csPhaseStopping = 'csPhaseStopping';
+  static const String csPhaseClosed = 'csPhaseClosed';
+
+  // Clipboard Sync - Source Labels
+  static const String csSourceWatcher = 'csSourceWatcher';
+  static const String csSourceManualCapture = 'csSourceManualCapture';
+  static const String csSourceCatchUp = 'csSourceCatchUp';
+  static const String csSourceRemoteEvent = 'csSourceRemoteEvent';
+
+  // Clipboard Sync - Watcher Status
+  static const String csCheckingListener = 'csCheckingListener';
+  static const String csProbingCapabilities = 'csProbingCapabilities';
+  static const String csBackgroundListenerEnabled =
+      'csBackgroundListenerEnabled';
+  static const String csAndroidWatcherActive = 'csAndroidWatcherActive';
+  static const String csWaitingOverlayPermission =
+      'csWaitingOverlayPermission';
+  static const String csOverlayPermissionNeeded = 'csOverlayPermissionNeeded';
+  static const String csForegroundCatchUpOnly = 'csForegroundCatchUpOnly';
+  static const String csForegroundCatchUpDetail = 'csForegroundCatchUpDetail';
+  static const String csWatcherUnavailable = 'csWatcherUnavailable';
+  static const String csWatcherActive = 'csWatcherActive';
+  static const String csDesktopWatcherDetail = 'csDesktopWatcherDetail';
+  static const String csIosForegroundDetail = 'csIosForegroundDetail';
+
+  // Clipboard Sync - Status Messages
+  static const String csSessionOpened = 'csSessionOpened';
+  static const String csSessionResumed = 'csSessionResumed';
+  static const String csSessionStopped = 'csSessionStopped';
+  static const String csClipboardWriteFailed = 'csClipboardWriteFailed';
+  static const String csReconnectScheduled = 'csReconnectScheduled';
+  static const String csForegroundCatchUpCaptured =
+      'csForegroundCatchUpCaptured';
+  static const String csConnectingTransport = 'csConnectingTransport';
+  static const String csTransportUpgraded = 'csTransportUpgraded';
+  static const String csSessionActiveOver = 'csSessionActiveOver';
+  static const String csReconnecting = 'csReconnecting';
+  static const String csReconnectingDetail = 'csReconnectingDetail';
+  static const String csStoppingSession = 'csStoppingSession';
+  static const String csSessionClosedPlain = 'csSessionClosedPlain';
+  static const String csSessionClosedDetail = 'csSessionClosedDetail';
+  static const String csSessionClosedCodeAndError =
+      'csSessionClosedCodeAndError';
+  static const String csDirectTransport = 'csDirectTransport';
+  static const String csRelayTransport = 'csRelayTransport';
+  static const String csSelectedTransport = 'csSelectedTransport';
+
   // Image Preview Dialog
   static const String imagePathNotExist = 'imagePathNotExist';
   static const String imageFileNotExist = 'imageFileNotExist';
@@ -535,6 +607,68 @@ mixin AppLocale {
     daysCustom: '自定义 (%a 天)',
     countCustom: '自定义 (%a 条)',
     enterCustomValue: '输入自定义值',
+    // Clipboard Sync - Page
+    csClipboardSync: '剪贴板同步',
+    csMenuLabel: '同步',
+    csStopSession: '停止会话',
+    csRestartSession: '重启会话',
+    csTypeTextToCopy: '输入要复制的文本…',
+    csNoClipboardActivity: '暂无剪贴板活动',
+    csEmptyStateDescription: '此页面显示剪贴板同步会话事件和生命周期记录。',
+    csAckLabel: '确认 %a',
+    // Clipboard Sync - Bubble
+    csShowLess: '收起',
+    csReadMore: '展开',
+    csPngImageSize: 'PNG 图片 • %a KB',
+    csCopyToClipboard: '复制到剪贴板',
+    csCopiedToClipboard: '已复制到剪贴板',
+    csDeleteMessage: '删除消息',
+    // Clipboard Sync - Phase Labels
+    csPhaseConnecting: '连接中',
+    csPhaseSubscribing: '订阅中',
+    csPhaseActiveRelay: '活跃 (中转)',
+    csPhaseActiveDirect: '活跃 (直连)',
+    csPhaseReconnecting: '重连中',
+    csPhasePaused: '已暂停',
+    csPhaseStopping: '停止中',
+    csPhaseClosed: '已关闭',
+    // Clipboard Sync - Source Labels
+    csSourceWatcher: '监听器',
+    csSourceManualCapture: '手动捕获',
+    csSourceCatchUp: '追赶',
+    csSourceRemoteEvent: '远程事件',
+    // Clipboard Sync - Watcher Status
+    csCheckingListener: '检查监听器',
+    csProbingCapabilities: '正在检测剪贴板监听器能力。',
+    csBackgroundListenerEnabled: '后台监听器已启用',
+    csAndroidWatcherActive: 'Android 监听器通过 %a 活跃。',
+    csWaitingOverlayPermission: '等待悬浮窗权限',
+    csOverlayPermissionNeeded: '持续监听剪贴板需要悬浮窗和通知权限。',
+    csForegroundCatchUpOnly: '仅前台追赶',
+    csForegroundCatchUpDetail: '应用不在前台时，仅在下次恢复时捕获最终剪贴板状态。',
+    csWatcherUnavailable: '监听器不可用: %a',
+    csWatcherActive: '监听器活跃',
+    csDesktopWatcherDetail: '应用进程运行期间可观察剪贴板变化。',
+    csIosForegroundDetail: 'iOS 可能仅在应用重新可见后才能捕获最终剪贴板状态。',
+    // Clipboard Sync - Status Messages
+    csSessionOpened: '已为 %a 打开会话。',
+    csSessionResumed: '已创建新会话并恢复剪贴板监听。',
+    csSessionStopped: '会话已停止。',
+    csClipboardWriteFailed: '无法将文本写入本地剪贴板。',
+    csReconnectScheduled: '已计划重连: %a',
+    csForegroundCatchUpCaptured: '前台追赶已捕获上次非观察窗口期间的最终剪贴板状态。',
+    csConnectingTransport: '正在连接传输通道…',
+    csTransportUpgraded: '传输已升级。等待订阅确认…',
+    csSessionActiveOver: '会话通过%a活跃。',
+    csReconnecting: '正在重连…',
+    csReconnectingDetail: '正在重连: %a',
+    csStoppingSession: '正在停止会话…',
+    csSessionClosedPlain: '会话已关闭。',
+    csSessionClosedDetail: '会话已关闭: %a',
+    csSessionClosedCodeAndError: '会话已关闭: %a · %a',
+    csDirectTransport: '直连传输',
+    csRelayTransport: '中转传输',
+    csSelectedTransport: '所选传输',
   };
 
   static const Map<String, dynamic> en = {
@@ -807,6 +941,77 @@ mixin AppLocale {
     daysCustom: 'Custom (%a days)',
     countCustom: 'Custom (%a records)',
     enterCustomValue: 'Enter custom value',
+    // Clipboard Sync - Page
+    csClipboardSync: 'Clipboard Sync',
+    csMenuLabel: 'Sync',
+    csStopSession: 'Stop session',
+    csRestartSession: 'Restart session',
+    csTypeTextToCopy: 'Type text to copy...',
+    csNoClipboardActivity: 'No clipboard activity yet',
+    csEmptyStateDescription:
+        'This page shows real clipboard session events and lifecycle notes.',
+    csAckLabel: 'Ack %a',
+    // Clipboard Sync - Bubble
+    csShowLess: 'Show less',
+    csReadMore: 'Read more',
+    csPngImageSize: 'PNG image • %a KB',
+    csCopyToClipboard: 'Copy to Clipboard',
+    csCopiedToClipboard: 'Copied to clipboard',
+    csDeleteMessage: 'Delete Message',
+    // Clipboard Sync - Phase Labels
+    csPhaseConnecting: 'Connecting',
+    csPhaseSubscribing: 'Subscribing',
+    csPhaseActiveRelay: 'Active (Relay)',
+    csPhaseActiveDirect: 'Active (Direct)',
+    csPhaseReconnecting: 'Reconnecting',
+    csPhasePaused: 'Paused / Stopped',
+    csPhaseStopping: 'Stopping',
+    csPhaseClosed: 'Closed',
+    // Clipboard Sync - Source Labels
+    csSourceWatcher: 'Watcher',
+    csSourceManualCapture: 'Manual capture',
+    csSourceCatchUp: 'Catch-up',
+    csSourceRemoteEvent: 'Remote event',
+    // Clipboard Sync - Watcher Status
+    csCheckingListener: 'Checking listener',
+    csProbingCapabilities: 'Probing clipboard listener capabilities.',
+    csBackgroundListenerEnabled: 'Background listener enabled',
+    csAndroidWatcherActive: 'Android watcher is active via %a.',
+    csWaitingOverlayPermission: 'Waiting for overlay permission',
+    csOverlayPermissionNeeded:
+        'Continuous clipboard observation needs overlay and notification permission.',
+    csForegroundCatchUpOnly: 'Foreground catch-up only',
+    csForegroundCatchUpDetail:
+        'When the app is not continuously observable, the next resume only captures the final clipboard state.',
+    csWatcherUnavailable: 'Watcher unavailable: %a',
+    csWatcherActive: 'Watcher active',
+    csDesktopWatcherDetail:
+        'Clipboard changes are observed while this app process stays alive.',
+    csIosForegroundDetail:
+        'iOS may only capture the final clipboard state after the app becomes observable again.',
+    // Clipboard Sync - Status Messages
+    csSessionOpened: 'Session opened for %a.',
+    csSessionResumed:
+        'Created a new session and resumed clipboard monitoring.',
+    csSessionStopped: 'Session stopped.',
+    csClipboardWriteFailed:
+        'Failed to write text into the local clipboard.',
+    csReconnectScheduled: 'Reconnect scheduled: %a',
+    csForegroundCatchUpCaptured:
+        'Foreground catch-up captured the final clipboard state from the last non-observable window.',
+    csConnectingTransport: 'Connecting transport…',
+    csTransportUpgraded:
+        'Transport upgraded. Waiting for subscribe acknowledgment…',
+    csSessionActiveOver: 'Session is active over %a.',
+    csReconnecting: 'Reconnecting…',
+    csReconnectingDetail: 'Reconnecting: %a',
+    csStoppingSession: 'Stopping session…',
+    csSessionClosedPlain: 'Session closed.',
+    csSessionClosedDetail: 'Session closed: %a',
+    csSessionClosedCodeAndError: 'Session closed: %a · %a',
+    csDirectTransport: 'direct transport',
+    csRelayTransport: 'relay transport',
+    csSelectedTransport: 'the selected transport',
   };
 
   static List<String> getSupportLanguageCode() {

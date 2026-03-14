@@ -321,7 +321,7 @@ class _DeviceCardState extends State<DeviceCard> {
                 children: [
                   const Icon(Icons.sync_alt),
                   const SizedBox(width: 10),
-                  const Text('Clipboard Sync'),
+                  Text(context.formatString(AppLocale.csMenuLabel, [])),
                 ],
               ),
             ),
