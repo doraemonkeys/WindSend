@@ -78,6 +78,10 @@ class TransferHistory extends Table {
   /// Small binary data (<100KB) stored directly in database
   BlobColumn get payloadBlob => blob().nullable()();
 
+  /// Original character count of text content (before truncation).
+  /// Only populated for text transfers; null for file/image/batch types.
+  IntColumn get textCharCount => integer().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [];
 
@@ -129,7 +133,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Current schema version. Increment when making schema changes.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   /// Migration strategy for schema version management.
   @override
@@ -142,11 +146,9 @@ class AppDatabase extends _$AppDatabase {
       await _createIndexes(m);
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      // Future migrations go here
-      // Example:
-      // if (from < 2) {
-      //   await m.addColumn(transferHistory, transferHistory.newColumn);
-      // }
+      if (from < 2) {
+        await m.addColumn(transferHistory, transferHistory.textCharCount);
+      }
     },
     beforeOpen: (details) async {
       // Enable foreign key constraints (good practice for data integrity)

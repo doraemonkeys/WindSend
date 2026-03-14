@@ -305,6 +305,7 @@ class HistoryService {
     }
 
     await _safeRecord(() async {
+      final charCount = text.length;
       final textPayload = _truncateTextPayload(text);
 
       await _dao!.insert(
@@ -316,6 +317,7 @@ class HistoryService {
           type: Value(TransferType.text.value),
           dataSize: Value(dataSize),
           textPayload: Value(textPayload),
+          textCharCount: Value(charCount),
         ),
       );
     });
@@ -348,6 +350,7 @@ class HistoryService {
     }
 
     await _safeRecord(() async {
+      final charCount = text.length;
       final textPayload = _truncateTextPayload(text);
 
       await _dao!.insert(
@@ -359,6 +362,7 @@ class HistoryService {
           type: Value(TransferType.text.value),
           dataSize: Value(dataSize),
           textPayload: Value(textPayload),
+          textCharCount: Value(charCount),
         ),
       );
     });

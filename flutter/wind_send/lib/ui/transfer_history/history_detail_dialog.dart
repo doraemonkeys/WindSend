@@ -242,6 +242,7 @@ class HistoryDetailDialog extends StatelessWidget {
 
   Widget _buildTextContent(BuildContext context, ColorScheme colorScheme) {
     final text = item.textPayload ?? '';
+    final charCount = item.textCharCount ?? text.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,11 +262,11 @@ class HistoryDetailDialog extends StatelessWidget {
             ),
           ),
         ),
-        if (text.length > 500) ...[
+        if (charCount > 0) ...[
           const SizedBox(height: 8),
           Text(
             context.formatString(AppLocale.historyDetailTotalChars, [
-              '${text.length}',
+              _formatNumber(charCount),
             ]),
             style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
           ),
@@ -494,6 +495,10 @@ class HistoryDetailDialog extends StatelessWidget {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  String _formatNumber(int number) {
+    return NumberFormat('#,###').format(number);
   }
 }
 

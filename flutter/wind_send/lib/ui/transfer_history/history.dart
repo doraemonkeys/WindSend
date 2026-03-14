@@ -460,6 +460,10 @@ class TransferHistoryItem {
   /// Small binary data (< 100KB, e.g., thumbnails)
   final Uint8List? payloadBlob;
 
+  /// Original character count of text content (before truncation).
+  /// Null for non-text types or legacy records created before this field existed.
+  final int? textCharCount;
+
   /// Resolver function for device names (injected dependency)
   final DeviceNameResolver? _deviceNameResolver;
 
@@ -477,6 +481,7 @@ class TransferHistoryItem {
     this.filesJson,
     this.payloadPath,
     this.payloadBlob,
+    this.textCharCount,
     DeviceNameResolver? deviceNameResolver,
   }) : _deviceNameResolver = deviceNameResolver;
 
@@ -644,6 +649,7 @@ class TransferHistoryItem {
       filesJson: json['files_json'] as String?,
       payloadPath: json['payload_path'] as String?,
       payloadBlob: json['payload_blob'] as Uint8List?,
+      textCharCount: json['text_char_count'] as int?,
       deviceNameResolver: deviceNameResolver,
     );
   }
@@ -664,6 +670,7 @@ class TransferHistoryItem {
       if (filesJson != null) 'files_json': filesJson,
       if (payloadPath != null) 'payload_path': payloadPath,
       if (payloadBlob != null) 'payload_blob': payloadBlob,
+      if (textCharCount != null) 'text_char_count': textCharCount,
     };
   }
 
@@ -686,6 +693,7 @@ class TransferHistoryItem {
     String? filesJson,
     String? payloadPath,
     Uint8List? payloadBlob,
+    int? textCharCount,
     DeviceNameResolver? deviceNameResolver,
   }) {
     return TransferHistoryItem(
@@ -702,6 +710,7 @@ class TransferHistoryItem {
       filesJson: filesJson ?? this.filesJson,
       payloadPath: payloadPath ?? this.payloadPath,
       payloadBlob: payloadBlob ?? this.payloadBlob,
+      textCharCount: textCharCount ?? this.textCharCount,
       deviceNameResolver: deviceNameResolver ?? _deviceNameResolver,
     );
   }

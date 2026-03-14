@@ -9,9 +9,7 @@ import '../../language.dart';
 import '../../utils/utils.dart';
 import '../../toast.dart';
 import 'history.dart';
-import 'image_preview_dialog.dart';
-
-// =============================================================================
+import 'image_preview_dialog.dart';// =============================================================================
 // Type Aliases for Callbacks
 // =============================================================================
 
@@ -421,6 +419,22 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                     ),
                     const SizedBox(height: 4),
                     _buildMetadataRow(colorScheme),
+                    if (widget.item.textCharCount != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        context.formatString(AppLocale.historyCardCharCount, [
+                          NumberFormat('#,###').format(
+                            widget.item.textCharCount,
+                          ),
+                        ]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

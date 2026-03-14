@@ -161,6 +161,17 @@ class $TransferHistoryTable extends TransferHistory
         type: DriftSqlType.blob,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _textCharCountMeta = const VerificationMeta(
+    'textCharCount',
+  );
+  @override
+  late final GeneratedColumn<int> textCharCount = GeneratedColumn<int>(
+    'text_char_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -176,6 +187,7 @@ class $TransferHistoryTable extends TransferHistory
     filesJson,
     payloadPath,
     payloadBlob,
+    textCharCount,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -285,6 +297,15 @@ class $TransferHistoryTable extends TransferHistory
         ),
       );
     }
+    if (data.containsKey('text_char_count')) {
+      context.handle(
+        _textCharCountMeta,
+        textCharCount.isAcceptableOrUnknown(
+          data['text_char_count']!,
+          _textCharCountMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -346,6 +367,10 @@ class $TransferHistoryTable extends TransferHistory
         DriftSqlType.blob,
         data['${effectivePrefix}payload_blob'],
       ),
+      textCharCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}text_char_count'],
+      ),
     );
   }
 
@@ -399,6 +424,10 @@ class TransferHistoryEntry extends DataClass
 
   /// Small binary data (<100KB) stored directly in database
   final Uint8List? payloadBlob;
+
+  /// Original character count of text content (before truncation).
+  /// Only populated for text transfers; null for file/image/batch types.
+  final int? textCharCount;
   const TransferHistoryEntry({
     required this.id,
     required this.isPinned,
@@ -413,6 +442,7 @@ class TransferHistoryEntry extends DataClass
     this.filesJson,
     this.payloadPath,
     this.payloadBlob,
+    this.textCharCount,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -443,6 +473,9 @@ class TransferHistoryEntry extends DataClass
     }
     if (!nullToAbsent || payloadBlob != null) {
       map['payload_blob'] = Variable<Uint8List>(payloadBlob);
+    }
+    if (!nullToAbsent || textCharCount != null) {
+      map['text_char_count'] = Variable<int>(textCharCount);
     }
     return map;
   }
@@ -476,6 +509,9 @@ class TransferHistoryEntry extends DataClass
       payloadBlob: payloadBlob == null && nullToAbsent
           ? const Value.absent()
           : Value(payloadBlob),
+      textCharCount: textCharCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(textCharCount),
     );
   }
 
@@ -498,6 +534,7 @@ class TransferHistoryEntry extends DataClass
       filesJson: serializer.fromJson<String?>(json['filesJson']),
       payloadPath: serializer.fromJson<String?>(json['payloadPath']),
       payloadBlob: serializer.fromJson<Uint8List?>(json['payloadBlob']),
+      textCharCount: serializer.fromJson<int?>(json['textCharCount']),
     );
   }
   @override
@@ -517,6 +554,7 @@ class TransferHistoryEntry extends DataClass
       'filesJson': serializer.toJson<String?>(filesJson),
       'payloadPath': serializer.toJson<String?>(payloadPath),
       'payloadBlob': serializer.toJson<Uint8List?>(payloadBlob),
+      'textCharCount': serializer.toJson<int?>(textCharCount),
     };
   }
 
@@ -534,6 +572,7 @@ class TransferHistoryEntry extends DataClass
     Value<String?> filesJson = const Value.absent(),
     Value<String?> payloadPath = const Value.absent(),
     Value<Uint8List?> payloadBlob = const Value.absent(),
+    Value<int?> textCharCount = const Value.absent(),
   }) => TransferHistoryEntry(
     id: id ?? this.id,
     isPinned: isPinned ?? this.isPinned,
@@ -548,6 +587,9 @@ class TransferHistoryEntry extends DataClass
     filesJson: filesJson.present ? filesJson.value : this.filesJson,
     payloadPath: payloadPath.present ? payloadPath.value : this.payloadPath,
     payloadBlob: payloadBlob.present ? payloadBlob.value : this.payloadBlob,
+    textCharCount: textCharCount.present
+        ? textCharCount.value
+        : this.textCharCount,
   );
   TransferHistoryEntry copyWithCompanion(TransferHistoryCompanion data) {
     return TransferHistoryEntry(
@@ -576,6 +618,9 @@ class TransferHistoryEntry extends DataClass
       payloadBlob: data.payloadBlob.present
           ? data.payloadBlob.value
           : this.payloadBlob,
+      textCharCount: data.textCharCount.present
+          ? data.textCharCount.value
+          : this.textCharCount,
     );
   }
 
@@ -594,7 +639,8 @@ class TransferHistoryEntry extends DataClass
           ..write('textPayload: $textPayload, ')
           ..write('filesJson: $filesJson, ')
           ..write('payloadPath: $payloadPath, ')
-          ..write('payloadBlob: $payloadBlob')
+          ..write('payloadBlob: $payloadBlob, ')
+          ..write('textCharCount: $textCharCount')
           ..write(')'))
         .toString();
   }
@@ -614,6 +660,7 @@ class TransferHistoryEntry extends DataClass
     filesJson,
     payloadPath,
     $driftBlobEquality.hash(payloadBlob),
+    textCharCount,
   );
   @override
   bool operator ==(Object other) =>
@@ -631,7 +678,8 @@ class TransferHistoryEntry extends DataClass
           other.textPayload == this.textPayload &&
           other.filesJson == this.filesJson &&
           other.payloadPath == this.payloadPath &&
-          $driftBlobEquality.equals(other.payloadBlob, this.payloadBlob));
+          $driftBlobEquality.equals(other.payloadBlob, this.payloadBlob) &&
+          other.textCharCount == this.textCharCount);
 }
 
 class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
@@ -648,6 +696,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
   final Value<String?> filesJson;
   final Value<String?> payloadPath;
   final Value<Uint8List?> payloadBlob;
+  final Value<int?> textCharCount;
   const TransferHistoryCompanion({
     this.id = const Value.absent(),
     this.isPinned = const Value.absent(),
@@ -662,6 +711,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
     this.filesJson = const Value.absent(),
     this.payloadPath = const Value.absent(),
     this.payloadBlob = const Value.absent(),
+    this.textCharCount = const Value.absent(),
   });
   TransferHistoryCompanion.insert({
     this.id = const Value.absent(),
@@ -677,6 +727,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
     this.filesJson = const Value.absent(),
     this.payloadPath = const Value.absent(),
     this.payloadBlob = const Value.absent(),
+    this.textCharCount = const Value.absent(),
   }) : createdAt = Value(createdAt),
        isOutgoing = Value(isOutgoing),
        type = Value(type);
@@ -694,6 +745,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
     Expression<String>? filesJson,
     Expression<String>? payloadPath,
     Expression<Uint8List>? payloadBlob,
+    Expression<int>? textCharCount,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -709,6 +761,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
       if (filesJson != null) 'files_json': filesJson,
       if (payloadPath != null) 'payload_path': payloadPath,
       if (payloadBlob != null) 'payload_blob': payloadBlob,
+      if (textCharCount != null) 'text_char_count': textCharCount,
     });
   }
 
@@ -726,6 +779,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
     Value<String?>? filesJson,
     Value<String?>? payloadPath,
     Value<Uint8List?>? payloadBlob,
+    Value<int?>? textCharCount,
   }) {
     return TransferHistoryCompanion(
       id: id ?? this.id,
@@ -741,6 +795,7 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
       filesJson: filesJson ?? this.filesJson,
       payloadPath: payloadPath ?? this.payloadPath,
       payloadBlob: payloadBlob ?? this.payloadBlob,
+      textCharCount: textCharCount ?? this.textCharCount,
     );
   }
 
@@ -786,6 +841,9 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
     if (payloadBlob.present) {
       map['payload_blob'] = Variable<Uint8List>(payloadBlob.value);
     }
+    if (textCharCount.present) {
+      map['text_char_count'] = Variable<int>(textCharCount.value);
+    }
     return map;
   }
 
@@ -804,7 +862,8 @@ class TransferHistoryCompanion extends UpdateCompanion<TransferHistoryEntry> {
           ..write('textPayload: $textPayload, ')
           ..write('filesJson: $filesJson, ')
           ..write('payloadPath: $payloadPath, ')
-          ..write('payloadBlob: $payloadBlob')
+          ..write('payloadBlob: $payloadBlob, ')
+          ..write('textCharCount: $textCharCount')
           ..write(')'))
         .toString();
   }
@@ -838,6 +897,7 @@ typedef $$TransferHistoryTableCreateCompanionBuilder =
       Value<String?> filesJson,
       Value<String?> payloadPath,
       Value<Uint8List?> payloadBlob,
+      Value<int?> textCharCount,
     });
 typedef $$TransferHistoryTableUpdateCompanionBuilder =
     TransferHistoryCompanion Function({
@@ -854,6 +914,7 @@ typedef $$TransferHistoryTableUpdateCompanionBuilder =
       Value<String?> filesJson,
       Value<String?> payloadPath,
       Value<Uint8List?> payloadBlob,
+      Value<int?> textCharCount,
     });
 
 class $$TransferHistoryTableFilterComposer
@@ -927,6 +988,11 @@ class $$TransferHistoryTableFilterComposer
 
   ColumnFilters<Uint8List> get payloadBlob => $composableBuilder(
     column: $table.payloadBlob,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get textCharCount => $composableBuilder(
+    column: $table.textCharCount,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1004,6 +1070,11 @@ class $$TransferHistoryTableOrderingComposer
     column: $table.payloadBlob,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get textCharCount => $composableBuilder(
+    column: $table.textCharCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransferHistoryTableAnnotationComposer
@@ -1065,6 +1136,11 @@ class $$TransferHistoryTableAnnotationComposer
     column: $table.payloadBlob,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get textCharCount => $composableBuilder(
+    column: $table.textCharCount,
+    builder: (column) => column,
+  );
 }
 
 class $$TransferHistoryTableTableManager
@@ -1117,6 +1193,7 @@ class $$TransferHistoryTableTableManager
                 Value<String?> filesJson = const Value.absent(),
                 Value<String?> payloadPath = const Value.absent(),
                 Value<Uint8List?> payloadBlob = const Value.absent(),
+                Value<int?> textCharCount = const Value.absent(),
               }) => TransferHistoryCompanion(
                 id: id,
                 isPinned: isPinned,
@@ -1131,6 +1208,7 @@ class $$TransferHistoryTableTableManager
                 filesJson: filesJson,
                 payloadPath: payloadPath,
                 payloadBlob: payloadBlob,
+                textCharCount: textCharCount,
               ),
           createCompanionCallback:
               ({
@@ -1147,6 +1225,7 @@ class $$TransferHistoryTableTableManager
                 Value<String?> filesJson = const Value.absent(),
                 Value<String?> payloadPath = const Value.absent(),
                 Value<Uint8List?> payloadBlob = const Value.absent(),
+                Value<int?> textCharCount = const Value.absent(),
               }) => TransferHistoryCompanion.insert(
                 id: id,
                 isPinned: isPinned,
@@ -1161,6 +1240,7 @@ class $$TransferHistoryTableTableManager
                 filesJson: filesJson,
                 payloadPath: payloadPath,
                 payloadBlob: payloadBlob,
+                textCharCount: textCharCount,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

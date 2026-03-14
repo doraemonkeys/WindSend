@@ -395,6 +395,7 @@ class _HistoryPageState extends State<HistoryPage>
       filesJson: entry.filesJson,
       payloadPath: entry.payloadPath,
       payloadBlob: entry.payloadBlob,
+      textCharCount: entry.textCharCount,
     );
   }
 

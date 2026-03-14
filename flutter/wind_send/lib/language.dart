@@ -115,6 +115,7 @@ mixin AppLocale {
   static const String historyDetailContent = 'historyDetailContent';
   static const String historyDetailEmpty = 'historyDetailEmpty';
   static const String historyDetailTotalChars = 'historyDetailTotalChars';
+  static const String historyCardCharCount = 'historyCardCharCount';
   static const String historyDetailFileInfoUnavailable =
       'historyDetailFileInfoUnavailable';
   static const String historyDetailFolder = 'historyDetailFolder';
@@ -390,6 +391,7 @@ mixin AppLocale {
     historyDetailContent: '内容',
     historyDetailEmpty: '(空)',
     historyDetailTotalChars: '共 %a 字符',
+    historyCardCharCount: '%a 字符',
     historyDetailFileInfoUnavailable: '文件信息不可用',
     historyDetailFolder: '文件夹',
     historyDetailMoreItems: '还有 %a 个项目',
@@ -658,6 +660,7 @@ mixin AppLocale {
     historyDetailContent: 'Content',
     historyDetailEmpty: '(Empty)',
     historyDetailTotalChars: '%a characters total',
+    historyCardCharCount: '%a chars',
     historyDetailFileInfoUnavailable: 'File info unavailable',
     historyDetailFolder: 'Folder',
     historyDetailMoreItems: '%a more items',
