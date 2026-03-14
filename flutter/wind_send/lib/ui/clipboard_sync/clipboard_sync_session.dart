@@ -372,28 +372,6 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     super.dispose();
   }
 
-  Future<void> captureCurrentClipboard() async {
-    final result = await _captureSnapshotWithForegroundFallback(
-      source: ClipboardObservationSource.manualRead,
-    );
-    switch (result) {
-      case ClipboardCaptureSuccess():
-        _recordStatus(
-          'Captured the current clipboard locally. Live wire events still come from watcher-observed changes.',
-          icon: Icons.search,
-        );
-      case ClipboardCaptureEmpty():
-        _recordStatus(
-          'Clipboard is empty.',
-          icon: Icons.content_paste_off_outlined,
-        );
-      case ClipboardCaptureUnavailable(:final reason):
-        _recordStatus(reason, icon: Icons.error_outline);
-      case ClipboardCaptureUnsupported(:final reason):
-        _recordStatus(reason, icon: Icons.warning_amber_outlined);
-    }
-  }
-
   Future<void> copyTextToLocalClipboard(String text) async {
     final payload = ClipboardPayload.text(TextBundle(plainText: text));
     final result = await _rawDomainAdapter.applyPayload(payload);

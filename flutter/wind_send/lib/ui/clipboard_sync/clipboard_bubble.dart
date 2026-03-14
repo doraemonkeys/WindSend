@@ -17,7 +17,7 @@ class ClipboardBubble extends StatefulWidget {
 
 class _ClipboardBubbleState extends State<ClipboardBubble> {
   static const int _textLengthThreshold = 300;
-  static const int _maxLinesCollapsed = 8;
+  static const int _maxLinesCollapsed = 10;
 
   bool _isExpanded = false;
 
@@ -27,143 +27,132 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Align(
-      alignment: isOutgoing ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
-        child: Column(
-          crossAxisAlignment: isOutgoing
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: isOutgoing
-                    ? colorScheme.primaryContainer
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: isOutgoing
-                      ? const Radius.circular(16)
-                      : Radius.zero,
-                  bottomRight: isOutgoing
-                      ? Radius.zero
-                      : const Radius.circular(16),
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _handleTap,
-                  onLongPress: _showActionMenu,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: isOutgoing
-                        ? const Radius.circular(16)
-                        : Radius.zero,
-                    bottomRight: isOutgoing
-                        ? Radius.zero
-                        : const Radius.circular(16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment:
+            isOutgoing ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment:
+                isOutgoing ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isOutgoing) ...[
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.devices,
+                    size: 16,
+                    color: colorScheme.onPrimaryContainer,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isOutgoing
+                        ? colorScheme.primary
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isOutgoing ? 20 : 4),
+                      bottomRight: Radius.circular(isOutgoing ? 4 : 20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _handleTap,
+                      onLongPress: _showActionMenu,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(20),
+                        topRight: const Radius.circular(20),
+                        bottomLeft: Radius.circular(isOutgoing ? 20 : 4),
+                        bottomRight: Radius.circular(isOutgoing ? 4 : 20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildChip(
-                              label: isOutgoing ? 'Local' : 'Remote',
-                              icon: isOutgoing
-                                  ? Icons.north_east
-                                  : Icons.south_west,
-                              foreground: isOutgoing
-                                  ? colorScheme.onPrimaryContainer
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                            _buildChip(
-                              label: widget.item.sourceLabel,
-                              icon: Icons.visibility_outlined,
-                              foreground: isOutgoing
-                                  ? colorScheme.onPrimaryContainer
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                            if (widget.item.hasHtml)
-                              _buildChip(
-                                label: 'HTML',
-                                icon: Icons.code,
-                                foreground: isOutgoing
-                                    ? colorScheme.onPrimaryContainer
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                            if (widget.item.failureMessage != null)
-                              _buildChip(
-                                label: 'Apply failed',
-                                icon: Icons.error_outline,
-                                foreground: colorScheme.error,
-                              ),
+                            _buildPayloadContent(context, colorScheme),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        _buildPayloadContent(context, colorScheme),
-                        if (widget.item.failureMessage != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.item.failureMessage!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.error,
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+              if (isOutgoing) ...[
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: colorScheme.secondaryContainer,
+                  child: Icon(
+                    Icons.person,
+                    size: 16,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (widget.item.failureMessage != null) ...[
             const SizedBox(height: 4),
-            Text(
-              _buildFooterLabel(),
-              style: TextStyle(
-                fontSize: 10,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 14, color: colorScheme.error),
+                const SizedBox(width: 4),
+                Text(
+                  widget.item.failureMessage!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.error,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChip({
-    required String label,
-    required IconData icon,
-    required Color foreground,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: foreground.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: foreground),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: foreground,
+          const SizedBox(height: 4),
+          Padding(
+            padding: EdgeInsets.only(
+              left: isOutgoing ? 0 : 36,
+              right: isOutgoing ? 36 : 0,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _buildFooterLabel(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ),
+                if (widget.item.hasHtml) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.code,
+                    size: 12,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -185,6 +174,9 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
     final isLong =
         text.length > _textLengthThreshold ||
         text.split('\n').length > _maxLinesCollapsed;
+    final textColor = widget.item.isOutgoing
+        ? colorScheme.onPrimary
+        : colorScheme.onSurface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,24 +184,30 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
         Text(
           text,
           style: TextStyle(
-            color: widget.item.isOutgoing
-                ? colorScheme.onPrimaryContainer
-                : colorScheme.onSurface,
-            fontSize: 15,
+            color: textColor,
+            fontSize: 16,
+            height: 1.3,
           ),
           maxLines: _isExpanded ? null : _maxLinesCollapsed,
-          overflow: _isExpanded ? null : TextOverflow.ellipsis,
+          overflow: _isExpanded ? null : TextOverflow.fade,
         ),
         if (isLong) ...[
-          const SizedBox(height: 6),
-          Text(
-            _isExpanded ? 'Show less' : 'Show more',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: widget.item.isOutgoing
-                  ? colorScheme.onPrimaryContainer.withValues(alpha: 0.75)
-                  : colorScheme.primary,
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            child: Text(
+              _isExpanded ? 'Show less' : 'Read more',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: widget.item.isOutgoing
+                    ? colorScheme.onPrimary.withValues(alpha: 0.8)
+                    : colorScheme.primary,
+              ),
             ),
           ),
         ],
@@ -223,17 +221,29 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
       mainAxisSize: MainAxisSize.min,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(pngBytes, fit: BoxFit.cover),
+          borderRadius: BorderRadius.circular(12),
+          child: Image.memory(
+            pngBytes,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                height: 150,
+                width: double.infinity,
+                color: colorScheme.surfaceContainerHighest,
+                child: const Center(
+                  child: Icon(Icons.broken_image, size: 40),
+                ),
+              );
+            },
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          'PNG image · ${pngBytes.lengthInBytes} bytes',
+          'PNG image • ${(pngBytes.lengthInBytes / 1024).toStringAsFixed(1)} KB',
           style: TextStyle(
             fontSize: 12,
-            fontStyle: FontStyle.italic,
             color: widget.item.isOutgoing
-                ? colorScheme.onPrimaryContainer.withValues(alpha: 0.75)
+                ? colorScheme.onPrimary.withValues(alpha: 0.8)
                 : colorScheme.onSurfaceVariant,
           ),
         ),
@@ -273,51 +283,55 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
       builder: (context) {
         final navigator = Navigator.of(context);
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.4,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  borderRadius: BorderRadius.circular(2),
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (textPayload != null)
+                const SizedBox(height: 16),
+                if (textPayload != null)
+                  ListTile(
+                    leading: const Icon(Icons.copy_rounded),
+                    title: const Text('Copy to Clipboard'),
+                    onTap: () async {
+                      await Clipboard.setData(ClipboardData(text: textPayload));
+                      if (!mounted) {
+                        return;
+                      }
+                      navigator.pop();
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Copied to clipboard'),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ListTile(
-                  leading: const Icon(Icons.copy_rounded),
-                  title: const Text('Copy'),
-                  onTap: () async {
-                    await Clipboard.setData(ClipboardData(text: textPayload));
-                    if (!mounted) {
-                      return;
-                    }
-                    navigator.pop();
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Copied to clipboard'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                  leading: const Icon(Icons.delete_outline_rounded),
+                  title: const Text('Delete Message'),
+                  textColor: theme.colorScheme.error,
+                  iconColor: theme.colorScheme.error,
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onDelete?.call();
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded),
-                title: const Text('Delete'),
-                textColor: theme.colorScheme.error,
-                iconColor: theme.colorScheme.error,
-                onTap: () {
-                  Navigator.pop(context);
-                  widget.onDelete?.call();
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -326,9 +340,10 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
 
   String _buildFooterLabel() {
     final timestamp = DateFormat('HH:mm').format(widget.item.createdAt);
+    final source = widget.item.sourceLabel;
     if (widget.item.eventId == null) {
-      return '$timestamp · ${widget.item.peerLabel}';
+      return '$timestamp • $source';
     }
-    return '$timestamp · ${widget.item.peerLabel} · #${widget.item.eventId}';
+    return '$timestamp • $source • #${widget.item.eventId}';
   }
 }
