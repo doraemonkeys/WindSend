@@ -22,7 +22,6 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.setProperty("storeFile", System.getenv("KEY_PATH"))
 }
 
-
 android {
     namespace = "com.doraemon.wind_send"
     compileSdk = flutter.compileSdkVersion
@@ -35,6 +34,16 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    lint {
+        // AGP runs `lintVitalAnalyzeRelease` as part of release packaging when
+        // `checkReleaseBuilds` is enabled. On Windows this task can fail before
+        // analysis starts because its cache cleanup hits transient file locks in
+        // `build/app/intermediates/lint-cache`. Keep lint available as an
+        // explicit workflow (`gradlew lint` / CI) and decouple APK packaging
+        // from this host-specific cache behavior.
+        checkReleaseBuilds = false
     }
 
     defaultConfig {
