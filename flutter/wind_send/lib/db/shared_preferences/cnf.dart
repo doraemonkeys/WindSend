@@ -625,6 +625,21 @@ Future<void> saveDeviceWifiBssid(Device device) async {
   LocalConfig.setBssidDeviceNameMap(bssidDeviceNameMap);
 }
 
+/// Resolve a target device using WiFi BSSID → device name mapping.
+///
+/// Returns null if BSSID auto-select is disabled, location permission
+/// is not granted, or no mapping exists for the current WiFi network.
+Future<Device?> resolveTargetDeviceByBssid() async {
+  if (!LocalConfig.autoSelectShareSyncDeviceByBssid) return null;
+  final hasPermission = await _hasNetworkPermission();
+  if (!hasPermission) return null;
+  final wifiBSSID = await NetworkInfo().getWifiBSSID();
+  if (wifiBSSID == null) return null;
+  return LocalConfig.devices.firstWhereOrNull(
+    (e) => e.targetDeviceName == LocalConfig.bssidDeviceNameMap[wifiBSSID],
+  );
+}
+
 Future<Device?> resolveTargetDevice({
   bool defaultShareDevice = false,
   bool defaultSyncDevice = false,
@@ -632,22 +647,9 @@ Future<Device?> resolveTargetDevice({
   // Only use BSSID lookup when permission is already granted.
   // Never request permission here — showFirstTimeLocationPermissionDialog
   // handles the first request with a user-facing explanation.
-  if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-    final hasPermission = await _hasNetworkPermission();
-    if (hasPermission) {
-      final info = NetworkInfo();
-      final wifiBSSID = await info.getWifiBSSID();
-      if (wifiBSSID != null) {
-        final bssidDeviceNameMap = LocalConfig.bssidDeviceNameMap;
-        Device? device = LocalConfig.devices.firstWhereOrNull(
-          (e) => e.targetDeviceName == bssidDeviceNameMap[wifiBSSID],
-        );
-        if (device != null) {
-          return device;
-        }
-      }
-    }
-  }
+  final bssidDevice = await resolveTargetDeviceByBssid();
+  if (bssidDevice != null) return bssidDevice;
+
   if (defaultShareDevice) {
     return LocalConfig.devices.firstWhereOrNull(
       (e) => e.targetDeviceName == LocalConfig.defaultShareDevice,

@@ -584,28 +584,42 @@ class _MainBodyState extends State<MainBody> {
         return;
       }
       final shared = sharedMedia.attachments ?? [];
-      var defaultDevice = await resolveTargetDevice(defaultShareDevice: true);
-      if (defaultDevice == null) {
-        return;
+
+      // Determine target device:
+      // 1. Single device → use it directly
+      // 2. BSSID auto-select resolves → use that device
+      // 3. Otherwise → let user pick from a bottom sheet
+      Device? targetDevice;
+      if (widget.devices.length <= 1) {
+        targetDevice = widget.devices.firstOrNull;
+      } else {
+        targetDevice = await resolveTargetDeviceByBssid();
+        if (targetDevice == null && context.mounted) {
+          targetDevice = await _showShareDeviceSelector(context);
+        }
       }
-      var defaultDeviceIndex = widget.devices.indexWhere(
-        (element) => element.targetDeviceName == defaultDevice.targetDeviceName,
+      if (targetDevice == null) return;
+      // Shadow with non-nullable binding so closures below don't need null checks
+      final Device device = targetDevice;
+
+      var targetDeviceIndex = widget.devices.indexWhere(
+        (element) => element.targetDeviceName == device.targetDeviceName,
       );
-      if (defaultDeviceIndex == -1) {
-        throw 'unexpect error, default device not found';
+      if (targetDeviceIndex == -1) {
+        throw 'unexpect error, target device not found';
       }
       ReceivePort rp = ReceivePort();
       await DeviceCard.commonActionFuncWithToastr(
         null,
-        defaultDevice,
+        device,
         (Device d) {
-          widget.devices[defaultDeviceIndex].iP = d.iP;
-          LocalConfig.setDevice(widget.devices[defaultDeviceIndex]);
+          widget.devices[targetDeviceIndex].iP = d.iP;
+          LocalConfig.setDevice(widget.devices[targetDeviceIndex]);
           widget.onDevicesChange();
         },
         () async {
           final shareSuccessMsg = context.formatString(AppLocale.shareSuccess, [
-            defaultDevice.targetDeviceName,
+            device.targetDeviceName,
           ]);
 
           List<String> fileList = [];
@@ -617,21 +631,21 @@ class _MainBodyState extends State<MainBody> {
             fileList.add(element.path);
           }
           // Web relay doesn't support file transfer, only clipboard text sync
-          if (defaultDevice.iP == Device.webIP && text == null) {
+          if (device.iP == Device.webIP && text == null) {
             throw 'Unsupported operation, web device only support text';
           }
-          if (fileList.isNotEmpty && defaultDevice.iP != Device.webIP) {
-            await defaultDevice.doSendAction(
+          if (fileList.isNotEmpty && device.iP != Device.webIP) {
+            await device.doSendAction(
               () => context,
               fileList,
               progressSendPort: rp.sendPort,
             );
           }
           if (text != null) {
-            if (defaultDevice.iP == Device.webIP) {
-              await defaultDevice.doPasteTextActionWeb(text: text);
+            if (device.iP == Device.webIP) {
+              await device.doPasteTextActionWeb(text: text);
             } else {
-              await defaultDevice.doPasteTextAction(text: text);
+              await device.doPasteTextAction(text: text);
             }
           }
           return ToastResult(message: shareSuccessMsg);
@@ -657,6 +671,164 @@ class _MainBodyState extends State<MainBody> {
           );
         }, onError: handleOnError)
         .catchError(handleOnError);
+  }
+
+  /// Device picker bottom sheet for share-intent when BSSID auto-select
+  /// doesn't resolve (multiple devices, unknown WiFi, or feature disabled).
+  Future<Device?> _showShareDeviceSelector(BuildContext context) {
+    return showModalBottomSheet<Device>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                height: 4,
+                width: 32,
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    ctx,
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.devices,
+                        color: Theme.of(ctx).colorScheme.onPrimaryContainer,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        context.formatString(AppLocale.selectDevice, []),
+                        style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.surfaceContainerHighest,
+                        foregroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: widget.devices.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final device = widget.devices[index];
+                    final isRelay = device.iP.isEmpty;
+                    return Card(
+                      elevation: 0,
+                      color: Theme.of(ctx).colorScheme.surfaceContainer,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(
+                            ctx,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.pop(ctx, device),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isRelay
+                                    ? Icons.cloud_outlined
+                                    : Icons.devices_other,
+                                color: Theme.of(ctx).colorScheme.primary,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      device.targetDeviceName,
+                                      style: Theme.of(ctx).textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isRelay
+                                          ? context.formatString(
+                                              AppLocale.relayOnly,
+                                              [],
+                                            )
+                                          : '${device.iP}:${device.port}',
+                                      style: Theme.of(ctx).textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              ctx,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: Theme.of(
+                                  ctx,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

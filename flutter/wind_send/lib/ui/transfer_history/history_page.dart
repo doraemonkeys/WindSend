@@ -237,10 +237,7 @@ class _HistoryPageState extends State<HistoryPage>
       _database = await db.AppDatabase.getInstance();
       _dao = HistoryDao(_database!);
       // Load devices and data in parallel
-      await Future.wait([
-        _loadAvailableDevices(),
-        _loadData(reset: true),
-      ]);
+      await Future.wait([_loadAvailableDevices(), _loadData(reset: true)]);
       if (mounted) {
         setState(() {
           _isInitialized = true;
@@ -487,7 +484,9 @@ class _HistoryPageState extends State<HistoryPage>
 
     final itemId = item.id!;
     // Use HistoryService to delete record with thumbnail cleanup
-    final success = await HistoryService.instance.deleteRecordWithThumbnail(itemId);
+    final success = await HistoryService.instance.deleteRecordWithThumbnail(
+      itemId,
+    );
 
     if (success && mounted) {
       setState(() {
@@ -557,55 +556,155 @@ class _HistoryPageState extends State<HistoryPage>
   Future<Device?> _showDeviceSelector(List<Device> devices) async {
     return showModalBottomSheet<Device>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Icon(Icons.devices, color: Theme.of(ctx).colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Text(
-                    context.formatString(AppLocale.selectDevice, []),
-                    style: Theme.of(ctx).textTheme.titleLarge,
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                height: 4,
+                width: 32,
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    ctx,
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            // Device list
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: devices.length,
-                itemBuilder: (context, index) {
-                  final device = devices[index];
-                  return ListTile(
-                    leading: Icon(
-                      Icons.devices_other,
-                      color: Theme.of(ctx).colorScheme.primary,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.devices,
+                        color: Theme.of(ctx).colorScheme.onPrimaryContainer,
+                        size: 24,
+                      ),
                     ),
-                    title: Text(device.targetDeviceName),
-                    subtitle: Text(
-                      device.iP.isEmpty
-                          ? context.formatString(AppLocale.relayOnly, [])
-                          : '${device.iP}:${device.port}',
-                      style: Theme.of(ctx).textTheme.bodySmall,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        context.formatString(AppLocale.selectDevice, []),
+                        style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    onTap: () => Navigator.pop(ctx, device),
-                  );
-                },
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.surfaceContainerHighest,
+                        foregroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              // Device list
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: devices.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final device = devices[index];
+                    final isRelay = device.iP.isEmpty;
+                    return Card(
+                      elevation: 0,
+                      color: Theme.of(ctx).colorScheme.surfaceContainer,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(
+                            ctx,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.pop(ctx, device),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isRelay
+                                    ? Icons.cloud_outlined
+                                    : Icons.devices_other,
+                                color: Theme.of(ctx).colorScheme.primary,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      device.targetDeviceName,
+                                      style: Theme.of(ctx).textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isRelay
+                                          ? context.formatString(
+                                              AppLocale.relayOnly,
+                                              [],
+                                            )
+                                          : '${device.iP}:${device.port}',
+                                      style: Theme.of(ctx).textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              ctx,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: Theme.of(
+                                  ctx,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1201,9 +1300,8 @@ class _HistoryPageState extends State<HistoryPage>
                               child: Text(
                                 context.formatString(AppLocale.allShown, []),
                                 style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.5),
                                   fontSize: 13,
                                 ),
                               ),
@@ -1284,23 +1382,29 @@ class _HistoryPageState extends State<HistoryPage>
             _buildDirectionChip(
               context,
               colorScheme,
-              label: context.formatString(AppLocale.filterDirectionOutgoing, []),
+              label: context.formatString(
+                AppLocale.filterDirectionOutgoing,
+                [],
+              ),
               icon: Icons.arrow_outward_rounded,
               isSelected: _directionFilter == DirectionFilter.outgoing,
-              onSelected:
-                  () => _onDirectionFilterChanged(DirectionFilter.outgoing),
+              onSelected: () =>
+                  _onDirectionFilterChanged(DirectionFilter.outgoing),
             ),
             const SizedBox(width: 8),
             _buildDirectionChip(
               context,
               colorScheme,
-              label: context.formatString(AppLocale.filterDirectionIncoming, []),
+              label: context.formatString(
+                AppLocale.filterDirectionIncoming,
+                [],
+              ),
               icon: Icons.arrow_downward_rounded,
               isSelected: _directionFilter == DirectionFilter.incoming,
-              onSelected:
-                  () => _onDirectionFilterChanged(DirectionFilter.incoming),
+              onSelected: () =>
+                  _onDirectionFilterChanged(DirectionFilter.incoming),
             ),
-            
+
             // Divider
             Container(
               height: 24,
@@ -1344,11 +1448,15 @@ class _HistoryPageState extends State<HistoryPage>
       onSelected: (_) => onSelected(),
       showCheckmark: false,
       labelStyle: TextStyle(
-        color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurface,
+        color: isSelected
+            ? colorScheme.onSecondaryContainer
+            : colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         fontSize: 13,
       ),
-      backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.3,
+      ),
       selectedColor: colorScheme.secondaryContainer,
       side: BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1360,7 +1468,7 @@ class _HistoryPageState extends State<HistoryPage>
   Widget _buildDeviceFilterChip(ColorScheme colorScheme) {
     String label = context.formatString(AppLocale.filterDeviceAll, []);
     bool isSelected = _deviceFilter != null;
-    
+
     if (_deviceFilter != null) {
       final device = _availableDevices.firstWhere(
         (d) => d.id == _deviceFilter,
@@ -1377,7 +1485,7 @@ class _HistoryPageState extends State<HistoryPage>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (context) {
         final items = <PopupMenuEntry<String?>>[];
-        
+
         // All Devices option
         items.add(
           PopupMenuItem<String?>(
@@ -1419,8 +1527,8 @@ class _HistoryPageState extends State<HistoryPage>
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? colorScheme.secondaryContainer 
+          color: isSelected
+              ? colorScheme.secondaryContainer
               : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -1430,7 +1538,9 @@ class _HistoryPageState extends State<HistoryPage>
             Icon(
               Icons.devices_rounded,
               size: 16,
-              color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? colorScheme.onSecondaryContainer
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -1439,7 +1549,9 @@ class _HistoryPageState extends State<HistoryPage>
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurface,
+                  color: isSelected
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1449,7 +1561,9 @@ class _HistoryPageState extends State<HistoryPage>
             Icon(
               Icons.arrow_drop_down_rounded,
               size: 18,
-              color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? colorScheme.onSecondaryContainer
+                  : colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -1508,8 +1622,7 @@ class _HistoryPageState extends State<HistoryPage>
   /// Build empty state with illustration and CTA (Section 4.6)
   Widget _buildEmptyState(ColorScheme colorScheme) {
     // Show different message when filters are active but no results
-    final hasFilters = _hasActiveFilter ||
-        _currentTab != HistoryFilterTab.all;
+    final hasFilters = _hasActiveFilter || _currentTab != HistoryFilterTab.all;
 
     return Center(
       child: Padding(
@@ -1542,7 +1655,10 @@ class _HistoryPageState extends State<HistoryPage>
             Text(
               hasFilters
                   ? context.formatString(AppLocale.reset, [])
-                  : context.formatString(AppLocale.startTransferDescription, []),
+                  : context.formatString(
+                      AppLocale.startTransferDescription,
+                      [],
+                    ),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
