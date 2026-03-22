@@ -39,7 +39,7 @@ dependencies:
   flutter_localization: ^0.3.3
   device_info_plus: ^12.3.0
   path_provider: ^2.1.1
-  file_picker: ^10.3.8
+  file_picker: ^10.3.10
   # share_handler: ^0.0.23
   share_handler:
     git:
@@ -96,7 +96,7 @@ dependencies:
   image: ^4.7.2
   flutter_image_compress: ^2.4.0
   unorm_dart: ^0.3.2
-  clipshare_clipboard_listener: ^1.2.10
+  clipshare_clipboard_listener: ^1.2.14
 
 
 dev_dependencies:

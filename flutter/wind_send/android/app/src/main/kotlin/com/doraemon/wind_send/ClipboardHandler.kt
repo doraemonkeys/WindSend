@@ -39,7 +39,7 @@ class ClipboardHandler(private val context: Context) {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val fileUri = FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                "${context.packageName}.FileProvider",
                 File(filePath)
             )
             val clip = ClipData.newUri(context.contentResolver, "URI", fileUri)

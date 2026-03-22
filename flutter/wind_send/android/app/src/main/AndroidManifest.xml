@@ -47,7 +47,7 @@
         <!-- file clipboard && open_filex -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
+            android:authorities="${applicationId}.FileProvider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:replace="android:authorities">
