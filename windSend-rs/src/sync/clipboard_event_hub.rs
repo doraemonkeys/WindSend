@@ -23,12 +23,18 @@ pub static GLOBAL_CLIPBOARD_EVENT_HUB: LazyLock<ClipboardEventHubHandle> =
 #[derive(Clone)]
 pub struct ClipboardEventHubHandle {
     inner: Arc<Mutex<ClipboardEventHub>>,
+    // Unit tests run without a desktop session, so they keep watcher startup detached from
+    // the host clipboard unless a test explicitly opts in.
+    #[cfg(test)]
+    start_system_watcher: bool,
 }
 
 impl ClipboardEventHubHandle {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(ClipboardEventHub::default())),
+            #[cfg(test)]
+            start_system_watcher: false,
         }
     }
 
@@ -88,6 +94,11 @@ impl ClipboardEventHubHandle {
     }
 
     fn start_watcher(&self) {
+        #[cfg(test)]
+        if !self.start_system_watcher {
+            return;
+        }
+
         self.prime_from_current_clipboard();
         let watcher = start_clipboard_watcher(self.clone());
 
