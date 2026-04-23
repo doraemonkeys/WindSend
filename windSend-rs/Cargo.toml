@@ -13,13 +13,12 @@ disable-systray-support = []
 [dependencies]
 # tray-item = "0.8.0"
 log = "0.4"
-aes = "0.8.3"
+aes = "0.9.0"
 hex = "0.4.3"
 tokio = { version = "1.50", features = ["full", "test-util"] }
-# x25519 依赖rand v0.8
-rand = "0.9"
-x25519-dalek = { version = "3.0.0-pre.0", features = ["os_rng"] }
-pbkdf2 = "0.12"
+rand = "0.10.1"
+x25519-dalek = { version = "3.0.0-pre.6", features = ["getrandom"] }
+pbkdf2 = "0.13"
 image = "0.25"
 crossbeam-channel = "0.5"
 serde = { version = "1.0", features = ["derive"] }
@@ -42,9 +41,9 @@ tracing-subscriber = { version = "0.3", features = [
     "local-time",
 ] }
 tracing-appender = "0.2"
-sha2 = "0.10.9"
+sha2 = "0.11"
 anyhow = "1.0"
-cbc = "0.1.2"
+cbc = "0.2"
 cipher = "0.5"
 chrono = "0.4"
 subslice = "0.2.3"

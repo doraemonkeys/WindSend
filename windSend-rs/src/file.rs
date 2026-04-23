@@ -424,7 +424,7 @@ impl FileReceiveSessionManager {
         exp_size: i64,
     ) -> bool {
         let part = all_part;
-        part.sort_by(|a, b| a.start.cmp(&b.start));
+        part.sort_by_key(|file_part| file_part.start);
         debug!("file part: {:?}", part);
         if part[0].start != 0 {
             return false;
