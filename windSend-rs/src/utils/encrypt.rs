@@ -1,9 +1,8 @@
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
+use aes::cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7};
 // use anyhow::Ok;
 
 // use rand::CryptoRng;
-// use rand::Rng;
-use rand::RngCore;
+use rand::Rng;
 use sha2::Digest;
 
 pub fn rand_n_bytes(rng: &mut rand::rngs::ThreadRng, n: usize) -> Vec<u8> {
@@ -64,20 +63,32 @@ type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 impl AESCbcCrypt {
     const BLOCK_SIZE: usize = 16;
+
     pub fn new(key: &[u8]) -> anyhow::Result<Self> {
         if key.len() != 16 && key.len() != 24 && key.len() != 32 {
             return Err(anyhow::anyhow!("secretKey length must be 16, 24 or 32"));
         }
         Ok(Self { key: key.to_vec() })
     }
+
+    fn ensure_iv_len(iv: &[u8]) -> anyhow::Result<()> {
+        if iv.len() != Self::BLOCK_SIZE {
+            return Err(anyhow::anyhow!(
+                "iv length must be {} bytes for AES-CBC",
+                Self::BLOCK_SIZE
+            ));
+        }
+        Ok(())
+    }
+
     fn encrypt(
         &self,
-        encryptor: impl BlockEncryptMut,
+        encryptor: impl BlockModeEncrypt,
         plain_text: &[u8],
         extra_space: usize,
     ) -> anyhow::Result<Vec<u8>> {
         let mut buf = vec![0u8; plain_text.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let cipher_text = encryptor.encrypt_padded_b2b_mut::<Pkcs7>(plain_text, &mut buf);
+        let cipher_text = encryptor.encrypt_padded_b2b::<Pkcs7>(plain_text, &mut buf);
         match cipher_text {
             Ok(text) => {
                 let len = text.len();
@@ -89,37 +100,42 @@ impl AESCbcCrypt {
     }
     fn decrypt(
         &self,
-        decryptor: impl BlockDecryptMut,
+        decryptor: impl BlockModeDecrypt,
         data: &[u8],
         extra_space: usize,
     ) -> anyhow::Result<Vec<u8>> {
         let mut buf = vec![0u8; data.len() + AESCbcCrypt::BLOCK_SIZE + extra_space];
-        let plain_text = decryptor.decrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf);
-        if let Err(e) = plain_text {
-            return Err(anyhow::anyhow!(e));
+        match decryptor.decrypt_padded_b2b::<Pkcs7>(data, &mut buf) {
+            Ok(plain_text) => {
+                let len = plain_text.len();
+                buf.truncate(len);
+                Ok(buf)
+            }
+            Err(e) => Err(anyhow::anyhow!(e)),
         }
-        let len = plain_text.unwrap().len();
-        buf.truncate(len);
-        Ok(buf)
     }
 }
 
 impl SymCryptor for AESCbcCrypt {
     fn encrypt(&self, plain_text: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
+        Self::ensure_iv_len(iv)?;
         match self.key.len() {
             16 => {
                 let key = &self.key[..16];
-                let encryptor = Aes128CbcEnc::new(key.into(), iv.into());
+                let encryptor = Aes128CbcEnc::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.encrypt(encryptor, plain_text, extra_space)
             }
             24 => {
                 let key = &self.key[..24];
-                let encryptor = Aes192CbcEnc::new(key.into(), iv.into());
+                let encryptor = Aes192CbcEnc::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.encrypt(encryptor, plain_text, extra_space)
             }
             32 => {
                 let key = &self.key[..32];
-                let encryptor = Aes256CbcEnc::new(key.into(), iv.into());
+                let encryptor = Aes256CbcEnc::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.encrypt(encryptor, plain_text, extra_space)
             }
             _ => Err(anyhow::anyhow!("unsupported key length")),
@@ -127,20 +143,24 @@ impl SymCryptor for AESCbcCrypt {
     }
 
     fn decrypt(&self, data: &[u8], iv: &[u8], extra_space: usize) -> anyhow::Result<Vec<u8>> {
+        Self::ensure_iv_len(iv)?;
         match self.key.len() {
             16 => {
                 let key = &self.key[..16];
-                let decryptor = Aes128CbcDec::new(key.into(), iv.into());
+                let decryptor = Aes128CbcDec::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.decrypt(decryptor, data, extra_space)
             }
             24 => {
                 let key = &self.key[..24];
-                let decryptor = Aes192CbcDec::new(key.into(), iv.into());
+                let decryptor = Aes192CbcDec::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.decrypt(decryptor, data, extra_space)
             }
             32 => {
                 let key = &self.key[..32];
-                let decryptor = Aes256CbcDec::new(key.into(), iv.into());
+                let decryptor = Aes256CbcDec::new_from_slices(key, iv)
+                    .map_err(|_| anyhow::anyhow!("invalid AES-CBC key or iv length"))?;
                 self.decrypt(decryptor, data, extra_space)
             }
             _ => Err(anyhow::anyhow!("unsupported key length")),

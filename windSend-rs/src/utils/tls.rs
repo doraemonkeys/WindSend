@@ -10,7 +10,7 @@ use std::{
 use time::{OffsetDateTime, ext::NumericalDuration};
 
 fn random_domain_label(min_len: usize, max_len: usize) -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     let length = rng.random_range(min_len..=max_len);
     (0..length)

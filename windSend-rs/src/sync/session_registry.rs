@@ -5,7 +5,7 @@ use std::{
 };
 
 use hex::encode;
-use rand::Rng;
+use rand::RngExt;
 use tokio::{sync::RwLock, task::JoinHandle};
 use tracing::warn;
 
