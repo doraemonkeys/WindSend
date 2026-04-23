@@ -302,7 +302,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
 
   /// Save image using file picker dialog (Desktop platforms)
   Future<void> _saveWithFilePicker(String fileName) async {
-    final savePath = await FilePicker.platform.saveFile(
+    final savePath = await FilePicker.saveFile(
       dialogTitle: context.formatString(AppLocale.saveImageDialogTitle, []),
       fileName: fileName,
       type: FileType.image,

@@ -36,10 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   shared_preferences: ^2.5.4
-  flutter_localization: ^0.3.3
+  flutter_localization: ^0.4.0
   device_info_plus: ^12.3.0
   path_provider: ^2.1.1
-  file_picker: ^10.3.10
+  file_picker: ^11.0.2
   # share_handler: ^0.0.23
   share_handler:
     git:
@@ -83,16 +83,16 @@ dependencies:
       url: https://github.com/Lzyct/media_scanner
       ref: master
   #pointycastle: ^4.0.0
-  cryptography_plus: ^2.7.1
-  cryptography_flutter_plus: ^2.3.4
+  cryptography_plus: ^3.0.0
+  cryptography_flutter_plus: ^3.0.0
   intl: ^0.20.2
   basic_utils: ^5.8.2
-  saf_stream: ^0.12.3
-  saf_util: ^0.11.0
+  saf_stream: ^2.0.0
+  saf_util: ^2.1.0
   fast_file_picker: ^0.4.8
   # Database
   drift: ^2.24.0
-  sqlite3_flutter_libs: ^0.5.30
+  sqlite3_flutter_libs: ^0.6.0+eol
   image: ^4.7.2
   flutter_image_compress: ^2.4.0
   unorm_dart: ^0.3.2

@@ -136,7 +136,7 @@ class _SettingPageState extends State<SettingPage> {
       title: Text(context.formatString(AppLocale.imageSavePath, [])),
       subtitle: Text(imageSavePath),
       onTap: () async {
-        String? result = await FilePicker.platform.getDirectoryPath(
+        String? result = await FilePicker.getDirectoryPath(
           initialDirectory: imageSavePath,
         );
         if (result != null) {
@@ -155,7 +155,7 @@ class _SettingPageState extends State<SettingPage> {
       title: Text(context.formatString(AppLocale.fileSavePath, [])),
       subtitle: Text(fileSavePath),
       onTap: () async {
-        String? result = await FilePicker.platform.getDirectoryPath(
+        String? result = await FilePicker.getDirectoryPath(
           initialDirectory: fileSavePath,
         );
         if (result != null) {

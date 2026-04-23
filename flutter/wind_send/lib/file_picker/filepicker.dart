@@ -103,7 +103,7 @@ class FlutterFilePickerImpl implements IFilePicker {
       await checkPermission!();
     }
 
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    final result = await FilePicker.pickFiles(allowMultiple: true);
     if (result == null || result.files.isEmpty) {
       throw UserCancelPickException();
     }
@@ -116,7 +116,7 @@ class FlutterFilePickerImpl implements IFilePicker {
       await checkPermission!();
     }
 
-    final result = await FilePicker.platform.getDirectoryPath();
+    final result = await FilePicker.getDirectoryPath();
     if (result == null || result.isEmpty) {
       throw UserCancelPickException();
     }
@@ -141,7 +141,7 @@ class FlutterFilePickerImpl implements IFilePicker {
     //   }
     // }
     if (Platform.isAndroid || Platform.isIOS) {
-      await FilePicker.platform.clearTemporaryFiles();
+      await FilePicker.clearTemporaryFiles();
     }
   }
 }

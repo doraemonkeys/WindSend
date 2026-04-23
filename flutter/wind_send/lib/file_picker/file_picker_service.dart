@@ -34,7 +34,7 @@ class FilePickerService {
       return result ?? '';
     } on PlatformException catch (e) {
       if (e.code == 'UNAVAILABLE') {
-        final result = await FilePicker.platform.getDirectoryPath();
+        final result = await FilePicker.getDirectoryPath();
         if (result == null || result.isEmpty) {
           throw UserCancelPickException();
         }
