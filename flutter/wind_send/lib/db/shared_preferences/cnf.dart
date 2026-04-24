@@ -269,7 +269,7 @@ class LocalConfig {
 
   /// Auto select share device by wifi bssid
   static bool get autoSelectShareSyncDeviceByBssid =>
-      _sp.getBool('AutoSelectShareSyncDeviceByBssid') ?? true;
+      _sp.getBool('AutoSelectShareSyncDeviceByBssid') ?? false;
   // set autoSelectShareSyncDeviceByBssid(bool value) =>
   //     _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
   static Future<bool> setAutoSelectShareSyncDeviceByBssid(bool value) async {
