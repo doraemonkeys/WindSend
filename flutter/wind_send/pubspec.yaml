@@ -37,6 +37,8 @@ dependencies:
 
   shared_preferences: ^2.5.4
   flutter_localization: ^0.4.0
+  # Kept in sync with the dependency_overrides entry below, which is what pub
+  # actually resolves against; bumping only this declaration has no effect.
   device_info_plus: ^12.3.0
   path_provider: ^2.1.1
   file_picker: ^11.0.2
@@ -52,7 +54,7 @@ dependencies:
   #   git:
   #     url: https://github.com/KasemJaffer/receive_sharing_intent
   #     ref: 2cea396843cd3ab1b5ec4334be4233864637874e
-  permission_handler: ^12.0.0
+  permission_handler: ^12.0.3
   convert: ^3.1.1
   url_launcher: ^6.2.2
   line_icons: ^2.0.3
@@ -67,11 +69,18 @@ dependencies:
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
   super_clipboard: ^0.9.1
+  # Held at 7.x: network_info_plus 8 requires win32 ^6 (same win32-5/6 split as
+  # share_plus below). Upgrade together with the rest of the plus family once
+  # file_picker 12 leaves beta.
   network_info_plus: ^7.0.0
   collection: ^1.18.0
-  share_plus: ^12.0.1
-  image_gallery_saver_plus: ^4.0.1
-  fluttertoast: ^9.0.0
+  # Held at 12.x: share_plus 13 requires win32 ^6, while file_picker's latest
+  # stable (11.0.2) still caps win32 at ^5.9.0. Revisit once file_picker 12
+  # (win32 ^6.2.0) leaves beta. The SharePlus.instance.share(ShareParams(...))
+  # API we use is identical across 12.x and 13.x.
+  share_plus: ^12.0.2
+  image_gallery_saver_plus: ^5.0.0
+  fluttertoast: ^9.1.0
   # open_filex: ^4.6.0
   open_filex:
     git:
@@ -87,22 +96,25 @@ dependencies:
   cryptography_flutter_plus: ^3.0.0
   intl: ^0.20.2
   basic_utils: ^5.8.2
-  saf_stream: ^2.0.0
-  saf_util: ^2.1.0
-  fast_file_picker: ^0.4.8
+  saf_stream: ^3.0.0
+  saf_util: ^3.1.0
+  fast_file_picker: ^1.0.1
   # Database
-  drift: ^2.24.0
+  drift: ^2.33.0
   sqlite3_flutter_libs: ^0.6.0+eol
-  image: ^4.7.2
+  image: ^4.9.1
   flutter_image_compress: ^2.4.0
   unorm_dart: ^0.3.2
-  clipshare_clipboard_listener: ^1.2.14
+  clipshare_clipboard_listener: ^1.3.0
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  test: ^1.25.15
+  # Lower bound stays at 1.31.0: test >=1.31.1 pins test_api 0.7.12, while the
+  # current Flutter SDK's flutter_test pins test_api 0.7.11. Pub backtracks to
+  # the newest version compatible with the SDK pin.
+  test: ^1.31.0
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -110,8 +122,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   # Database code generation
-  drift_dev: ^2.24.0
-  build_runner: ^2.4.15
+  drift_dev: ^2.33.0
+  build_runner: ^2.15.0
 
 dependency_overrides:
   # super_clipboard 0.9.1 pulls super_native_extensions 0.9.1, whose pubspec
