@@ -498,16 +498,23 @@ class _MainBodyState extends State<MainBody> {
     // Warm up the default device connection so the user's first action
     // (send/paste/sync) doesn't pay the full connection-setup latency.
     //
-    // 1. resolveTargetDevice: pick the right device — uses WiFi BSSID mapping
-    //    when location permission is already granted, otherwise falls back to
-    //    the user-configured default. (Permission is never *requested* here;
+    // 1. resolveTargetDevice: pick the right device — prefers the WiFi BSSID
+    //    mapping when location permission is already granted. The mapping is
+    //    consulted regardless of the share/sync auto-select preference
+    //    (ignoreBssidAutoSelectSetting: true): this is only a connectivity
+    //    warm-up, so locating the device for the current network to refresh a
+    //    stale IP shouldn't depend on that preference. Falls back to the
+    //    user-configured default. (Permission is never *requested* here;
     //    showFirstTimeLocationPermissionDialog handles that after the first
     //    successful device action.)
     //
     // 2. For relay-enabled devices, probe direct LAN connectivity first.
     //    If the probe fails, refresh the IP via mDNS/broadcast so subsequent
     //    actions can skip the relay round-trip.
-    resolveTargetDevice(defaultShareDevice: true).then((value) {
+    resolveTargetDevice(
+      defaultShareDevice: true,
+      ignoreBssidAutoSelectSetting: true,
+    ).then((value) {
       if (widget.devices.isEmpty) {
         return;
       }

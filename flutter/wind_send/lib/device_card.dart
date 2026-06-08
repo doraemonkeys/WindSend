@@ -398,9 +398,7 @@ List<Widget> deviceItemChilden(
               () async {
                 var (copiedText, downloadInfos, realSavePaths) = await device
                     .doCopyAction(() => context, progressSendPort: rp.sendPort);
-                if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                  saveDeviceWifiBssid(device);
-                }
+                saveDeviceWifiBssid(device);
                 if (copiedText != null && context.mounted) {
                   final copiedTextMsg = copiedText.length > 40
                       ? '${copiedText.substring(0, 40)}...'
@@ -502,9 +500,7 @@ List<Widget> deviceItemChilden(
                   progressSendPort: rp.sendPort,
                 );
                 return f.then((isText) async {
-                  if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                    saveDeviceWifiBssid(device);
-                  }
+                  saveDeviceWifiBssid(device);
                   return ToastResult(
                     message: isText ? pasteSuccess : sendSuccess,
                   );
@@ -554,9 +550,7 @@ List<Widget> deviceItemChilden(
                   progressSendPort: rp.sendPort,
                 );
                 device.clearTemporaryFiles();
-                if (LocalConfig.autoSelectShareSyncDeviceByBssid) {
-                  saveDeviceWifiBssid(device);
-                }
+                saveDeviceWifiBssid(device);
                 return ToastResult(message: successMsg);
               },
               progressReceivePort: rp,

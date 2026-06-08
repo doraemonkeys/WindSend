@@ -592,11 +592,25 @@ Future<bool> _hasNetworkPermission() async {
   return Permission.locationWhenInUse.isGranted;
 }
 
+/// Record the current WiFi BSSID → device mapping.
+///
+/// Accumulates on every successful action regardless of the
+/// [LocalConfig.autoSelectShareSyncDeviceByBssid] preference, so the mapping
+/// stays fresh for features that consult it independently of that preference
+/// (e.g. the startup direct-connect IP refresh in [resolveTargetDevice]).
+///
+/// Only the *permission request* remains tied to the preference: when
+/// auto-select is off we passively use already-granted location permission but
+/// never prompt for it, so turning the feature off never triggers a surprising
+/// permission dialog. No-ops when the BSSID is unavailable (e.g. permission not
+/// granted on mobile).
 Future<void> saveDeviceWifiBssid(Device device) async {
   if (!LocalConfig.isLocationPermissionDialogShown) {
     // The first network permission request is completed in the dialog
     return;
   }
+  // Proactively request permission only when auto-select is enabled; otherwise
+  // rely on whatever was already granted so disabling the feature stays quiet.
   if (!networkPermissionChecked &&
       LocalConfig.autoSelectShareSyncDeviceByBssid) {
     try {
@@ -625,12 +639,13 @@ Future<void> saveDeviceWifiBssid(Device device) async {
   LocalConfig.setBssidDeviceNameMap(bssidDeviceNameMap);
 }
 
-/// Resolve a target device using WiFi BSSID → device name mapping.
+/// Look up the device mapped to the currently-connected WiFi network.
 ///
-/// Returns null if BSSID auto-select is disabled, location permission
-/// is not granted, or no mapping exists for the current WiFi network.
-Future<Device?> resolveTargetDeviceByBssid() async {
-  if (!LocalConfig.autoSelectShareSyncDeviceByBssid) return null;
+/// This is the raw mapping lookup: it depends only on having location
+/// permission and an existing BSSID→device entry, *not* on the
+/// [LocalConfig.autoSelectShareSyncDeviceByBssid] preference. Returns null
+/// when permission is missing, the BSSID is unavailable, or no mapping exists.
+Future<Device?> deviceForCurrentWifiBssid() async {
   final hasPermission = await _hasNetworkPermission();
   if (!hasPermission) return null;
   final wifiBSSID = await NetworkInfo().getWifiBSSID();
@@ -640,14 +655,31 @@ Future<Device?> resolveTargetDeviceByBssid() async {
   );
 }
 
+/// Resolve a target device for share/sync auto-selection.
+///
+/// Honors the user's [LocalConfig.autoSelectShareSyncDeviceByBssid]
+/// preference before consulting the BSSID mapping. Returns null when the
+/// preference is disabled or no mapping applies to the current network.
+Future<Device?> resolveTargetDeviceByBssid() async {
+  if (!LocalConfig.autoSelectShareSyncDeviceByBssid) return null;
+  return deviceForCurrentWifiBssid();
+}
+
 Future<Device?> resolveTargetDevice({
   bool defaultShareDevice = false,
   bool defaultSyncDevice = false,
+  // Consult the BSSID mapping even when the user has disabled auto-select.
+  // Startup direct-connect probing sets this so a device whose LAN IP changed
+  // can still be located on a known network, independent of the share/sync
+  // auto-select preference.
+  bool ignoreBssidAutoSelectSetting = false,
 }) async {
   // Only use BSSID lookup when permission is already granted.
   // Never request permission here — showFirstTimeLocationPermissionDialog
   // handles the first request with a user-facing explanation.
-  final bssidDevice = await resolveTargetDeviceByBssid();
+  final bssidDevice = ignoreBssidAutoSelectSetting
+      ? await deviceForCurrentWifiBssid()
+      : await resolveTargetDeviceByBssid();
   if (bssidDevice != null) return bssidDevice;
 
   if (defaultShareDevice) {
