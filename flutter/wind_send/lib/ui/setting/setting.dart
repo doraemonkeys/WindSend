@@ -25,8 +25,7 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   bool followSystemTheme = LocalConfig.followSystemTheme;
-  bool autoSelectShareDeviceByBssid =
-      LocalConfig.autoSelectShareSyncDeviceByBssid;
+  bool autoSelectSyncDeviceByBssid = LocalConfig.autoSelectSyncDeviceByBssid;
   Locale language = LocalConfig.locale;
   String deviceName = globalLocalDeviceName;
   String defaultSyncDevice = LocalConfig.defaultSyncDevice ?? '';
@@ -65,7 +64,7 @@ class _SettingPageState extends State<SettingPage> {
               _SettingsSection.defaultDivider(context),
               defaultShareDeviceSetting(context),
               _SettingsSection.defaultDivider(context),
-              autoSelectShareDeviceSetting(context),
+              autoSelectSyncDeviceSetting(context),
             ],
           ),
           _SettingsSection(children: [logViewSetting(context)]),
@@ -97,13 +96,11 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  Widget autoSelectShareDeviceSetting(BuildContext context) {
+  Widget autoSelectSyncDeviceSetting(BuildContext context) {
     return SwitchListTile(
-      title: Text(
-        context.formatString(AppLocale.autoSelectShareSyncDevice, []),
-      ),
+      title: Text(context.formatString(AppLocale.autoSelectSyncDevice, [])),
       secondary: const Icon(Icons.wifi),
-      value: autoSelectShareDeviceByBssid,
+      value: autoSelectSyncDeviceByBssid,
       activeThumbColor: Theme.of(context).colorScheme.primary,
       onChanged: (value) async {
         if (value) {
@@ -123,9 +120,9 @@ class _SettingPageState extends State<SettingPage> {
           }
         }
         setState(() {
-          autoSelectShareDeviceByBssid = value;
+          autoSelectSyncDeviceByBssid = value;
         });
-        LocalConfig.setAutoSelectShareSyncDeviceByBssid(value);
+        LocalConfig.setAutoSelectSyncDeviceByBssid(value);
       },
     );
   }

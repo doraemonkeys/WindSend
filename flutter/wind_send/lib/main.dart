@@ -500,7 +500,7 @@ class _MainBodyState extends State<MainBody> {
     //
     // 1. resolveTargetDevice: pick the right device — prefers the WiFi BSSID
     //    mapping when location permission is already granted. The mapping is
-    //    consulted regardless of the share/sync auto-select preference
+    //    consulted regardless of the sync auto-select preference
     //    (ignoreBssidAutoSelectSetting: true): this is only a connectivity
     //    warm-up, so locating the device for the current network to refresh a
     //    stale IP shouldn't depend on that preference. Falls back to the
@@ -594,16 +594,16 @@ class _MainBodyState extends State<MainBody> {
 
       // Determine target device:
       // 1. Single device → use it directly
-      // 2. BSSID auto-select resolves → use that device
-      // 3. Otherwise → let user pick from a bottom sheet
+      // 2. Multiple devices → always let the user pick from a bottom sheet.
+      //
+      // WiFi-based auto-select intentionally does NOT apply to sharing; it only
+      // drives the home-page pull-to-refresh sync target. Sharing stays an
+      // explicit choice whenever more than one device is configured.
       Device? targetDevice;
       if (widget.devices.length <= 1) {
         targetDevice = widget.devices.firstOrNull;
-      } else {
-        targetDevice = await resolveTargetDeviceByBssid();
-        if (targetDevice == null && mounted) {
-          targetDevice = await _showShareDeviceSelector(context);
-        }
+      } else if (mounted) {
+        targetDevice = await _showShareDeviceSelector(context);
       }
       if (targetDevice == null) return;
       // Shadow with non-nullable binding so closures below don't need null checks
@@ -680,8 +680,9 @@ class _MainBodyState extends State<MainBody> {
         .catchError(handleOnError);
   }
 
-  /// Device picker bottom sheet for share-intent when BSSID auto-select
-  /// doesn't resolve (multiple devices, unknown WiFi, or feature disabled).
+  /// Device picker bottom sheet shown for a share-intent whenever more than
+  /// one device is configured. Sharing always prompts for an explicit choice;
+  /// WiFi auto-select applies only to the home-page sync target.
   Future<Device?> _showShareDeviceSelector(BuildContext context) {
     return showModalBottomSheet<Device>(
       context: context,

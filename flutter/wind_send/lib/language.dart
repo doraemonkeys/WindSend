@@ -53,9 +53,9 @@ mixin AppLocale {
   static const String push = 'push';
   static const String useThirdPartyFilePicker = 'useThirdPartyFilePicker';
   static const String filePickerPackageNameHint = 'filePickerPackageNameHint';
-  static const String autoSelectShareSyncDevice = 'autoSelectShareSyncDevice';
+  static const String autoSelectSyncDevice = 'autoSelectSyncDevice';
   static const String continueWithError = 'continueWithError';
-  static const String autoSelectShareSyncDeviceTip = 'selectShareSyncDeviceTip';
+  static const String autoSelectSyncDeviceTip = 'selectSyncDeviceTip';
   static const String getWIFIBSSIDTitle = 'getWIFIBSSIDTitle';
   static const String getWIFIBSSIDTip = 'getWIFIBSSIDTip';
   static const String trustedCertificate = 'trustedCertificate';
@@ -400,12 +400,12 @@ mixin AppLocale {
     sendSuccess: '发送成功',
     useThirdPartyFilePicker: '使用第三方文件选择器',
     filePickerPackageNameHint: '文件管理应用的包名',
-    autoSelectShareSyncDevice: '根据WIFI自动选择设备',
+    autoSelectSyncDevice: '根据WIFI自动选择同步设备',
     continueWithError: '出现错误还要继续吗',
-    autoSelectShareSyncDeviceTip: '此功能需要授予位置权限',
+    autoSelectSyncDeviceTip: '此功能需要授予位置权限',
     getWIFIBSSIDTitle: '授予精确定位权限',
     getWIFIBSSIDTip:
-        'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择分享与同步的设备，此功能授予精确定位权限才能使用',
+        'WindSend 需要获取 WIFI BSSID 信息用于根据网络环境自动选择主页下拉同步的设备，此功能授予精确定位权限才能使用',
     trustedCertificate: '证书',
     trustedCertificateHint: '证书内容可以从 tls/ca_cert.pem 文件中复制',
     useRelay: '使用中转服务',
@@ -726,12 +726,12 @@ mixin AppLocale {
     sendSuccess: 'Send successfully',
     useThirdPartyFilePicker: 'Use third party file picker',
     filePickerPackageNameHint: 'The package name of the file manager app',
-    autoSelectShareSyncDevice: 'Auto select device by wifi info',
+    autoSelectSyncDevice: 'Auto-select sync device by WiFi',
     continueWithError: 'Continue with error?',
-    autoSelectShareSyncDeviceTip: 'This feature requires location permission',
+    autoSelectSyncDeviceTip: 'This feature requires location permission',
     getWIFIBSSIDTitle: 'Grant precise location permission',
     getWIFIBSSIDTip:
-        'WindSend requires access to WIFI BSSID information to automatically select devices for sharing and syncing based on the network environment. This feature requires granting precise location permissions to function.',
+        'WindSend requires access to WIFI BSSID information to automatically select the home-page pull-to-refresh sync device based on the network environment. This feature requires granting precise location permissions to function.',
     trustedCertificate: 'Certificate Authority',
     trustedCertificateHint:
         'The certificate content can be copied from tls/ca_cert.pem file',

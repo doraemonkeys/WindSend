@@ -267,13 +267,14 @@ class LocalConfig {
     return await _sp.setBool('FollowSystemTheme', value);
   }
 
-  /// Auto select share device by wifi bssid
-  static bool get autoSelectShareSyncDeviceByBssid =>
-      _sp.getBool('AutoSelectShareSyncDeviceByBssid') ?? false;
-  // set autoSelectShareSyncDeviceByBssid(bool value) =>
-  //     _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
-  static Future<bool> setAutoSelectShareSyncDeviceByBssid(bool value) async {
-    return await _sp.setBool('AutoSelectShareSyncDeviceByBssid', value);
+  /// Auto-select the home-page sync device by WiFi BSSID.
+  ///
+  /// Drives only the pull-to-refresh sync target — sharing always prompts for
+  /// an explicit device choice and is unaffected by this preference.
+  static bool get autoSelectSyncDeviceByBssid =>
+      _sp.getBool('AutoSelectSyncDeviceByBssid') ?? true;
+  static Future<bool> setAutoSelectSyncDeviceByBssid(bool value) async {
+    return await _sp.setBool('AutoSelectSyncDeviceByBssid', value);
   }
 
   /// bssid:device name
@@ -565,7 +566,7 @@ Future<void> showFirstTimeLocationPermissionDialog(
 
   // location permission dialog
   if ((Platform.isIOS || Platform.isAndroid) &&
-      LocalConfig.autoSelectShareSyncDeviceByBssid) {
+      LocalConfig.autoSelectSyncDeviceByBssid) {
     if (context.mounted) {
       await showAlertDialog(
         context,
@@ -576,7 +577,7 @@ Future<void> showFirstTimeLocationPermissionDialog(
             await checkOrRequestNetworkPermission();
             await saveDeviceWifiBssid(device);
           } catch (e) {
-            LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
+            LocalConfig.setAutoSelectSyncDeviceByBssid(false);
           }
         },
       );
@@ -595,7 +596,7 @@ Future<bool> _hasNetworkPermission() async {
 /// Record the current WiFi BSSID → device mapping.
 ///
 /// Accumulates on every successful action regardless of the
-/// [LocalConfig.autoSelectShareSyncDeviceByBssid] preference, so the mapping
+/// [LocalConfig.autoSelectSyncDeviceByBssid] preference, so the mapping
 /// stays fresh for features that consult it independently of that preference
 /// (e.g. the startup direct-connect IP refresh in [resolveTargetDevice]).
 ///
@@ -611,13 +612,12 @@ Future<void> saveDeviceWifiBssid(Device device) async {
   }
   // Proactively request permission only when auto-select is enabled; otherwise
   // rely on whatever was already granted so disabling the feature stays quiet.
-  if (!networkPermissionChecked &&
-      LocalConfig.autoSelectShareSyncDeviceByBssid) {
+  if (!networkPermissionChecked && LocalConfig.autoSelectSyncDeviceByBssid) {
     try {
       networkPermissionChecked = true;
       await checkOrRequestNetworkPermission();
     } catch (e) {
-      LocalConfig.setAutoSelectShareSyncDeviceByBssid(false);
+      LocalConfig.setAutoSelectSyncDeviceByBssid(false);
     }
   }
   final info = NetworkInfo();
@@ -643,7 +643,7 @@ Future<void> saveDeviceWifiBssid(Device device) async {
 ///
 /// This is the raw mapping lookup: it depends only on having location
 /// permission and an existing BSSID→device entry, *not* on the
-/// [LocalConfig.autoSelectShareSyncDeviceByBssid] preference. Returns null
+/// [LocalConfig.autoSelectSyncDeviceByBssid] preference. Returns null
 /// when permission is missing, the BSSID is unavailable, or no mapping exists.
 Future<Device?> deviceForCurrentWifiBssid() async {
   final hasPermission = await _hasNetworkPermission();
@@ -655,13 +655,13 @@ Future<Device?> deviceForCurrentWifiBssid() async {
   );
 }
 
-/// Resolve a target device for share/sync auto-selection.
+/// Resolve a target device for sync auto-selection.
 ///
-/// Honors the user's [LocalConfig.autoSelectShareSyncDeviceByBssid]
+/// Honors the user's [LocalConfig.autoSelectSyncDeviceByBssid]
 /// preference before consulting the BSSID mapping. Returns null when the
 /// preference is disabled or no mapping applies to the current network.
 Future<Device?> resolveTargetDeviceByBssid() async {
-  if (!LocalConfig.autoSelectShareSyncDeviceByBssid) return null;
+  if (!LocalConfig.autoSelectSyncDeviceByBssid) return null;
   return deviceForCurrentWifiBssid();
 }
 
@@ -670,7 +670,7 @@ Future<Device?> resolveTargetDevice({
   bool defaultSyncDevice = false,
   // Consult the BSSID mapping even when the user has disabled auto-select.
   // Startup direct-connect probing sets this so a device whose LAN IP changed
-  // can still be located on a known network, independent of the share/sync
+  // can still be located on a known network, independent of the sync
   // auto-select preference.
   bool ignoreBssidAutoSelectSetting = false,
 }) async {
