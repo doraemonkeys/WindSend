@@ -318,7 +318,7 @@ class _ClipboardBubbleState extends State<ClipboardBubble> {
                       navigator.pop();
                       ScaffoldMessenger.of(this.context).showSnackBar(
                         SnackBar(
-                          content: Text(context.formatString(
+                          content: Text(this.context.formatString(
                               AppLocale.csCopiedToClipboard, [])),
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(

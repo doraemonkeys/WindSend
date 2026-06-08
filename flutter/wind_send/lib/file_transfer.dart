@@ -647,7 +647,10 @@ class ConnectionManager {
   Completer<void>? _relayCreating;
 
   /// Notifies workers waiting for a relay connection to be returned to the pool.
-  final SpmcChannel<void> _relayReturnNotifier = SpmcChannel<void>();
+  // Pure signal channel carrying no payload. `()` (the empty record / unit type)
+  // is the correct "no information" value type; `void` would mean "discard the
+  // value" and so can't legally receive one (triggers void_checks on send).
+  final SpmcChannel<()> _relayReturnNotifier = SpmcChannel<()>();
 
   ConnectionManager(this.device, {this.timeout});
 

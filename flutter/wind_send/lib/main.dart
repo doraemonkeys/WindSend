@@ -594,7 +594,7 @@ class _MainBodyState extends State<MainBody> {
         targetDevice = widget.devices.firstOrNull;
       } else {
         targetDevice = await resolveTargetDeviceByBssid();
-        if (targetDevice == null && context.mounted) {
+        if (targetDevice == null && mounted) {
           targetDevice = await _showShareDeviceSelector(context);
         }
       }

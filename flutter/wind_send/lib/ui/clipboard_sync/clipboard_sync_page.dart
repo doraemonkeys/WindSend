@@ -414,14 +414,6 @@ class _ClipboardSyncPageState extends State<ClipboardSyncPage> {
     };
   }
 
-  IconData _transportIcon() {
-    return switch (_session.transportKind) {
-      ClipboardSyncTransportKind.direct => Icons.lan,
-      ClipboardSyncTransportKind.relay => Icons.alt_route,
-      null => Icons.sync,
-    };
-  }
-
   String _resolvePhaseLabel(BuildContext context) {
     return switch (_session.phase) {
       ClipboardSyncPagePhase.connecting =>

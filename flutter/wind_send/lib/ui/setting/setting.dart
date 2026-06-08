@@ -104,7 +104,7 @@ class _SettingPageState extends State<SettingPage> {
       ),
       secondary: const Icon(Icons.wifi),
       value: autoSelectShareDeviceByBssid,
-      activeColor: Theme.of(context).colorScheme.primary,
+      activeThumbColor: Theme.of(context).colorScheme.primary,
       onChanged: (value) async {
         if (value) {
           try {
@@ -217,25 +217,28 @@ class _SettingPageState extends State<SettingPage> {
                 context.formatString(AppLocale.defaultSyncDevice, []),
               ),
               children: [
-                ...devices
-                    .where((element) => element.iP != Device.webIP)
-                    .map(
-                      (e) => RadioListTile(
-                        title: Text(e.targetDeviceName),
-                        value: e.targetDeviceName,
-                        groupValue: defaultSyncDevice,
-                        onChanged: (value) {
-                          Navigator.pop(context, value);
-                        },
-                      ),
-                    ),
-                RadioListTile(
-                  title: Text(context.formatString(AppLocale.disableSync, [])),
-                  value: '',
+                RadioGroup<String>(
                   groupValue: defaultSyncDevice,
-                  onChanged: (value) {
-                    Navigator.pop(context, value);
-                  },
+                  onChanged: (value) => Navigator.pop(context, value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...devices
+                          .where((element) => element.iP != Device.webIP)
+                          .map(
+                            (e) => RadioListTile(
+                              title: Text(e.targetDeviceName),
+                              value: e.targetDeviceName,
+                            ),
+                          ),
+                      RadioListTile(
+                        title: Text(
+                          context.formatString(AppLocale.disableSync, []),
+                        ),
+                        value: '',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );
@@ -265,18 +268,23 @@ class _SettingPageState extends State<SettingPage> {
                 context.formatString(AppLocale.defaultShareDevice, []),
               ),
               children: [
-                ...devices
-                    .where((element) => element.iP != Device.webIP)
-                    .map(
-                      (e) => RadioListTile(
-                        title: Text(e.targetDeviceName),
-                        value: e.targetDeviceName,
-                        groupValue: defaultShareDevice,
-                        onChanged: (value) {
-                          Navigator.pop(context, value);
-                        },
-                      ),
-                    ),
+                RadioGroup<String>(
+                  groupValue: defaultShareDevice,
+                  onChanged: (value) => Navigator.pop(context, value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...devices
+                          .where((element) => element.iP != Device.webIP)
+                          .map(
+                            (e) => RadioListTile(
+                              title: Text(e.targetDeviceName),
+                              value: e.targetDeviceName,
+                            ),
+                          ),
+                    ],
+                  ),
+                ),
               ],
             );
           },
@@ -315,18 +323,23 @@ class _SettingPageState extends State<SettingPage> {
           builder: (context) {
             return SimpleDialog(
               title: const Text("Language"),
-              children: widget.languageCodes
-                  .map(
-                    (e) => RadioListTile(
-                      title: Text(e.toString()),
-                      value: e,
-                      groupValue: language,
-                      onChanged: (value) {
-                        Navigator.pop(context, value);
-                      },
-                    ),
-                  )
-                  .toList(),
+              children: [
+                RadioGroup<Locale>(
+                  groupValue: language,
+                  onChanged: (value) => Navigator.pop(context, value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: widget.languageCodes
+                        .map(
+                          (e) => RadioListTile(
+                            title: Text(e.toString()),
+                            value: e,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -393,21 +406,28 @@ class _SettingPageState extends State<SettingPage> {
             return SimpleDialog(
               title: Text(context.formatString(AppLocale.historyMaxDays, [])),
               children: [
-                ...presetDays.map(
-                  (days) => RadioListTile<int>(
-                    title: Text(_getMaxDaysDisplayText(context, days)),
-                    subtitle: days == 0
-                        ? Text(
-                            context.formatString(
-                              AppLocale.historyMaxDaysHint,
-                              [],
-                            ),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          )
-                        : null,
-                    value: days,
-                    groupValue: isCustomValue ? -1 : maxHistoryDays,
-                    onChanged: (value) => Navigator.pop(context, value),
+                RadioGroup<int>(
+                  groupValue: isCustomValue ? -1 : maxHistoryDays,
+                  onChanged: (value) => Navigator.pop(context, value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...presetDays.map(
+                        (days) => RadioListTile<int>(
+                          title: Text(_getMaxDaysDisplayText(context, days)),
+                          subtitle: days == 0
+                              ? Text(
+                                  context.formatString(
+                                    AppLocale.historyMaxDaysHint,
+                                    [],
+                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                )
+                              : null,
+                          value: days,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 ListTile(
@@ -459,21 +479,28 @@ class _SettingPageState extends State<SettingPage> {
             return SimpleDialog(
               title: Text(context.formatString(AppLocale.historyMaxCount, [])),
               children: [
-                ...presetCounts.map(
-                  (count) => RadioListTile<int>(
-                    title: Text(_getMaxCountDisplayText(context, count)),
-                    subtitle: count == 0
-                        ? Text(
-                            context.formatString(
-                              AppLocale.historyMaxCountHint,
-                              [],
-                            ),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          )
-                        : null,
-                    value: count,
-                    groupValue: isCustomValue ? -1 : maxHistoryCount,
-                    onChanged: (value) => Navigator.pop(context, value),
+                RadioGroup<int>(
+                  groupValue: isCustomValue ? -1 : maxHistoryCount,
+                  onChanged: (value) => Navigator.pop(context, value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...presetCounts.map(
+                        (count) => RadioListTile<int>(
+                          title: Text(_getMaxCountDisplayText(context, count)),
+                          subtitle: count == 0
+                              ? Text(
+                                  context.formatString(
+                                    AppLocale.historyMaxCountHint,
+                                    [],
+                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                )
+                              : null,
+                          value: count,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 ListTile(

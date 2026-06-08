@@ -51,12 +51,10 @@ class _SortingPageState extends State<SortingPage> {
               ),
             )
             .toList(),
-        onReorder: (int oldIndex, int newIndex) {
-          // print('oldIndex: $oldIndex, newIndex: $newIndex');
+        // onReorderItem already adjusts newIndex for the removed item at
+        // oldIndex, so no manual `newIndex -= 1` is needed here.
+        onReorderItem: (int oldIndex, int newIndex) {
           setState(() {
-            if (newIndex > oldIndex) {
-              newIndex -= 1;
-            }
             final Device item = tempDevices.removeAt(oldIndex);
             tempDevices.insert(newIndex, item);
           });

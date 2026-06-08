@@ -309,7 +309,7 @@ AlertDialog alertDialogDefault(
     title: title,
     content: content,
     actions: [
-      if (actions != null) ...actions,
+      ...?actions,
       TextButton(
         onPressed: () {
           if (onCanceled != null) {
