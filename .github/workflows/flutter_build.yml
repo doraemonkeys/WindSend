@@ -54,7 +54,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: "17"
-          distribution: "adopt"
+          distribution: "temurin"
 
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@master

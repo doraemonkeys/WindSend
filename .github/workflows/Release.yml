@@ -59,7 +59,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: "17"
-          distribution: "adopt"
+          distribution: "temurin"
 
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
@@ -188,7 +188,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: "17"
-          distribution: "adopt"
+          distribution: "temurin"
       - name: Install NASM
         uses: ilammy/setup-nasm@v1
       - name: Setup Ninja
@@ -268,7 +268,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: "17"
-          distribution: "adopt"
+          distribution: "temurin"
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
       - name: Setup Flutter
