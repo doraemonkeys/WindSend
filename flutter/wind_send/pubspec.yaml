@@ -105,7 +105,10 @@ dependencies:
   image: ^4.9.1
   flutter_image_compress: ^2.4.0
   unorm_dart: ^0.3.2
-  clipshare_clipboard_listener: ^1.3.0
+  clipshare_clipboard_listener:
+    git:
+      url: https://github.com/aa2013/ClipboardListener.git
+      ref: 43cb64de5f767e3643ab81360c23514fbc556c46
 
 
 dev_dependencies:
