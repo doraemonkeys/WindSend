@@ -74,6 +74,22 @@ zip -r "$WindSendRustBin_DirName".zip.temp "$WindSendRustBin_DirName"
 
 # .dmg 打包逻辑
 
+# macOS Spotlight (mds/mdworker) often grabs a freshly mounted volume, so a
+# plain `hdiutil detach` intermittently fails with "Resource busy", leaving the
+# image attached and breaking the next `hdiutil create`. Retry with -force.
+detach_dmg() {
+    local mount_point="$1"
+    [ -e "${mount_point}" ] || return 0
+    for attempt in 1 2 3 4 5; do
+        if hdiutil detach "${mount_point}" -force; then
+            return 0
+        fi
+        echo "detach ${mount_point} busy, retrying (${attempt}/5)..."
+        sleep 3
+    done
+    return 1
+}
+
 package_dmg() {
 
     # Enter the bin directory
@@ -124,20 +140,29 @@ package_dmg() {
 </plist>
 EOF
 
-    RW_DMG="${APP_NAME}_temp.dmg"
+    # Per-arch unique temp image and mount point. Sharing one name across both
+    # package_dmg calls let a lagging detach from the first round collide with
+    # the second `hdiutil create`, surfacing as "create failed - Resource busy".
+    RW_DMG="${rust_bin_dir}_temp.dmg"
+    MOUNT_POINT="/Volumes/${rust_bin_dir}"
+
+    # A previous (or first-arch) run can leave the image attached; force-detach
+    # any stale mount and drop the temp image before recreating it.
+    detach_dmg "${MOUNT_POINT}"
+    rm -f "${RW_DMG}"
+
     hdiutil create -volname "${APP_NAME}" \
         -srcfolder "${APP_BUNDLE}" \
         -ov \
         -format UDRW \
         "${RW_DMG}" || exit 1
 
-    MOUNT_POINT="/Volumes/${APP_NAME}"
-    hdiutil attach "${RW_DMG}" -mountpoint "${MOUNT_POINT}"
+    hdiutil attach "${RW_DMG}" -mountpoint "${MOUNT_POINT}" || exit 1
 
     ln -s /Applications "${MOUNT_POINT}/Applications"
 
-    hdiutil detach "${MOUNT_POINT}"
-    hdiutil convert "${RW_DMG}" -format UDZO -o "${rust_bin_dir}.dmg"
+    detach_dmg "${MOUNT_POINT}" || exit 1
+    hdiutil convert "${RW_DMG}" -format UDZO -o "${rust_bin_dir}.dmg" || exit 1
     rm -f "${RW_DMG}"
     rm -rf "${APP_BUNDLE}"
 
