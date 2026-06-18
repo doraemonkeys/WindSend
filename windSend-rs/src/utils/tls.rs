@@ -62,9 +62,12 @@ pub fn generate_signed_certificate(
         ))),
         SanType::DnsName(rcgen::string::Ia5String::from_str(fake_domain)?),
     ];
-    // current time
-    params.not_before = OffsetDateTime::now_utc();
-    // current time + 3650 days
+    // Backdate by 1 day to tolerate clock skew between this host (at the moment
+    // of generation) and the verifying client. A freshly installed machine whose
+    // clock hasn't synced via NTP yet can otherwise stamp not_before in the
+    // future, which clients reject as "certificate is not yet valid".
+    params.not_before = OffsetDateTime::now_utc() - 1.days();
+    // not_before + 3650 days
     params.not_after = params
         .not_before
         .checked_add(3650.days())
@@ -104,7 +107,8 @@ pub fn generate_self_signed_ca_certificate(
         ))),
         SanType::DnsName(rcgen::string::Ia5String::from_str(fake_domain)?),
     ];
-    params.not_before = OffsetDateTime::now_utc();
+    // Backdate by 1 day to tolerate clock skew (see generate_signed_certificate).
+    params.not_before = OffsetDateTime::now_utc() - 1.days();
     params.not_after = params
         .not_before
         .checked_add(3650.days())
