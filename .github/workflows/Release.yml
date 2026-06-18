@@ -155,7 +155,10 @@ jobs:
           if-no-files-found: error
 
   build-windows:
-    runs-on: windows-latest
+    # Pinned to VS 2022: windows-latest now ships VS 2026 (MSVC 14.51), whose
+    # STL turns the deprecated <experimental/coroutine> used by cppwinrt-based
+    # plugins (permission_handler_windows) into a hard error (STL1011 / C2338).
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
