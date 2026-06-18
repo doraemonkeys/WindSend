@@ -11,7 +11,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -38,7 +38,7 @@ jobs:
           mv ./windSend-rs/target/release/wind_send.exe ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}.exe
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windSend-rs-windows
           path: |
@@ -48,7 +48,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -71,7 +71,7 @@ jobs:
         run: mv ./windSend-rs/target/release/wind_send ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windSend-rs-linux
           path: |
@@ -80,7 +80,7 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -101,7 +101,7 @@ jobs:
           mv ./windSend-rs/target/release/wind_send ./windSend-rs/target/release/${{ env.EXPECT_RUST_BINARY_NAME }}
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windSend-rs-macos
           path: |
@@ -111,7 +111,7 @@ jobs:
   build-x86_64-unknown-linux-musl:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -133,7 +133,7 @@ jobs:
         run: mv ./windSend-rs/target/x86_64-unknown-linux-musl/release/wind_send ./windSend-rs/target/x86_64-unknown-linux-musl/release/${{ env.EXPECT_RUST_BINARY_NAME }}
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windSend-rs-x86_64-unknown-linux-musl
           path: |

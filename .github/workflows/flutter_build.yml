@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch tags
         run: |
@@ -21,7 +21,7 @@ jobs:
 
       # 缓存 cargo 依赖
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -29,7 +29,7 @@ jobs:
             ${{ runner.os }}-cargo-registry-
 
       - name: Cache cargo index
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
@@ -37,7 +37,7 @@ jobs:
             ${{ runner.os }}-cargo-git-
 
       - name: Cache cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: windSend-rs/target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
@@ -51,7 +51,7 @@ jobs:
       - name: rustup show
         run: rustup show
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "adopt"
@@ -80,7 +80,7 @@ jobs:
         working-directory: flutter/wind_send
         run: flutter pub get
       # cache flutter build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             flutter/wind_send/build/
@@ -113,7 +113,7 @@ jobs:
 
       - name: Archive artifacts on Ubuntu latest
         id: build_archive1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WindSend-Archives-ubuntu-latest
           path: |

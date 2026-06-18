@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch tags
         run: |
@@ -26,7 +26,7 @@ jobs:
 
       # 缓存 cargo 依赖
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -34,7 +34,7 @@ jobs:
             ${{ runner.os }}-cargo-registry-
 
       - name: Cache cargo index
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
@@ -42,7 +42,7 @@ jobs:
             ${{ runner.os }}-cargo-git-
 
       - name: Cache cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: windSend-rs/target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
@@ -56,7 +56,7 @@ jobs:
       - name: rustup show
         run: rustup show
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "adopt"
@@ -88,7 +88,7 @@ jobs:
         working-directory: flutter/wind_send
         run: flutter pub get
       # cache flutter build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             flutter/wind_send/build/
@@ -135,7 +135,7 @@ jobs:
       - name: Archive artifacts on Ubuntu latest
         if: matrix.os == 'ubuntu-latest'
         id: build_archive1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WindSend-Archives-ubuntu-latest
           path: |
@@ -146,7 +146,7 @@ jobs:
       - name: Archive artifacts on Ubuntu 22.04
         if: matrix.os == 'ubuntu-22.04'
         id: build_archive2
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WindSend-Archives-ubuntu-22.04
           path: |
@@ -160,14 +160,14 @@ jobs:
     # plugins (permission_handler_windows) into a hard error (STL1011 / C2338).
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch tags
         run: |
           git fetch --tags || true
           git tag --sort=-creatordate | head -n 1
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -185,7 +185,7 @@ jobs:
       - name: rustup show
         run: rustup show
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "adopt"
@@ -205,7 +205,7 @@ jobs:
         working-directory: flutter/wind_send
         run: flutter pub get
       # cache flutter build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             flutter/wind_send/build/
@@ -229,7 +229,7 @@ jobs:
           ./build_windows.sh
       - name: Archive artifacts
         id: build_archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WindSend-Archives-windows
           path: |
@@ -239,14 +239,14 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch tags
         run: |
           git fetch --tags || true
           git tag --sort=-creatordate | head -n 1
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -265,7 +265,7 @@ jobs:
         run: |
           rustup show
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "adopt"
@@ -283,7 +283,7 @@ jobs:
         working-directory: flutter/wind_send
         run: flutter pub get
       # cache flutter build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             flutter/wind_send/build/
@@ -301,7 +301,7 @@ jobs:
 
       - name: Archive artifacts
         id: build_archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WindSend-Archives-macos
           path: |
@@ -314,10 +314,10 @@ jobs:
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           # name: WindSend-Archives-linux
           path: ./Downloaded-Archives
