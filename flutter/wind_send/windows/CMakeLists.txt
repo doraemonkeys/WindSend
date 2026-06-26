@@ -32,6 +32,14 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# MSVC 14.51+ (VS 18 toolset) promoted the <experimental/coroutine> deprecation
+# (STL1011) to a hard error. permission_handler_windows still pulls that header
+# in via C++/WinRT under our C++17 build, so it fails to compile on the newest
+# toolchain. Re-arm the documented escape hatch project-wide (propagates to
+# plugin subdirectories like the UNICODE flags above) until the plugin migrates
+# to the C++20 <coroutine> header.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
