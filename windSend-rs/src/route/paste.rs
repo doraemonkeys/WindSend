@@ -63,7 +63,8 @@ pub async fn legacy_sync_text_handler(
         if !sync_file_operation_handler(conn, &head).await {
             return false;
         }
-        return send_clipboard_response(conn).await;
+        // No clipboard overwrite happened here; reply with the current snapshot.
+        return send_clipboard_snapshot(conn, capture_clipboard_snapshot()).await;
     }
 
     // Handle clipboard image sync
@@ -84,6 +85,11 @@ pub async fn legacy_sync_text_handler(
         }
     }
 
+    // Snapshot the server clipboard *before* it is overwritten below. Sync is a
+    // swap: the client must receive what the server held prior to this request,
+    // not the value the client just sent us.
+    let snapshot = capture_clipboard_snapshot();
+
     if let Some(body) = &body {
         // If the clipboard content is the same as the current content, do not set it to avoid triggering the clipboard change event
         let cur_text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
@@ -97,35 +103,55 @@ pub async fn legacy_sync_text_handler(
         }
     }
 
-    send_clipboard_response(conn).await
+    send_clipboard_snapshot(conn, snapshot).await
 }
 
-/// Sends clipboard content (image if available, otherwise text)
-async fn send_clipboard_response(conn: &mut TlsStream<TcpStream>) -> bool {
-    // Try to send clipboard image first, if available
+/// A snapshot of the server clipboard captured at a single instant.
+///
+/// Clipboard sync is a *swap*: the client sends its content and must receive
+/// what the server held beforehand. The snapshot must therefore be captured
+/// *before* the client's content overwrites the server clipboard, otherwise the
+/// response echoes back the value the client just sent.
+enum ClipboardSnapshot {
+    Image { name: String, data: Vec<u8> },
+    Text(String),
+}
+
+/// Captures the current clipboard (image first, then text) for a sync response.
+fn capture_clipboard_snapshot() -> ClipboardSnapshot {
     if let Some(image_data) = try_get_clipboard_image_png() {
         let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
-
-        // Save sent image to local file
-        if let Err(e) = save_image_to_file(&image_data, "sent").await {
-            warn!("save sent clipboard image to file failed, err: {}", e);
-        }
-
-        return send_msg_with_body(conn, &image_name, RouteDataType::ClipImage, &image_data)
-            .await
-            .is_ok();
+        return ClipboardSnapshot::Image {
+            name: image_name,
+            data: image_data,
+        };
     }
 
-    // Fallback to text
-    let cur_clipboard_text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
-    send_msg_with_body(
-        conn,
-        &"".to_string(),
-        RouteDataType::Text,
-        cur_clipboard_text.as_ref(),
-    )
-    .await
-    .is_ok()
+    let text = crate::config::CLIPBOARD.read_text().unwrap_or_default();
+    ClipboardSnapshot::Text(text)
+}
+
+/// Sends a previously captured clipboard snapshot back to the client.
+async fn send_clipboard_snapshot(
+    conn: &mut TlsStream<TcpStream>,
+    snapshot: ClipboardSnapshot,
+) -> bool {
+    match snapshot {
+        ClipboardSnapshot::Image { name, data } => {
+            // Save sent image to local file
+            if let Err(e) = save_image_to_file(&data, "sent").await {
+                warn!("save sent clipboard image to file failed, err: {}", e);
+            }
+            send_msg_with_body(conn, &name, RouteDataType::ClipImage, &data)
+                .await
+                .is_ok()
+        }
+        ClipboardSnapshot::Text(text) => {
+            send_msg_with_body(conn, &"".to_string(), RouteDataType::Text, text.as_bytes())
+                .await
+                .is_ok()
+        }
+    }
 }
 
 /// Handles receiving clipboard image from client and sends back current clipboard content
@@ -133,6 +159,10 @@ async fn sync_clipboard_image_handler(
     conn: &mut TlsStream<TcpStream>,
     head: &RouteRecvHead,
 ) -> bool {
+    // Snapshot the server clipboard *before* it is overwritten below, so the
+    // swap returns what the server held rather than the image just received.
+    let snapshot = capture_clipboard_snapshot();
+
     let mut body_buf = vec![0u8; head.data_len as usize];
     if head.data_len > 0 {
         if let Err(e) = conn.read_exact(&mut body_buf).await {
@@ -158,7 +188,7 @@ async fn sync_clipboard_image_handler(
         }
     }
 
-    send_clipboard_response(conn).await
+    send_clipboard_snapshot(conn, snapshot).await
 }
 
 /// Handles sync file operation info (similar to paste_file_operation_handler but without sending response)
