@@ -22,18 +22,12 @@ extension DeviceDiscovery on Device {
   }
 
   Future<String?> _findServerInner() async {
-    var myIp = await DeviceDiscoveryUtils.getDeviceIp();
-    if (myIp == '') {
-      return null;
-    }
-    String mask;
-    // always use 255.255.255.0
-    mask = "255.255.255.0";
-    if (mask != "255.255.255.0") {
+    final myIps = await DeviceDiscoveryUtils.getLocalIps();
+    if (myIps.isEmpty) {
       return null;
     }
 
-    String result = await pingDeviceLoop(myIp);
+    String result = await pingDeviceLoop(myIps);
     if (result == '') {
       return null;
     }
@@ -41,8 +35,8 @@ extension DeviceDiscovery on Device {
     return result;
   }
 
-  Future<String> pingDeviceLoop(String myIp) async {
-    const rangeNum = 254;
+  Future<String> pingDeviceLoop(List<String> myIps) async {
+    final rangeNum = myIps.length * DeviceDiscoveryUtils._hostsPerSubnet;
     StreamSubscription<String>? subscription;
     final msgController = StreamController<String>();
     // add a listener immediately
@@ -51,7 +45,7 @@ extension DeviceDiscovery on Device {
         .firstWhere((element) => element != '', orElse: () => '')
         .whenComplete(() => subscription?.cancel());
 
-    Stream<String> tryStream = DeviceDiscoveryUtils._ipRanges(myIp);
+    Stream<String> tryStream = DeviceDiscoveryUtils._ipRanges(myIps);
 
     subscription = tryStream.listen((ip) {
       var device = Device.copy(this);
@@ -81,53 +75,110 @@ extension DeviceDiscovery on Device {
 class DeviceDiscoveryUtils {
   DeviceDiscoveryUtils._();
 
-  static Future<String> getDeviceIp() async {
-    var interfaces = await NetworkInterface.list();
-    String expIp = '';
-    for (var interface in interfaces) {
-      var name = interface.name.toLowerCase();
-      if ((name.contains('wlan') ||
-              name.contains('eth') ||
-              name.contains('en0') ||
-              name.contains('en1') ||
-              name.contains('以太网') ||
-              name.contains('wl')) &&
-          (!name.contains('virtual') && !name.contains('vethernet'))) {
-        for (var addr in interface.addresses) {
-          if (addr.type == InternetAddressType.IPv4) {
-            expIp = addr.address;
-          }
+  /// Number of host addresses probed per /24 subnet (i.e. .1 through .254).
+  static const int _hostsPerSubnet = 254;
+
+  /// Collect the local IPv4 addresses that plausibly belong to a physical LAN.
+  ///
+  /// Interface selection is based on address semantics rather than adapter
+  /// names: adapter naming is localized and driver/OS-dependent (e.g. "WiFi",
+  /// "WLAN", "Wi-Fi", "以太网"), so a name whitelist silently fails on any host
+  /// whose adapter happens to be named differently. We instead keep RFC1918
+  /// private IPv4 addresses, drop known virtual/VPN adapters, and return one
+  /// representative address per /24 subnet so the caller can scan every LAN the
+  /// host is attached to.
+  static Future<List<String>> getLocalIps() async {
+    final interfaces = await NetworkInterface.list(
+      includeLoopback: false,
+      includeLinkLocal: false,
+      type: InternetAddressType.IPv4,
+    );
+    // Keyed by /24 prefix to avoid scanning the same subnet twice.
+    final bySubnet = <String, String>{};
+    for (final interface in interfaces) {
+      if (_isVirtualInterface(interface.name)) {
+        continue;
+      }
+      for (final addr in interface.addresses) {
+        if (!_isPrivateIPv4(addr.address)) {
+          continue;
         }
+        final prefix = addr.address.substring(
+          0,
+          addr.address.lastIndexOf('.'),
+        );
+        bySubnet.putIfAbsent(prefix, () => addr.address);
       }
     }
-    return expIp;
+    return bySubnet.values.toList();
   }
 
-  /// Scan nearby IPs first (±15 from current), then scan the rest.
-  /// Nearby devices are more likely to be the target.
-  static Stream<String> _ipRanges(String myIp) async* {
-    var myIpPrefix = myIp.substring(0, myIp.lastIndexOf('.'));
-    int ipSuffix = int.parse(myIp.substring(myIp.lastIndexOf('.') + 1));
-    int mainStart = max(ipSuffix - 15, 1);
-    int mainEnd = min(ipSuffix + 15, 254);
-    for (var i = mainStart; i <= mainEnd; i++) {
-      yield '$myIpPrefix.$i';
+  /// Whether [ip] falls in an RFC1918 private range, the address space used by
+  /// home/office LANs that WindSend devices live on.
+  static bool _isPrivateIPv4(String ip) {
+    final parts = ip.split('.');
+    if (parts.length != 4) {
+      return false;
     }
-    // Give nearby IPs time to respond before scanning the rest
+    final a = int.tryParse(parts[0]);
+    final b = int.tryParse(parts[1]);
+    if (a == null || b == null) {
+      return false;
+    }
+    return a == 10 || // 10.0.0.0/8
+        (a == 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+        (a == 192 && b == 168); // 192.168.0.0/16
+  }
+
+  /// Whether [name] denotes a virtual/VPN adapter that should never be scanned,
+  /// even when it carries a private address (e.g. WSL/Hyper-V vEthernet).
+  static bool _isVirtualInterface(String name) {
+    final n = name.toLowerCase();
+    const virtualMarkers = [
+      'virtual',
+      'vethernet',
+      'vmware',
+      'vbox',
+      'hyper-v',
+      'docker',
+      'wsl',
+      'loopback',
+    ];
+    return virtualMarkers.any(n.contains);
+  }
+
+  /// For every candidate subnet, scan nearby IPs first (±15 from the host
+  /// address), then the rest. Nearby devices are more likely to be the target.
+  static Stream<String> _ipRanges(List<String> myIps) async* {
+    // Probe the ±15 neighbourhood of every subnet up front...
+    for (final myIp in myIps) {
+      final prefix = myIp.substring(0, myIp.lastIndexOf('.'));
+      final suffix = int.parse(myIp.substring(myIp.lastIndexOf('.') + 1));
+      for (var i = max(suffix - 15, 1); i <= min(suffix + 15, 254); i++) {
+        yield '$prefix.$i';
+      }
+    }
+    // ...then give nearby IPs time to respond before scanning the remainder.
     await Future.delayed(const Duration(milliseconds: 500));
-    for (var i = 1; i < mainStart; i++) {
-      yield '$myIpPrefix.$i';
-    }
-    for (var i = mainEnd + 1; i < 255; i++) {
-      yield '$myIpPrefix.$i';
+    for (final myIp in myIps) {
+      final prefix = myIp.substring(0, myIp.lastIndexOf('.'));
+      final suffix = int.parse(myIp.substring(myIp.lastIndexOf('.') + 1));
+      final mainStart = max(suffix - 15, 1);
+      final mainEnd = min(suffix + 15, 254);
+      for (var i = 1; i < mainStart; i++) {
+        yield '$prefix.$i';
+      }
+      for (var i = mainEnd + 1; i < 255; i++) {
+        yield '$prefix.$i';
+      }
     }
   }
 
   static Future<Device> _matchDeviceLoop(
     StreamController<Device> msgController,
-    String myIp,
+    List<String> myIps,
   ) async {
-    const rangeNum = 254;
+    final rangeNum = myIps.length * _hostsPerSubnet;
     StreamSubscription<String>? subscription;
 
     // add a listener immediately
@@ -139,7 +190,7 @@ class DeviceDiscoveryUtils {
         )
         .whenComplete(() => subscription?.cancel());
 
-    Stream<String> tryStream = _ipRanges(myIp);
+    Stream<String> tryStream = _ipRanges(myIps);
     subscription = tryStream.listen((ip) {
       _matchDevice(msgController, ip, timeout: const Duration(seconds: 3));
     });
@@ -204,10 +255,10 @@ class DeviceDiscoveryUtils {
 
   /// Search for devices on the local network
   static Future<Device> search() async {
-    var myIp = await getDeviceIp();
-    if (myIp == '') {
+    final myIps = await getLocalIps();
+    if (myIps.isEmpty) {
       throw Exception('no local ip found');
     }
-    return await _matchDeviceLoop(StreamController<Device>(), myIp);
+    return await _matchDeviceLoop(StreamController<Device>(), myIps);
   }
 }
