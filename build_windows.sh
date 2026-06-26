@@ -82,6 +82,17 @@ flutterX86_64DirName="WindSend-windows-x64-flutter-$BUILD_TAG"
 cd "$WINDSEND_PROJECT_PATH" || exit
 cd "$WINDSEND_FLUTTER_PATH" || exit
 
+# The transitive `jni` FFI plugin (pulled in by path_provider_android) is
+# compiled for Windows even though it goes unused here, and its CMake
+# find_package(JNI) only resolves jni.h when JAVA_HOME is a native Windows
+# path. Under the msys2 shell JAVA_HOME may arrive POSIX-style (/c/...), which
+# the native cmake.exe cannot read, so normalize it before the flutter build.
+if [ -n "$JAVA_HOME" ] && command -v cygpath >/dev/null 2>&1; then
+    JAVA_HOME="$(cygpath -w "$JAVA_HOME")"
+    export JAVA_HOME
+    echo "Normalized JAVA_HOME: $JAVA_HOME"
+fi
+
 if ! flutter build windows --release; then
     echo "Build Windows Failed!"
     exit 1

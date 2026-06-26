@@ -185,6 +185,7 @@ jobs:
       - name: rustup show
         run: rustup show
       - name: Set up JDK
+        id: setup_java
         uses: actions/setup-java@v5
         with:
           java-version: "17"
@@ -210,9 +211,13 @@ jobs:
           path: |
             flutter/wind_send/build/
             ~/.pub-cache
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          # The resolved JDK version is part of the key: the transitive `jni`
+          # FFI plugin caches the located jni.h path in build/'s CMakeCache, so
+          # a JDK change must invalidate the cache instead of reusing a stale
+          # (possibly NOTFOUND) include path.
+          key: ${{ runner.os }}-flutter-jdk${{ steps.setup_java.outputs.version }}-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
-            ${{ runner.os }}-flutter-
+            ${{ runner.os }}-flutter-jdk${{ steps.setup_java.outputs.version }}-
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -224,6 +229,10 @@ jobs:
         shell: msys2 {0}
         env:
           CI_RUNNING: true # for build script
+          # Pass the native (Windows-form) JDK path so CMake's find_package(JNI)
+          # in the transitive `jni` plugin can locate jni.h. build_windows.sh
+          # re-normalizes it in case msys2 hands it over POSIX-style.
+          JAVA_HOME: ${{ steps.setup_java.outputs.path }}
         working-directory: ./
         run: |
           ./build_windows.sh
