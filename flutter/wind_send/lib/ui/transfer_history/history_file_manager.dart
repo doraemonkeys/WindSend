@@ -52,6 +52,62 @@ Future<List<FileManagerTarget>> resolveHistoryFileManagerTargets(
   return targets;
 }
 
+Future<FileManagerTarget?> resolveHistoryFileEntryTarget(FileInfo file) async {
+  if (file.path.isEmpty || file.pathType == 'unavailable') return null;
+  final path = await resolveHistoryPersistedPath(file.path);
+  if (path == null) return null;
+  return file.isDirectory
+      ? FileManagerTarget.directory(path)
+      : FileManagerTarget.file(path);
+}
+
+enum HistoryFileUnavailableReason { missing, pathUnavailable, permissionDenied }
+
+sealed class HistoryFileAccess {
+  const HistoryFileAccess();
+}
+
+final class HistoryFileAvailable extends HistoryFileAccess {
+  const HistoryFileAvailable(this.target);
+
+  final FileManagerTarget target;
+}
+
+final class HistoryFileUnavailable extends HistoryFileAccess {
+  const HistoryFileUnavailable(this.reason);
+
+  final HistoryFileUnavailableReason reason;
+}
+
+/// A historical path is not proof that its content still exists. Both browsing
+/// and opening use this check, so a missing folder never silently opens a parent.
+Future<HistoryFileAccess> checkHistoryFileAccess(
+  FileInfo file, {
+  Future<FileSystemEntityType> Function(String)? entityType,
+}) async {
+  final target = await resolveHistoryFileEntryTarget(file);
+  if (target == null) {
+    return const HistoryFileUnavailable(
+      HistoryFileUnavailableReason.pathUnavailable,
+    );
+  }
+  try {
+    final type = await (entityType ?? FileSystemEntity.type)(target.path);
+    final expected = file.isDirectory
+        ? FileSystemEntityType.directory
+        : FileSystemEntityType.file;
+    return type == expected
+        ? HistoryFileAvailable(target)
+        : const HistoryFileUnavailable(HistoryFileUnavailableReason.missing);
+  } on FileSystemException catch (error) {
+    return HistoryFileUnavailable(
+      const {5, 13}.contains(error.osError?.errorCode)
+          ? HistoryFileUnavailableReason.permissionDenied
+          : HistoryFileUnavailableReason.pathUnavailable,
+    );
+  }
+}
+
 Future<String?> resolveHistoryPersistedPath(String path) async {
   if (p.isAbsolute(path)) return path;
 

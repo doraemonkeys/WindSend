@@ -178,10 +178,20 @@ class FileInfo {
     };
   }
 
-  /// Check if this is an image file based on MIME type
   bool get isImage {
-    if (mimeType == null) return false;
-    return mimeType!.startsWith('image/');
+    if (isDirectory) return false;
+    if (mimeType?.startsWith('image/') ?? false) return true;
+    // Older records and some file providers omit MIME metadata.
+    return const {
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+      'bmp',
+      'webp',
+      'heic',
+      'heif',
+    }.contains(extension);
   }
 
   /// Get file extension (lowercase, without dot)
@@ -347,6 +357,13 @@ class FilesPayload {
 
   /// Number of directories
   int get directoryCount => files.where((f) => f.isDirectory).length;
+
+  bool get imagesOnly =>
+      files.isNotEmpty && files.every((file) => file.isImage);
+
+  String getLocalizedCollectionTitle(BuildContext context) => imagesOnly
+      ? context.formatString(AppLocale.historyImageCount, ['${files.length}'])
+      : getLocalizedSummaryText(context);
 
   /// Whether this payload is empty
   bool get isEmpty => files.isEmpty;

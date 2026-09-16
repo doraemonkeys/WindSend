@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -15,6 +14,7 @@ import '../../utils/utils.dart';
 import '../../utils/platform_device_info.dart';
 import '../../toast.dart';
 import 'history.dart';
+import 'history_file_manager.dart';
 
 /// Full-screen image preview dialog with pinch-to-zoom support
 ///
@@ -25,10 +25,16 @@ import 'history.dart';
 /// - Share and save to gallery actions
 /// - Elegant gradient overlays for controls
 class ImagePreviewDialog extends StatefulWidget {
-  final TransferHistoryItem item;
-  final String? heroTag;
+  final List<FileInfo> images;
+  final int initialIndex;
 
-  const ImagePreviewDialog({super.key, required this.item, this.heroTag});
+  ImagePreviewDialog({
+    super.key,
+    required List<FileInfo> images,
+    this.initialIndex = 0,
+  }) : assert(images.isNotEmpty),
+       assert(initialIndex >= 0 && initialIndex < images.length),
+       images = List.unmodifiable(images);
 
   @override
   State<ImagePreviewDialog> createState() => _ImagePreviewDialogState();
@@ -36,8 +42,8 @@ class ImagePreviewDialog extends StatefulWidget {
   /// Show the image preview dialog with smooth animation
   static Future<void> show(
     BuildContext context,
-    TransferHistoryItem item, {
-    String? heroTag,
+    List<FileInfo> images, {
+    int initialIndex = 0,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -47,7 +53,7 @@ class ImagePreviewDialog extends StatefulWidget {
         transitionDuration: const Duration(milliseconds: 280),
         reverseTransitionDuration: const Duration(milliseconds: 250),
         pageBuilder: (context, animation, secondaryAnimation) {
-          return ImagePreviewDialog(item: item, heroTag: heroTag);
+          return ImagePreviewDialog(images: images, initialIndex: initialIndex);
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           // Fade in the background
@@ -71,7 +77,99 @@ class ImagePreviewDialog extends StatefulWidget {
   }
 }
 
-class _ImagePreviewDialogState extends State<ImagePreviewDialog>
+class _ImagePreviewDialogState extends State<ImagePreviewDialog> {
+  late final PageController _pageController;
+  late int _currentIndex;
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  void _navigate(int index) {
+    if (index < 0 || index >= widget.images.length) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.pop(context),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+            _navigate(_currentIndex - 1),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+            _navigate(_currentIndex + 1),
+      },
+      child: Focus(
+        autofocus: true,
+        child: PageView.builder(
+          controller: _pageController,
+          // A zoomed image owns horizontal dragging; at fit size it changes pages.
+          physics: _zoomed ? const NeverScrollableScrollPhysics() : null,
+          onPageChanged: (index) => setState(() {
+            _currentIndex = index;
+            _zoomed = false;
+          }),
+          itemCount: widget.images.length,
+          itemBuilder: (context, index) => _ImagePreviewPage(
+            key: ValueKey(index),
+            image: widget.images[index],
+            index: index,
+            count: widget.images.length,
+            isActive: index == _currentIndex,
+            onNavigate: _navigate,
+            onZoomChanged: (zoomed) {
+              if (index == _currentIndex && zoomed != _zoomed) {
+                setState(() => _zoomed = zoomed);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePreviewPage extends StatefulWidget {
+  const _ImagePreviewPage({
+    super.key,
+    required this.image,
+    required this.index,
+    required this.count,
+    required this.isActive,
+    required this.onNavigate,
+    required this.onZoomChanged,
+  });
+
+  final FileInfo image;
+  final int index;
+  final int count;
+  final bool isActive;
+  final ValueChanged<int> onNavigate;
+  final ValueChanged<bool> onZoomChanged;
+
+  @override
+  State<_ImagePreviewPage> createState() => _ImagePreviewPageState();
+}
+
+class _ImagePreviewPageState extends State<_ImagePreviewPage>
     with SingleTickerProviderStateMixin {
   final TransformationController _transformationController =
       TransformationController();
@@ -94,74 +192,50 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
       duration: const Duration(milliseconds: 200),
     );
     _loadImage();
-
-    // Set immersive mode for better viewing experience
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
     _transformationController.dispose();
     _animationController.dispose();
-    // Restore system UI
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImagePreviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive && !widget.isActive) {
+      _animationController.stop();
+      _transformationController.value = Matrix4.identity();
+      _isZoomed = false;
+    }
   }
 
   Future<void> _loadImage() async {
     try {
-      // Try to get image path from files payload first
-      String? imagePath;
-
-      final filesPayload = widget.item.filesPayload;
-      if (filesPayload.files.isNotEmpty) {
-        final firstFile = filesPayload.files.first;
-        if (firstFile.path.isNotEmpty) {
-          // Check if it's a relative path (needs resolution) or absolute
-          if (p.isAbsolute(firstFile.path)) {
-            imagePath = firstFile.path;
-          } else {
-            // Resolve relative path from payload directory
-            imagePath = await toAbsolutePayloadPath(firstFile.path);
-          }
-        }
-      }
-
-      // Fallback to payloadPath if available
-      if ((imagePath == null || imagePath.isEmpty) &&
-          widget.item.payloadPath != null &&
-          widget.item.payloadPath!.isNotEmpty) {
-        if (p.isAbsolute(widget.item.payloadPath!)) {
-          imagePath = widget.item.payloadPath;
-        } else {
-          imagePath = await toAbsolutePayloadPath(widget.item.payloadPath!);
-        }
-      }
-
-      if (imagePath == null || imagePath.isEmpty) {
-        setState(() {
-          _errorMessage = AppLocale.imagePathNotExist;
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final file = File(imagePath);
-      if (!await file.exists()) {
-        setState(() {
-          _errorMessage = AppLocale.imageFileNotExist;
-          _isLoading = false;
-        });
-        return;
-      }
-
+      final access = await checkHistoryFileAccess(widget.image);
+      if (!mounted) return;
       setState(() {
-        _imageFile = file;
+        switch (access) {
+          case HistoryFileAvailable(:final target):
+            _imageFile = File(target.path);
+          case HistoryFileUnavailable(:final reason):
+            _errorMessage = switch (reason) {
+              HistoryFileUnavailableReason.missing =>
+                AppLocale.imageFileNotExist,
+              HistoryFileUnavailableReason.pathUnavailable =>
+                AppLocale.imagePathNotExist,
+              HistoryFileUnavailableReason.permissionDenied =>
+                AppLocale.historyOpenFilePermissionDenied,
+            };
+        }
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (error) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = '${AppLocale.loadImageFailed}|$e';
+        _errorMessage = '${AppLocale.loadImageFailed}|$error';
         _isLoading = false;
       });
     }
@@ -170,6 +244,10 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
   void _handleShare() async {
     // Capture context-dependent values BEFORE any async gap
     final fallbackText = context.formatString(AppLocale.image, []);
+    final renderBox = context.findRenderObject();
+    final shareOrigin = renderBox is RenderBox && renderBox.hasSize
+        ? renderBox.localToGlobal(Offset.zero) & renderBox.size
+        : null;
     final cannotShareMsg = context.formatString(
       AppLocale.cannotShareImageNotExist,
       [],
@@ -188,8 +266,8 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(_imageFile!.path)],
-          text:
-              widget.item.filesPayload.files.firstOrNull?.name ?? fallbackText,
+          text: widget.image.name.isEmpty ? fallbackText : widget.image.name,
+          sharePositionOrigin: shareOrigin,
         ),
       );
     } catch (e) {
@@ -239,9 +317,9 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
     }
 
     try {
-      final originalName =
-          widget.item.filesPayload.files.firstOrNull?.name ??
-          'WindSend_${DateTime.now().millisecondsSinceEpoch}.png';
+      final originalName = widget.image.name.isEmpty
+          ? 'WindSend_${DateTime.now().millisecondsSinceEpoch}.png'
+          : widget.image.name;
 
       if (_isMobilePlatform) {
         // Mobile: Save to gallery using image_gallery_saver_plus
@@ -357,6 +435,8 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
       _animateToMatrix(matrix);
       _isZoomed = true;
     }
+    widget.onZoomChanged(_isZoomed);
+    setState(() {});
   }
 
   /// Animate transformation matrix smoothly
@@ -384,9 +464,13 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
   }
 
   /// Track zoom state changes from InteractiveViewer
-  void _onInteractionEnd(ScaleEndDetails details) {
+  void _updateZoomState() {
     final scale = _transformationController.value.getMaxScaleOnAxis();
-    _isZoomed = scale > 1.1;
+    final zoomed = scale > 1.1;
+    if (_isZoomed != zoomed) {
+      setState(() => _isZoomed = zoomed);
+      widget.onZoomChanged(zoomed);
+    }
   }
 
   @override
@@ -505,7 +589,8 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
       transformationController: _transformationController,
       minScale: 0.5,
       maxScale: 5.0,
-      onInteractionEnd: _onInteractionEnd,
+      onInteractionEnd: (_) => _updateZoomState(),
+      onInteractionUpdate: (_) => _updateZoomState(),
       child: Center(
         child: Image.file(
           _imageFile!,
@@ -562,7 +647,33 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
                 onPressed: _handleClose,
               ),
 
-              const Spacer(),
+              if (widget.count > 1) ...[
+                _buildControlButton(
+                  icon: Icons.chevron_left,
+                  tooltip: context.formatString(
+                    AppLocale.historyPreviousImage,
+                    [],
+                  ),
+                  onPressed: widget.index > 0
+                      ? () => widget.onNavigate(widget.index - 1)
+                      : null,
+                ),
+                Expanded(
+                  child: Text(
+                    '${widget.index + 1} / ${widget.count}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                _buildControlButton(
+                  icon: Icons.chevron_right,
+                  tooltip: context.formatString(AppLocale.historyNextImage, []),
+                  onPressed: widget.index + 1 < widget.count
+                      ? () => widget.onNavigate(widget.index + 1)
+                      : null,
+                ),
+              ] else
+                const Spacer(),
 
               // Action buttons
               if (_imageFile != null) ...[
@@ -591,7 +702,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
   Widget _buildControlButton({
     required IconData icon,
     required String tooltip,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return Material(
       color: Colors.transparent,
@@ -602,7 +713,11 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
           message: tooltip,
           child: Container(
             padding: const EdgeInsets.all(12),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(
+              icon,
+              color: onPressed == null ? Colors.white38 : Colors.white,
+              size: 24,
+            ),
           ),
         ),
       ),
@@ -610,10 +725,10 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
   }
 
   Widget _buildBottomBar(ColorScheme colorScheme) {
-    final fileName =
-        widget.item.filesPayload.files.firstOrNull?.name ??
-        context.formatString(AppLocale.image, []);
-    final fileSize = formatBytes(widget.item.dataSize);
+    final fileName = widget.image.name.isEmpty
+        ? context.formatString(AppLocale.image, [])
+        : widget.image.name;
+    final fileSize = formatBytes(widget.image.size);
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
@@ -669,7 +784,7 @@ class _ImagePreviewDialogState extends State<ImagePreviewDialog>
               ),
 
               // Zoom hint (only show when not zoomed)
-              if (!_isZoomed)
+              if (!_isZoomed && MediaQuery.sizeOf(context).width >= 420)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,

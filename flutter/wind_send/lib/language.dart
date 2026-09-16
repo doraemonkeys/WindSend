@@ -166,12 +166,9 @@ mixin AppLocale {
   static const String historyShareUnavailable = 'historyShareUnavailable';
   static const String historyShareFilesMissing = 'historyShareFilesMissing';
   static const String historySharePartialTitle = 'historySharePartialTitle';
-  static const String historySharePartialMessage =
-      'historySharePartialMessage';
-  static const String historyShareAvailableFiles =
-      'historyShareAvailableFiles';
-  static const String historyResendFilesMissing =
-      'historyResendFilesMissing';
+  static const String historySharePartialMessage = 'historySharePartialMessage';
+  static const String historyShareAvailableFiles = 'historyShareAvailableFiles';
+  static const String historyResendFilesMissing = 'historyResendFilesMissing';
   static const String deleteRecord = 'deleteRecord';
   static const String deleteRecordTip = 'deleteRecordTip';
   static const String delete = 'delete';
@@ -181,6 +178,14 @@ mixin AppLocale {
   static const String image = 'image';
   static const String preview = 'preview';
   static const String batchTransfer = 'batchTransfer';
+  static const String historyImageCount = 'historyImageCount';
+  static const String historyBrowseFiles = 'historyBrowseFiles';
+  static const String historyViewAllFiles = 'historyViewAllFiles';
+  static const String historyShowFileLocation = 'historyShowFileLocation';
+  static const String historyOriginalUnavailable = 'historyOriginalUnavailable';
+  static const String historyPreviousImage = 'historyPreviousImage';
+  static const String historyNextImage = 'historyNextImage';
+  static const String historyLocationFiles = 'historyLocationFiles';
   static const String collapse = 'collapse';
   static const String expand = 'expand';
   static const String noFileInfo = 'noFileInfo';
@@ -559,6 +564,14 @@ mixin AppLocale {
     image: '图片',
     preview: '预览',
     batchTransfer: '批量传输',
+    historyImageCount: '%a 张图片',
+    historyBrowseFiles: '查看文件',
+    historyViewAllFiles: '查看全部 %a 项',
+    historyShowFileLocation: '查看文件位置',
+    historyOriginalUnavailable: '原文件不可用',
+    historyPreviousImage: '上一张图片',
+    historyNextImage: '下一张图片',
+    historyLocationFiles: '包含：%a',
     collapse: '收起',
     expand: '展开',
     noFileInfo: '无文件信息',
@@ -935,6 +948,14 @@ mixin AppLocale {
     image: 'Image',
     preview: 'Preview',
     batchTransfer: 'Batch Transfer',
+    historyImageCount: '%a images',
+    historyBrowseFiles: 'View files',
+    historyViewAllFiles: 'View all %a items',
+    historyShowFileLocation: 'Show file location',
+    historyOriginalUnavailable: 'Original unavailable',
+    historyPreviousImage: 'Previous image',
+    historyNextImage: 'Next image',
+    historyLocationFiles: 'Contains: %a',
     collapse: 'Collapse',
     expand: 'Expand',
     noFileInfo: 'No file info',

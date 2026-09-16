@@ -12,9 +12,10 @@ import '../../utils/file_manager.dart';
 import '../../utils/logger.dart';
 import 'history.dart';
 import 'history_file_manager.dart';
+import 'history_file_list.dart';
 import 'image_preview_dialog.dart';
 
-enum HistoryPrimaryAction { copyText, previewImage, openFile, openDirectories }
+enum HistoryPrimaryAction { copyText, previewImage, openFile, browseFiles }
 
 enum HistoryActionResult { completed, retained, failed }
 
@@ -23,7 +24,7 @@ extension HistoryActionSemantics on TransferHistoryItem {
     TransferType.text => HistoryPrimaryAction.copyText,
     TransferType.image => HistoryPrimaryAction.previewImage,
     TransferType.file => HistoryPrimaryAction.openFile,
-    TransferType.batch => HistoryPrimaryAction.openDirectories,
+    TransferType.batch => HistoryPrimaryAction.browseFiles,
   };
 
   /// System share sheets accept text and files, but not directory trees.
@@ -45,7 +46,7 @@ IconData historyPrimaryActionIcon(TransferHistoryItem item) {
     HistoryPrimaryAction.copyText => Icons.copy_outlined,
     HistoryPrimaryAction.previewImage => Icons.visibility_outlined,
     HistoryPrimaryAction.openFile => Icons.open_in_new_rounded,
-    HistoryPrimaryAction.openDirectories => Icons.folder_open_outlined,
+    HistoryPrimaryAction.browseFiles => Icons.list_alt_outlined,
   };
 }
 
@@ -63,8 +64,8 @@ String historyPrimaryActionLabel(
       AppLocale.historyOpenFile,
       [],
     ),
-    HistoryPrimaryAction.openDirectories => context.formatString(
-      AppLocale.historyDetailOpenDirectory,
+    HistoryPrimaryAction.browseFiles => context.formatString(
+      AppLocale.historyBrowseFiles,
       [],
     ),
   };
@@ -184,10 +185,7 @@ Future<HistoryActionResult> performHistoryPrimaryAction(
       HistoryPrimaryAction.copyText => _copyHistoryText(context, item),
       HistoryPrimaryAction.previewImage => _previewHistoryImage(context, item),
       HistoryPrimaryAction.openFile => _openHistoryFile(context, item),
-      HistoryPrimaryAction.openDirectories => _openHistoryDirectories(
-        context,
-        item,
-      ),
+      HistoryPrimaryAction.browseFiles => browseHistoryFiles(context, item),
     };
   } catch (error, stackTrace) {
     SharedLogger().logger.e(
@@ -201,7 +199,7 @@ Future<HistoryActionResult> performHistoryPrimaryAction(
       HistoryPrimaryAction.previewImage =>
         AppLocale.historyDetailImageUnavailable,
       HistoryPrimaryAction.openFile => AppLocale.historyOpenFileFailed,
-      HistoryPrimaryAction.openDirectories => AppLocale.cannotOpenFileLocation,
+      HistoryPrimaryAction.browseFiles => AppLocale.noFileInfo,
     });
     return HistoryActionResult.failed;
   }
@@ -284,7 +282,28 @@ Future<HistoryActionResult> _previewHistoryImage(
   BuildContext context,
   TransferHistoryItem item,
 ) async {
-  await ImagePreviewDialog.show(context, item);
+  final original = item.filesPayload.files.firstOrNull;
+  final fallbackPath = [
+    item.payloadPath,
+    item.filesPayload.thumbnailPath,
+  ].whereType<String>().where((path) => path.isNotEmpty).firstOrNull;
+  final image =
+      original != null &&
+          original.path.isNotEmpty &&
+          original.pathType != 'unavailable'
+      ? original
+      : FileInfo(
+          name:
+              original?.name ??
+              (fallbackPath == null
+                  ? context.formatString(AppLocale.image, [])
+                  : p.basename(fallbackPath)),
+          size: original?.size ?? item.dataSize,
+          path: fallbackPath ?? '',
+          isDirectory: false,
+          mimeType: 'image/png',
+        );
+  await ImagePreviewDialog.show(context, [image]);
   return HistoryActionResult.retained;
 }
 
@@ -299,6 +318,13 @@ Future<HistoryActionResult> _openHistoryFile(
     return HistoryActionResult.failed;
   }
 
+  return _openHistoryFileTarget(context, target);
+}
+
+Future<HistoryActionResult> _openHistoryFileTarget(
+  BuildContext context,
+  FileManagerFileTarget target,
+) async {
   final outcome = await openFileTarget(target);
   if (!context.mounted) return HistoryActionResult.failed;
   switch (outcome) {
@@ -332,41 +358,177 @@ Future<HistoryActionResult> _openHistoryFile(
   return HistoryActionResult.failed;
 }
 
-Future<HistoryActionResult> _openHistoryDirectories(
+Future<HistoryActionResult> browseHistoryFiles(
   BuildContext context,
   TransferHistoryItem item,
 ) async {
-  final targets = await resolveHistoryFileManagerTargets(item);
-  final directories = <String>{};
-  for (final target in targets) {
-    // A multi-item transfer belongs to the entries' containing directories;
-    // opening a selected folder itself is only intuitive for a one-item batch.
-    final locationTarget = targets.length == 1
-        ? target
-        : FileManagerTarget.file(target.path);
-    final directory = await resolveFileManagerDirectory(locationTarget);
-    if (directory != null) directories.add(directory);
-  }
-  if (!context.mounted) return HistoryActionResult.failed;
-  if (directories.isEmpty) {
-    _showFailure(context, AppLocale.cannotOpenFileLocation);
+  final payload = item.filesPayload;
+  if (payload.isEmpty) {
+    _showFailure(context, AppLocale.noFileInfo);
     return HistoryActionResult.failed;
   }
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (sheetContext) => DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.35,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => HistoryFilesSheet(
+        payload: payload,
+        scrollController: scrollController,
+        onOpen: (file) =>
+            openHistoryFileEntry(context, file, collection: payload.files),
+        onShowLocation: (file) => showHistoryFileLocation(context, file),
+      ),
+    ),
+  );
+  return HistoryActionResult.retained;
+}
 
-  final selected = directories.length == 1
-      ? directories.first
-      : await _selectDirectory(context, directories.toList(growable: false));
-  if (selected == null || !context.mounted) {
-    return HistoryActionResult.retained;
+Future<void> openHistoryFileEntry(
+  BuildContext context,
+  FileInfo file, {
+  required List<FileInfo> collection,
+}) async {
+  try {
+    if (file.isImage) {
+      final images = collection.where((entry) => entry.isImage).toList();
+      final index = images.indexWhere((image) => identical(image, file));
+      await ImagePreviewDialog.show(
+        context,
+        index < 0 ? [file] : images,
+        initialIndex: index < 0 ? 0 : index,
+      );
+      return;
+    }
+    final access = await checkHistoryFileAccess(file);
+    if (!context.mounted) return;
+    switch (access) {
+      case HistoryFileAvailable(:final target):
+        switch (target) {
+          case FileManagerFileTarget():
+            await _openHistoryFileTarget(context, target);
+          case FileManagerDirectoryTarget():
+            if (!await openInFileManager(target) && context.mounted) {
+              _showFailure(context, AppLocale.cannotOpenFileLocation);
+            }
+        }
+      case HistoryFileUnavailable(:final reason):
+        _showFailure(context, switch (reason) {
+          HistoryFileUnavailableReason.missing => AppLocale.historyFileMissing,
+          HistoryFileUnavailableReason.pathUnavailable =>
+            AppLocale.filePathUnavailable,
+          HistoryFileUnavailableReason.permissionDenied =>
+            AppLocale.historyOpenFilePermissionDenied,
+        });
+    }
+  } catch (error, stackTrace) {
+    if (context.mounted) {
+      _reportFileActionFailure(
+        context,
+        error,
+        stackTrace,
+        AppLocale.historyOpenFileFailed,
+      );
+    }
   }
+}
 
-  final opened = await openInFileManager(FileManagerTarget.directory(selected));
-  if (!context.mounted) return HistoryActionResult.failed;
-  if (!opened) {
-    _showFailure(context, AppLocale.cannotOpenFileLocation);
+Future<void> showHistoryFileLocation(
+  BuildContext context,
+  FileInfo file,
+) async {
+  try {
+    final target = await resolveHistoryFileEntryTarget(file);
+    if (!context.mounted) return;
+    if (target == null || !await openInFileManager(target)) {
+      if (context.mounted) {
+        _showFailure(context, AppLocale.cannotOpenFileLocation);
+      }
+    }
+  } catch (error, stackTrace) {
+    if (context.mounted) {
+      _reportFileActionFailure(
+        context,
+        error,
+        stackTrace,
+        AppLocale.cannotOpenFileLocation,
+      );
+    }
+  }
+}
+
+void _reportFileActionFailure(
+  BuildContext context,
+  Object error,
+  StackTrace stackTrace,
+  String messageKey,
+) {
+  SharedLogger().logger.e(
+    'History file action failed',
+    error: error,
+    stackTrace: stackTrace,
+  );
+  if (context.mounted) _showFailure(context, messageKey);
+}
+
+Future<HistoryActionResult> openHistoryDirectories(
+  BuildContext context,
+  TransferHistoryItem item,
+) async {
+  try {
+    final targets = await resolveHistoryFileManagerTargets(item);
+    final directories = <String, List<String>>{};
+    for (final target in targets) {
+      // A multi-item transfer belongs to the entries' containing directories;
+      // opening a selected folder itself is only intuitive for a one-item batch.
+      final locationTarget = targets.length == 1
+          ? target
+          : FileManagerTarget.file(target.path);
+      final directory = await resolveFileManagerDirectory(locationTarget);
+      if (directory != null) {
+        directories
+            .putIfAbsent(directory, () => [])
+            .add(p.basename(target.path));
+      }
+    }
+    if (!context.mounted) return HistoryActionResult.failed;
+    if (directories.isEmpty) {
+      _showFailure(context, AppLocale.cannotOpenFileLocation);
+      return HistoryActionResult.failed;
+    }
+
+    final selected = directories.length == 1
+        ? directories.keys.first
+        : await _selectDirectory(context, directories);
+    if (selected == null || !context.mounted) {
+      return HistoryActionResult.retained;
+    }
+
+    final opened = await openInFileManager(
+      FileManagerTarget.directory(selected),
+    );
+    if (!context.mounted) return HistoryActionResult.failed;
+    if (!opened) {
+      _showFailure(context, AppLocale.cannotOpenFileLocation);
+      return HistoryActionResult.failed;
+    }
+    return HistoryActionResult.completed;
+  } catch (error, stackTrace) {
+    if (context.mounted) {
+      _reportFileActionFailure(
+        context,
+        error,
+        stackTrace,
+        AppLocale.cannotOpenFileLocation,
+      );
+    }
     return HistoryActionResult.failed;
   }
-  return HistoryActionResult.completed;
 }
 
 void _showFileOpenFailureWithLocationFallback(
@@ -394,7 +556,7 @@ void _showFileOpenFailureWithLocationFallback(
 
 Future<String?> _selectDirectory(
   BuildContext context,
-  List<String> directories,
+  Map<String, List<String>> directories,
 ) {
   return showModalBottomSheet<String>(
     context: context,
@@ -416,14 +578,14 @@ Future<String?> _selectDirectory(
             shrinkWrap: true,
             itemCount: directories.length,
             itemBuilder: (context, index) {
-              final directory = directories[index];
+              final directory = directories.keys.elementAt(index);
               final name = p.basename(directory);
               return ListTile(
                 leading: const Icon(Icons.folder_outlined),
                 title: Text(name.isEmpty ? directory : name),
                 subtitle: Text(
-                  directory,
-                  maxLines: 1,
+                  '$directory\n${context.formatString(AppLocale.historyLocationFiles, [directories[directory]!.join(', ')])}',
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
                 onTap: () => Navigator.pop(sheetContext, directory),

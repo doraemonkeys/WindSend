@@ -7,7 +7,7 @@ import 'package:wind_send/ui/transfer_history/history_actions.dart';
 
 void main() {
   group('history primary action semantics', () {
-    test('single files open directly while batches open directories', () {
+    test('single files open directly while batches browse their contents', () {
       final file = _item(type: TransferType.file, files: [_file('one.txt')]);
       final batch = _item(
         type: TransferType.batch,
@@ -15,7 +15,7 @@ void main() {
       );
 
       expect(file.primaryAction, HistoryPrimaryAction.openFile);
-      expect(batch.primaryAction, HistoryPrimaryAction.openDirectories);
+      expect(batch.primaryAction, HistoryPrimaryAction.browseFiles);
     });
 
     test('system sharing is unavailable for batches containing folders', () {

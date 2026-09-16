@@ -8,6 +8,7 @@ import '../../language.dart';
 import '../../utils/utils.dart';
 import 'history.dart';
 import 'history_actions.dart';
+import 'history_file_list.dart';
 
 // =============================================================================
 // Type Aliases for Callbacks
@@ -21,6 +22,8 @@ typedef OnHistoryItemPinToggle =
 // =============================================================================
 // History Item Card Widget
 // =============================================================================
+
+enum _BatchAction { share, pin, showLocation }
 
 class HistoryItemCard extends StatefulWidget {
   final TransferHistoryItem item;
@@ -59,6 +62,7 @@ class _HistoryItemCardState extends State<HistoryItemCard>
   @override
   void initState() {
     super.initState();
+    _isExpanded = _initiallyExpanded;
     if (widget.item.type == TransferType.image) {
       _checkThumbnail();
     } else {
@@ -69,6 +73,10 @@ class _HistoryItemCardState extends State<HistoryItemCard>
   @override
   void didUpdateWidget(covariant HistoryItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id ||
+        oldWidget.item.filesJson != widget.item.filesJson) {
+      _isExpanded = _initiallyExpanded;
+    }
     // Only re-check thumbnail if the item id changed
     if (oldWidget.item.id != widget.item.id) {
       if (widget.item.type == TransferType.image) {
@@ -85,6 +93,11 @@ class _HistoryItemCardState extends State<HistoryItemCard>
       }
     }
   }
+
+  bool get _initiallyExpanded =>
+      widget.item.type == TransferType.batch &&
+      widget.item.filesPayload.imagesOnly &&
+      widget.item.filesPayload.files.length <= HistoryFilePreview.maxEntries;
 
   Future<void> _checkThumbnail() async {
     final itemId = widget.item.id;
@@ -233,14 +246,16 @@ class _HistoryItemCardState extends State<HistoryItemCard>
           ),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: _handlePrimaryAction,
-          onLongPress: widget.onLongPress != null
-              ? () => widget.onLongPress!(widget.item)
-              : null,
-          borderRadius: BorderRadius.circular(16),
-          child: _buildCardContent(colorScheme),
-        ),
+        child: widget.item.type == TransferType.batch
+            ? _buildBatchCard(colorScheme)
+            : InkWell(
+                onTap: _handlePrimaryAction,
+                onLongPress: widget.onLongPress != null
+                    ? () => widget.onLongPress!(widget.item)
+                    : null,
+                borderRadius: BorderRadius.circular(16),
+                child: _buildCardContent(colorScheme),
+              ),
       ),
     );
   }
@@ -364,9 +379,9 @@ class _HistoryItemCardState extends State<HistoryItemCard>
                                   context.formatString(
                                     AppLocale.historyCardCharCount,
                                     [
-                                      NumberFormat('#,###').format(
-                                        widget.item.textCharCount,
-                                      ),
+                                      NumberFormat(
+                                        '#,###',
+                                      ).format(widget.item.textCharCount),
                                     ],
                                   ),
                                   style: TextStyle(
@@ -616,101 +631,166 @@ class _HistoryItemCardState extends State<HistoryItemCard>
 
   Widget _buildBatchCard(ColorScheme colorScheme) {
     final payload = widget.item.filesPayload;
-
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.folder_zip_rounded,
-                  size: 28,
-                  color: colorScheme.tertiary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                expanded: _isExpanded,
+                child: InkWell(
+                  key: const ValueKey('history-batch-toggle'),
+                  onTap: () => setState(() => _isExpanded = !_isExpanded),
+                  onLongPress: widget.onLongPress == null
+                      ? null
+                      : () => widget.onLongPress!(widget.item),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 4, 16),
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            context.formatString(AppLocale.batchTransfer, []),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onSurface,
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: colorScheme.tertiaryContainer.withValues(
+                              alpha: 0.3,
                             ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            payload.imagesOnly
+                                ? Icons.collections_outlined
+                                : Icons.file_copy_outlined,
+                            color: colorScheme.tertiary,
                           ),
                         ),
-                        _buildShareButton(colorScheme),
-                        _buildPinButton(colorScheme),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                payload.getLocalizedCollectionTitle(context),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatBytes(payload.totalSize),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildBatchMetadata(colorScheme),
+                            ],
+                          ),
+                        ),
+                        if (widget.item.isPinned)
+                          Icon(
+                            Icons.push_pin_rounded,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
                         const SizedBox(width: 4),
-                        _buildExpandButton(colorScheme),
+                        AnimatedRotation(
+                          turns: _isExpanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.expand_more_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      payload.summaryText,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMetadataRow(colorScheme),
-                  ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+            PopupMenuButton<_BatchAction>(
+              tooltip: context.formatString(AppLocale.more, []),
+              onSelected: (action) async {
+                switch (action) {
+                  case _BatchAction.share:
+                    await _handleShare();
+                  case _BatchAction.pin:
+                    await widget.onPinToggle?.call(widget.item);
+                  case _BatchAction.showLocation:
+                    await openHistoryDirectories(context, widget.item);
+                }
+              },
+              itemBuilder: (context) => [
+                if (widget.item.supportsSystemShare)
+                  PopupMenuItem(
+                    value: _BatchAction.share,
+                    child: Text(context.formatString(AppLocale.share, [])),
+                  ),
+                if (widget.onPinToggle != null)
+                  PopupMenuItem(
+                    value: _BatchAction.pin,
+                    child: Text(
+                      context.formatString(
+                        widget.item.isPinned ? AppLocale.unpin : AppLocale.pin,
+                        [],
+                      ),
+                    ),
+                  ),
+                PopupMenuItem(
+                  value: _BatchAction.showLocation,
+                  child: Text(
+                    context.formatString(AppLocale.historyShowFileLocation, []),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 250),
-          crossFadeState: _isExpanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          firstChild: const SizedBox.shrink(),
-          secondChild: _buildExpandedFileList(colorScheme, payload),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          alignment: Alignment.topCenter,
+          child: _isExpanded
+              ? _buildExpandedFileList(colorScheme, payload)
+              : const SizedBox.shrink(),
         ),
       ],
-    );
-  }
-
-  Widget _buildExpandButton(ColorScheme colorScheme) {
-    return InkWell(
-      onTap: () => setState(() => _isExpanded = !_isExpanded),
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: AnimatedRotation(
-          turns: _isExpanded ? 0.5 : 0,
-          duration: const Duration(milliseconds: 200),
-          child: Icon(
-            Icons.expand_more_rounded,
-            size: 20,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
     );
   }
 
   // ===========================================================================
   // Common Components
   // ===========================================================================
+
+  Widget _buildBatchMetadata(ColorScheme colorScheme) {
+    final outgoing = widget.item.isOutgoing;
+    final device = outgoing
+        ? (widget.toDeviceName ?? widget.item.toDeviceName)
+        : (widget.fromDeviceName ?? widget.item.fromDeviceName);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '${_formatTime(widget.item.createdAt)} • '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Icon(
+              outgoing
+                  ? Icons.arrow_outward_rounded
+                  : Icons.arrow_downward_rounded,
+              size: 14,
+              color: outgoing ? Colors.green : Colors.blue,
+            ),
+          ),
+          TextSpan(text: ' $device'),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+    );
+  }
 
   Widget _buildMetadataRow(ColorScheme colorScheme) {
     final isOutgoing = widget.item.isOutgoing;
@@ -878,67 +958,24 @@ class _HistoryItemCardState extends State<HistoryItemCard>
       );
     }
 
-    final fileWidgets = payload.files.take(10).map((file) {
-      return _buildFileListItem(colorScheme, file);
-    }).toList();
-
-    return Container(
-      margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          ...fileWidgets,
-          if (payload.files.length > 10)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                context.formatString(AppLocale.historyDetailMoreItems, [
-                  '${payload.files.length - 10}',
-                ]),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFileListItem(ColorScheme colorScheme, FileInfo file) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(
-            file.icon,
-            size: 20,
-            color: file.isDirectory
-                ? Colors.amber.shade700
-                : colorScheme.onSurfaceVariant,
+          HistoryFilePreview(
+            files: payload.files,
+            onOpen: (file) =>
+                openHistoryFileEntry(context, file, collection: payload.files),
+            onShowLocation: (file) => showHistoryFileLocation(context, file),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              file.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
-            ),
-          ),
-          if (!file.isDirectory)
-            Text(
-              formatBytes(file.size),
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant,
+          if (payload.files.length > HistoryFilePreview.maxEntries)
+            TextButton(
+              onPressed: () => browseHistoryFiles(context, widget.item),
+              child: Text(
+                context.formatString(AppLocale.historyViewAllFiles, [
+                  '${payload.files.length}',
+                ]),
               ),
             ),
         ],
