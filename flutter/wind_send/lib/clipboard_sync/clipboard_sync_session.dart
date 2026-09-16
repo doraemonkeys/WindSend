@@ -214,6 +214,8 @@ final class ClipboardSyncSession {
   _AttachRuntime? _currentRuntime;
   Future<void> _inboundSerial = Future<void>.value();
   Future<void> _writeSerial = Future<void>.value();
+  Future<void> _observationSerial = Future<void>.value();
+  bool _continuousObservationRequested = false;
   bool _started = false;
   bool _closed = false;
   int _nextAttachEpoch = 0;
@@ -247,6 +249,7 @@ final class ClipboardSyncSession {
       return;
     }
     _started = true;
+    _continuousObservationRequested = observeContinuously;
     await _primeCurrentClipboardState();
     _handle = _registry.register(
       ClipboardSyncSessionHandle(
@@ -258,7 +261,7 @@ final class ClipboardSyncSession {
     );
     if (_lease != null) {
       _handle = _registry.update(_handle!.copyWith(eventHubLease: _lease));
-    } else if (observeContinuously) {
+    } else if (_continuousObservationRequested) {
       await enableContinuousObservation();
     }
     await _attemptAttach();
@@ -324,30 +327,44 @@ final class ClipboardSyncSession {
 
   Future<void> enableContinuousObservation() async {
     _ensureStarted();
-    if (_closed || _lease != null) {
-      return;
-    }
-
-    final lease = await _eventHub.subscribe(
-      remotePeerKey: remotePeerKey,
-      debugLabel: debugLabel,
-    );
     if (_closed) {
-      await lease.close();
       return;
     }
+    _continuousObservationRequested = true;
+    await _serializeObservation(() async {
+      if (_closed || !_continuousObservationRequested || _lease != null) {
+        return;
+      }
+      final lease = await _eventHub.subscribe(
+        remotePeerKey: remotePeerKey,
+        debugLabel: debugLabel,
+      );
+      if (_closed || !_continuousObservationRequested) {
+        await lease.close();
+        return;
+      }
 
-    _lease = lease;
-    _localEventsSubscription = lease.localEvents.listen(_handleLocalEvent);
-    final handle = _handle;
-    if (handle != null) {
-      _handle = _registry.update(handle.copyWith(eventHubLease: lease));
-    }
+      _lease = lease;
+      _localEventsSubscription = lease.localEvents.listen(_handleLocalEvent);
+      final handle = _handle;
+      if (handle != null) {
+        _handle = _registry.update(handle.copyWith(eventHubLease: lease));
+      }
+    });
   }
 
   Future<void> disableContinuousObservation() async {
     _ensureStarted();
-    await _detachContinuousObservation();
+    _continuousObservationRequested = false;
+    // A Shizuku disconnect may arrive while subscribe is still acquiring a
+    // lease. Suspension must wait for and release that lease before recovery.
+    await _serializeObservation(() => _detachContinuousObservation());
+  }
+
+  Future<void> _serializeObservation(Future<void> Function() action) {
+    final next = _observationSerial.then((_) => action());
+    _observationSerial = next.catchError((Object _, StackTrace _) {});
+    return next;
   }
 
   Future<void> close({
@@ -966,8 +983,11 @@ final class ClipboardSyncSession {
     String? errorMessage,
   }) async {
     _closed = true;
+    _continuousObservationRequested = false;
     _cancelReconnectTimer();
-    await _detachContinuousObservation(clearRegistryLease: false);
+    await _serializeObservation(
+      () => _detachContinuousObservation(clearRegistryLease: false),
+    );
     if (_handle != null) {
       _registry.unregisterIfCurrent(_handle!);
       _handle = null;

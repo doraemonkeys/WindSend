@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:wind_send/clipboard_sync/clipboard_domain.dart';
 import 'package:wind_send/clipboard_sync/clipboard_domain_adapter.dart';
 import 'package:wind_send/clipboard_sync/clipboard_event_hub.dart';
+import 'package:wind_send/clipboard_sync/clipboard_observation_coordinator.dart';
 import 'package:wind_send/clipboard_sync/clipboard_sync_history.dart';
 import 'package:wind_send/clipboard_sync/clipboard_sync_session.dart'
     as core_session;
@@ -154,6 +155,8 @@ final class ClipboardSyncPageSessionStore {
   final ClipboardSyncSessionRegistry _sessionRegistry;
   final ClipboardEventHub _eventHub;
   final ClipboardSyncHistoryRecorder _historyRecorder;
+  final ClipboardObservationCoordinator _observationCoordinator =
+      ClipboardObservationCoordinator();
   final ClipboardDomainAdapter _rawDomainAdapter =
       const SuperClipboardDomainAdapter();
   final Map<RemotePeerKey, _RetainedClipboardSyncPageSession> _sessions =
@@ -174,6 +177,7 @@ final class ClipboardSyncPageSessionStore {
       eventHub: _eventHub,
       historyRecorder: _historyRecorder,
       rawDomainAdapter: _rawDomainAdapter,
+      observationCoordinator: _observationCoordinator,
       onDisposed: () => _sessions.remove(remotePeerKey),
     );
     _sessions[remotePeerKey] = _RetainedClipboardSyncPageSession(session);
@@ -206,19 +210,22 @@ final class ClipboardSyncPageSessionStore {
 }
 
 final class ClipboardSyncPageSession extends ChangeNotifier
-    with WidgetsBindingObserver, ClipboardListener {
+    with WidgetsBindingObserver
+    implements ClipboardObservationParticipant {
   ClipboardSyncPageSession._({
     required Device device,
     required ClipboardSyncSessionRegistry sessionRegistry,
     required ClipboardEventHub eventHub,
     required ClipboardSyncHistoryRecorder historyRecorder,
     required ClipboardDomainAdapter rawDomainAdapter,
+    required ClipboardObservationCoordinator observationCoordinator,
     required VoidCallback onDisposed,
   }) : _device = device,
        _sessionRegistry = sessionRegistry,
        _baseEventHub = eventHub,
        _historyRecorder = historyRecorder,
        _rawDomainAdapter = rawDomainAdapter,
+       _observationCoordinator = observationCoordinator,
        _onDisposed = onDisposed {
     _eventHub = _LenientClipboardEventHub(
       delegate: _baseEventHub,
@@ -232,6 +239,7 @@ final class ClipboardSyncPageSession extends ChangeNotifier
   final ClipboardEventHub _baseEventHub;
   final ClipboardSyncHistoryRecorder _historyRecorder;
   final ClipboardDomainAdapter _rawDomainAdapter;
+  final ClipboardObservationCoordinator _observationCoordinator;
   final VoidCallback _onDisposed;
 
   late final ClipboardEventHub _eventHub;
@@ -317,8 +325,11 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     }
     _started = true;
     WidgetsBinding.instance.addObserver(this);
-    clipboardManager.addListener(this);
+    _observationCoordinator.addParticipant(this);
     await _refreshWatcherStatusAndSyncContinuousObservation();
+    if (_disposed) {
+      return;
+    }
     _recordStatus(
       LocaleText(AppLocale.csSessionOpened, [_device.targetDeviceName]),
       icon: Icons.play_circle_outline,
@@ -353,6 +364,10 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     if (_disposed) {
       return;
     }
+    await _stopSession(userInitiated: userInitiated);
+  }
+
+  Future<void> _stopSession({required bool userInitiated}) async {
     _stoppedByUser = userInitiated;
     _shouldAttemptForegroundCatchUpOnResume = false;
     _startGeneration += 1;
@@ -378,10 +393,12 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     if (_disposed) {
       return;
     }
-    WidgetsBinding.instance.removeObserver(this);
-    clipboardManager.removeListener(this);
-    await stop(userInitiated: false);
+    // Pending permission probes and lease acquisitions must see disposal before
+    // teardown yields, so a binder recovery cannot reattach this session.
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _observationCoordinator.removeParticipant(this);
+    await _stopSession(userInitiated: false);
     _onDisposed();
     super.dispose();
   }
@@ -442,22 +459,10 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     }
   }
 
-  @override
-  void onClipboardChanged(
-    ClipboardContentType type,
-    String content,
-    dynamic source,
-  ) {}
-
-  @override
-  void onPermissionStatusChanged(EnvironmentType environment, bool isGranted) {
-    if (_disposed) {
+  Future<void> _spawnCoreSession({required bool isReconnect}) async {
+    if (_disposed || _stoppedByUser) {
       return;
     }
-    unawaited(_refreshWatcherStatusAndSyncContinuousObservation());
-  }
-
-  Future<void> _spawnCoreSession({required bool isReconnect}) async {
     final generation = ++_startGeneration;
     _fallbackPhase = isReconnect
         ? ClipboardSyncPagePhase.reconnecting
@@ -679,6 +684,10 @@ final class ClipboardSyncPageSession extends ChangeNotifier
       remotePeerKey: remotePeerKey,
       debugLabel: 'clipboard-sync-ui:${_device.targetDeviceName}',
     );
+    if (_disposed || _stoppedByUser || !_watcherStatus.canObserveContinuously) {
+      await lease.close();
+      return;
+    }
     _uiEventLease = lease;
     _uiLocalEventsSubscription = lease.localEvents.listen(
       _recordOutgoingSnapshot,
@@ -778,14 +787,52 @@ final class ClipboardSyncPageSession extends ChangeNotifier
     unawaited(action().catchError((Object _, StackTrace _) {}));
   }
 
-  Future<void> _refreshWatcherStatus() async {
-    _watcherStatus = await _probeWatcherStatus();
-    notifyListeners();
+  Future<void> _refreshWatcherStatusAndSyncContinuousObservation() =>
+      _observationCoordinator.refresh();
+
+  @override
+  Future<void> suspendClipboardObservation() async {
+    final session = _coreSession;
+    try {
+      await _releaseUiEventLease();
+    } finally {
+      if (session != null && session.isStarted && !session.isClosed) {
+        await session.disableContinuousObservation();
+      }
+    }
   }
 
-  Future<void> _refreshWatcherStatusAndSyncContinuousObservation() async {
-    await _refreshWatcherStatus();
+  @override
+  Future<void> refreshClipboardObservation() async {
+    if (_disposed) {
+      return;
+    }
+    final status = await _probeWatcherStatus();
+    if (_disposed) {
+      return;
+    }
+    _watcherStatus = status;
+    _lastWatcherSubscribeFailure = null;
     await _syncContinuousObservationLeases();
+    if (_disposed) {
+      return;
+    }
+
+    final failure = _lastWatcherSubscribeFailure;
+    if (failure != null) {
+      // A lenient subscription keeps the network session alive, but its no-op
+      // lease must not prevent a later capability refresh from retrying.
+      await suspendClipboardObservation();
+      if (_disposed) {
+        return;
+      }
+      _watcherStatus = ClipboardSyncWatcherStatus(
+        mode: ClipboardSyncWatcherMode.unavailable,
+        label: const LocaleText(AppLocale.csForegroundCatchUpOnly),
+        details: LocaleText(AppLocale.csWatcherUnavailable, [failure]),
+      );
+    }
+    notifyListeners();
   }
 
   Future<void> _syncContinuousObservationLeases() async {
@@ -794,15 +841,17 @@ final class ClipboardSyncPageSession extends ChangeNotifier
         !_disposed && !_stoppedByUser && _watcherStatus.canObserveContinuously;
 
     if (!canObserveContinuously) {
-      await _releaseUiEventLease();
-      if (session != null && session.isStarted && !session.isClosed) {
-        await session.disableContinuousObservation();
-      }
+      await suspendClipboardObservation();
       return;
     }
 
     await _ensureUiEventLease();
-    if (session != null && session.isStarted && !session.isClosed) {
+    if (!_disposed &&
+        !_stoppedByUser &&
+        session != null &&
+        identical(session, _coreSession) &&
+        session.isStarted &&
+        !session.isClosed) {
       await session.enableContinuousObservation();
     }
   }

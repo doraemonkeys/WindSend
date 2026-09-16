@@ -32,6 +32,7 @@ Flutter app for secure clipboard sync and file transfer between devices.
 | `ui/device_pairing/` | Add-device pairing modes and interaction state |
 | `protocol/` | Binary protocol, encryption |
 | `clipboard/` | Cross-platform clipboard via `super_clipboard` |
+| `clipboard_sync/` | Sync sessions and shared event hub; `clipboard_observation_coordinator.dart` serializes Shizuku/permission recovery across all peers |
 | `web.dart` | Optional web-based clipboard sync |
 
 ---

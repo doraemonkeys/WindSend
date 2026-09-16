@@ -272,16 +272,22 @@ final class ClipshareClipboardWatchDriver
 
     _manager.addListener(this);
     _registered = true;
-    final started = await _manager.startListening(
-      notificationContentConfig: config.notificationContentConfig,
-      env: config.environment,
-      way: config.listeningWay,
-    );
-    if (!started) {
-      _manager.removeListener(this);
-      _registered = false;
+    var started = false;
+    try {
+      started = await _manager.startListening(
+        notificationContentConfig: config.notificationContentConfig,
+        env: config.environment,
+        way: config.listeningWay,
+      );
+      return started;
+    } finally {
+      // A binder failure can throw instead of returning false. Keeping the Dart
+      // registration would make the next start report success without retrying.
+      if (!started) {
+        _manager.removeListener(this);
+        _registered = false;
+      }
     }
-    return started;
   }
 
   @override
@@ -290,10 +296,12 @@ final class ClipshareClipboardWatchDriver
       return true;
     }
 
-    final stopped = await _manager.stopListening();
-    _manager.removeListener(this);
-    _registered = false;
-    return stopped;
+    try {
+      return await _manager.stopListening();
+    } finally {
+      _manager.removeListener(this);
+      _registered = false;
+    }
   }
 
   @override

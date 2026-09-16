@@ -237,6 +237,72 @@ void main() {
       },
     );
 
+    test('coalesces concurrent observation lease acquisition', () async {
+      final watcher = _FakeWatcher();
+      final hub = InMemoryClipboardEventHub(watcher: watcher);
+      final session = _observationTestSession(hub);
+      await session.start(observeContinuously: false);
+
+      await Future.wait([
+        session.enableContinuousObservation(),
+        session.enableContinuousObservation(),
+      ]);
+
+      expect(hub.subscriberCount, 1);
+      await session.close();
+      expect(hub.subscriberCount, 0);
+    });
+
+    for (final action in ['disable', 'close']) {
+      test('$action releases an in-flight observation lease', () async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final watcher = _FakeWatcher()
+          ..beforeStart = () async {
+            entered.complete();
+            await release.future;
+          };
+        final hub = InMemoryClipboardEventHub(watcher: watcher);
+        final session = _observationTestSession(hub);
+        await session.start(observeContinuously: false);
+        final enabling = session.enableContinuousObservation();
+        await entered.future;
+
+        final stopping = action == 'close'
+            ? session.close()
+            : session.disableContinuousObservation();
+        release.complete();
+        await Future.wait([enabling, stopping]);
+
+        expect(session.isContinuousObservationEnabled, isFalse);
+        expect(hub.subscriberCount, 0);
+        expect(watcher.isRunning, isFalse);
+        if (!session.isClosed) {
+          await session.close();
+        }
+      });
+    }
+
+    test('a disconnect during startup cancels initial observation', () async {
+      final captured = Completer<ClipboardCaptureResult>();
+      final watcher = _FakeWatcher();
+      final hub = InMemoryClipboardEventHub(watcher: watcher);
+      final session = _observationTestSession(
+        hub,
+        domainAdapter: _PendingCaptureAdapter(captured.future),
+      );
+      final starting = session.start();
+
+      await session.disableContinuousObservation();
+      captured.complete(const ClipboardCaptureEmpty());
+      await starting;
+
+      expect(session.isContinuousObservationEnabled, isFalse);
+      expect(watcher.isRunning, isFalse);
+      expect(hub.subscriberCount, 0);
+      await session.close();
+    });
+
     test(
       'automatically reconnects and resumes with replay requirements',
       () async {
@@ -833,11 +899,62 @@ final class _FakeDomainAdapter implements ClipboardDomainAdapter {
   }
 }
 
+ClipboardSyncSession _observationTestSession(
+  ClipboardEventHub hub, {
+  ClipboardDomainAdapter? domainAdapter,
+}) {
+  final transport = _FakeTransport(
+    onSend: (frame, self) {
+      if (frame.head is SubscribeSyncFrameHead) {
+        self.emit(
+          SyncFrame.headOnly(
+            SubscribeAckSyncFrameHead(
+              version: syncFrameVersion,
+              sessionId: 'observation-session',
+              accepted: SubscribeAccepted.start(
+                resumeToken: 'observation-resume',
+              ),
+              capabilities: buildDefaultSyncCapabilities(),
+            ),
+          ),
+        );
+      }
+    },
+  );
+  return ClipboardSyncSession(
+    remotePeerKey: RemotePeerKey.fromSharedSecret('observation-peer'),
+    debugLabel: 'observation-peer',
+    registry: InMemoryClipboardSyncSessionRegistry(),
+    eventHub: hub,
+    domainAdapter: domainAdapter ?? _FakeDomainAdapter(),
+    transportConnector: _FakeConnector([transport]),
+    sessionIdFactory: () => 'observation-session',
+  );
+}
+
+final class _PendingCaptureAdapter implements ClipboardDomainAdapter {
+  _PendingCaptureAdapter(this.result);
+
+  final Future<ClipboardCaptureResult> result;
+
+  @override
+  Future<ClipboardCaptureResult> captureSnapshot({
+    ClipboardObservationSource source = ClipboardObservationSource.manualRead,
+  }) => result;
+
+  @override
+  Future<ClipboardApplyResult> applyPayload(
+    ClipboardPayload payload, {
+    ClipboardApplyOptions options = const ClipboardApplyOptions(),
+  }) async => ClipboardApplyResult.applied(payload: payload);
+}
+
 final class _FakeWatcher implements ClipboardSyncWatcher {
   final StreamController<ClipboardSnapshot> _events =
       StreamController<ClipboardSnapshot>.broadcast(sync: true);
 
   bool _isRunning = false;
+  Future<void> Function()? beforeStart;
   final List<ClipboardPayload> recordedRemoteWrites = <ClipboardPayload>[];
 
   @override
@@ -857,6 +974,7 @@ final class _FakeWatcher implements ClipboardSyncWatcher {
 
   @override
   Future<void> start() async {
+    await beforeStart?.call();
     _isRunning = true;
   }
 
