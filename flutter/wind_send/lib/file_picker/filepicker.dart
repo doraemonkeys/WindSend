@@ -103,11 +103,21 @@ class FlutterFilePickerImpl implements IFilePicker {
       await checkPermission!();
     }
 
-    final result = await FilePicker.pickFiles(allowMultiple: true);
-    if (result == null || result.files.isEmpty) {
+    final files = await FilePicker.pickFiles();
+    if (files.isEmpty) {
       throw UserCancelPickException();
     }
-    return result.files.map((file) => file.path!).toList();
+    return files.map((file) {
+      final path = file.path;
+      if (path == null || path.isEmpty) {
+        // A partial selection would silently omit files from the transfer.
+        throw FilePickerException(
+          'file_picker',
+          'No local path is available for "${file.name}".',
+        );
+      }
+      return path;
+    }).toList();
   }
 
   @override

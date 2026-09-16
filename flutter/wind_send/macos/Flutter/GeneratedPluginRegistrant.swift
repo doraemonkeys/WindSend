@@ -9,7 +9,7 @@ import accessing_security_scoped_resource
 import clipshare_clipboard_listener
 import cryptography_flutter_plus
 import device_info_plus
-import file_picker
+import file_picker_darwin
 import file_selector_macos
 import flutter_image_compress_macos
 import flutter_localization

@@ -28,6 +28,7 @@ Flutter app for secure clipboard sync and file transfer between devices.
 |--------|---------|
 | `device.dart` | Device model and management |
 | `file_transfer.dart` | Connection pooling, upload/download |
+| `file_picker/` | File selection adapters; desktop save destinations and disk-to-disk file copies |
 | `device_discovery.dart` | LAN scanning and endpoint pairing |
 | `ui/device_pairing/` | Add-device pairing modes and interaction state |
 | `protocol/` | Binary protocol, encryption |

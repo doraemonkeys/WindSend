@@ -39,9 +39,11 @@ dependencies:
   flutter_localization: ^0.4.0
   # Kept in sync with the dependency_overrides entry below, which is what pub
   # actually resolves against; bumping only this declaration has no effect.
-  device_info_plus: ^12.3.0
+  device_info_plus: ^13.2.0
   path_provider: ^2.1.1
-  file_picker: ^11.0.2
+  file_picker: ^13.1.0
+  # Save existing files by choosing a destination, without buffering their bytes.
+  file_selector: ^1.1.0
   # share_handler: ^0.0.23
   share_handler:
     git:
@@ -69,16 +71,9 @@ dependencies:
   # https://github.com/superlistapp/super_native_extensions/tree/main/super_clipboard
   # https://github.com/superlistapp/super_native_extensions/issues/325
   super_clipboard: ^0.9.1
-  # Held at 7.x: network_info_plus 8 requires win32 ^6 (same win32-5/6 split as
-  # share_plus below). Upgrade together with the rest of the plus family once
-  # file_picker 12 leaves beta.
-  network_info_plus: ^7.0.0
+  network_info_plus: ^8.2.1
   collection: ^1.18.0
-  # Held at 12.x: share_plus 13 requires win32 ^6, while file_picker's latest
-  # stable (11.0.2) still caps win32 at ^5.9.0. Revisit once file_picker 12
-  # (win32 ^6.2.0) leaves beta. The SharePlus.instance.share(ShareParams(...))
-  # API we use is identical across 12.x and 13.x.
-  share_plus: ^12.0.2
+  share_plus: ^13.3.0
   image_gallery_saver_plus: ^5.0.0
   fluttertoast: ^9.1.0
   # open_filex: ^4.6.0
@@ -128,8 +123,8 @@ dev_dependencies:
 dependency_overrides:
   # super_clipboard 0.9.1 pulls super_native_extensions 0.9.1, whose pubspec
   # still caps device_info_plus below 12 even though its Dart usage only reads
-  # stable Android SDK metadata that remains available in 12.x.
-  device_info_plus: ^12.3.0
+  # stable Android SDK metadata that remains available in 13.x.
+  device_info_plus: ^13.2.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

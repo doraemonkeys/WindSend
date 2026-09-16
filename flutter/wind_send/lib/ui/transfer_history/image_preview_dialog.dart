@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../file_picker/file_save.dart';
 import '../../language.dart';
 import '../../utils/utils.dart';
 import '../../utils/platform_device_info.dart';
@@ -325,8 +325,7 @@ class _ImagePreviewPageState extends State<_ImagePreviewPage>
         // Mobile: Save to gallery using image_gallery_saver_plus
         await _saveToGallery(originalName);
       } else {
-        // Desktop: Use file picker to let user choose save location
-        await _saveWithFilePicker(originalName);
+        await _saveToDesktop(originalName);
       }
     } catch (e) {
       if (!mounted || !context.mounted) return;
@@ -378,23 +377,16 @@ class _ImagePreviewPageState extends State<_ImagePreviewPage>
     }
   }
 
-  /// Save image using file picker dialog (Desktop platforms)
-  Future<void> _saveWithFilePicker(String fileName) async {
-    final savePath = await FilePicker.saveFile(
-      dialogTitle: context.formatString(AppLocale.saveImageDialogTitle, []),
-      fileName: fileName,
-      type: FileType.image,
+  Future<void> _saveToDesktop(String fileName) async {
+    final savedFile = await saveFileCopy(
+      _imageFile!,
+      suggestedName: fileName,
+      confirmButtonText: context.formatString(
+        AppLocale.saveImageDialogTitle,
+        [],
+      ),
     );
-
-    if (savePath == null) {
-      // User cancelled
-      return;
-    }
-
-    // Copy file to selected location
-    await _imageFile!.copy(savePath);
-
-    if (!mounted || !context.mounted) return;
+    if (savedFile == null || !mounted || !context.mounted) return;
 
     ToastResult(
       message: context.formatString(AppLocale.saved, []),
