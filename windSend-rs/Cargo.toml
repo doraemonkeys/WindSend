@@ -60,7 +60,7 @@ arboard = { version = "3.6", features = [
 rustls-pemfile = "2.2"
 # https://aws.github.io/aws-lc-rs/requirements/windows.html
 # tokio-rustls = { git = "https://github.com/doraemonkeys/tokio-rustls.git", branch = "ignore_invalid_SNI_0.25.0" }
-tokio-rustls = "0.26"
+tokio-rustls = "0.26.5"
 hostname = "0.4"
 walkdir = "2.4"
 socket2 = { features = ["all"], version = "0.6.5" }
