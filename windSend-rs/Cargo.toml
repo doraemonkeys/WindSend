@@ -15,7 +15,7 @@ disable-systray-support = []
 log = "0.4"
 aes = "0.9"
 hex = "0.4.3"
-tokio = { version = "1.52", features = ["full", "test-util"] }
+tokio = { version = "1.53.1", features = ["full", "test-util"] }
 rand = "0.10.1"
 x25519-dalek = { version = "3.0.0-pre.6", features = ["getrandom"] }
 pbkdf2 = "0.13"
