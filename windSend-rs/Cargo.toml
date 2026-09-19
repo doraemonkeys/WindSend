@@ -107,7 +107,6 @@ win-toast-notify = "0.1.6"
 notify-rust = "4.18.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26.1"
 winit = "0.30.13"
 objc = "0.2.7"
 
