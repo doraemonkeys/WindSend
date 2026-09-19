@@ -91,7 +91,7 @@ urlencoding = "2.1.3"
 openssl = { version = "0.10.81", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
-tao = "0.35"
+tao = "0.37.0"
 tray-icon = "0.24.2"
 reqwest = { version = "0.13.5", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
@@ -116,4 +116,4 @@ windres = "*"
 
 
 [dev-dependencies]
-tao = "0.35"
+tao = "0.37.0"
