@@ -28,7 +28,7 @@ serde_yaml = "0.9.33"
 # x509-parser升级到0.16.0即可解决
 rcgen = { version = "0.14", features = ["pem"] }
 pem = { version = "3" }
-time = { version = "0.3", features = ["macros", "local-offset"] }
+time = { version = "0.3.55", features = ["macros", "local-offset"] }
 lazy_static = "1.4"
 home = "0.5"
 encoding = "0.2.33"
