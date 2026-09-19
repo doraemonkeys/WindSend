@@ -92,7 +92,7 @@ openssl = { version = "*", features = ["vendored"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]
 tao = "0.35"
-tray-icon = "0.24"
+tray-icon = "0.24.2"
 reqwest = { version = "0.13.5", features = ["multipart", "cookies"] }
 # rfd 0.14.0 在ubuntu上编译失败
 rfd = "0.17"
