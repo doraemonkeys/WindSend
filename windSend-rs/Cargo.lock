@@ -5864,7 +5864,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "backtrace",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cbc",
  "chrono",
  "cipher 0.5.2",
