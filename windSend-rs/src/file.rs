@@ -32,22 +32,26 @@ impl tokio::io::AsyncRead for FilePartReader {
 
 type PullWriteCallback = Box<dyn Fn(&[u8]) + Send>;
 
-pub struct FilePartWriter {
-    file_part: tokio::fs::File,
+pub struct FilePartWriter<W> {
+    file_part: W,
     on_pull_write_ok: Option<PullWriteCallback>,
-    pos: usize,
-    end: usize,
+    remaining: usize,
 }
 
-impl FilePartWriter {
-    /// The file handle cannot be read at the same time anywhere else, or the seek cursor will be wrong.
-    pub async fn new(mut file: tokio::fs::File, start: usize, end: usize) -> std::io::Result<Self> {
+impl<W: tokio::io::AsyncSeek + Unpin> FilePartWriter<W> {
+    /// The file handle cannot be used elsewhere at the same time, or the seek cursor will be wrong.
+    pub async fn new(mut file: W, start: usize, end: usize) -> std::io::Result<Self> {
+        let remaining = end.checked_sub(start).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "file part start exceeds end",
+            )
+        })?;
         file.seek(SeekFrom::Start(start as u64)).await?;
         Ok(Self {
             file_part: file,
             on_pull_write_ok: None,
-            pos: start,
-            end,
+            remaining,
         })
     }
 
@@ -57,27 +61,24 @@ impl FilePartWriter {
     }
 }
 
-impl tokio::io::AsyncWrite for FilePartWriter {
+impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for FilePartWriter<W> {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         src_buf: &[u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
         let buf_len = src_buf.len();
-        let new_src;
-        if buf_len + self.pos > self.end {
+        if buf_len > self.remaining {
             warn!(
-                "write file error,buf len: {}, pos: {}, end: {}",
-                buf_len, self.pos, self.end
+                "file part write exceeds remaining length, buf len: {}, remaining: {}",
+                buf_len, self.remaining
             );
-            self.pos = self.end;
-            new_src = &src_buf[..self.end - self.pos];
-        } else {
-            new_src = src_buf;
         }
+        let new_src = &src_buf[..buf_len.min(self.remaining)];
         let poll = std::pin::Pin::new(&mut self.file_part).poll_write(cx, new_src);
         if let std::task::Poll::Ready(Ok(n)) = poll {
-            self.pos += n;
+            // Pending and partial writes must leave unwritten capacity available for retries.
+            self.remaining -= n;
             if let Some(f) = &self.on_pull_write_ok {
                 f(&new_src[..n]);
             }
@@ -574,3 +575,87 @@ impl FileReceiveSessionManager {
 lazy_static::lazy_static!(
     pub static ref GLOBAL_RECEIVER_SESSION_MANAGER:Arc<FileReceiveSessionManager> = Arc::new(FileReceiveSessionManager::new());
 );
+
+#[cfg(test)]
+mod tests {
+    use super::FilePartWriter;
+    use std::io::{Cursor, ErrorKind};
+    use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Waker};
+    use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn file_part_writer_limits_writes_and_progress_to_its_range() {
+        let written = Arc::new(Mutex::new(Vec::new()));
+        let progress = Arc::clone(&written);
+        let mut writer = FilePartWriter::new(Cursor::new(b"0123456789".to_vec()), 2, 7)
+            .await
+            .unwrap()
+            .set_on_pull_write_ok(move |bytes| {
+                progress.lock().unwrap().extend_from_slice(bytes);
+            });
+
+        assert_eq!(writer.write(b"ab").await.unwrap(), 2);
+        assert_eq!(writer.write(b"cdefg").await.unwrap(), 3);
+        assert_eq!(writer.write(b"h").await.unwrap(), 0);
+        writer.flush().await.unwrap();
+
+        assert_eq!(writer.file_part.into_inner(), b"01abcde789");
+        assert_eq!(*written.lock().unwrap(), b"abcde");
+    }
+
+    #[tokio::test]
+    async fn file_part_writer_preserves_capacity_while_pending() {
+        let (sender, mut receiver) = tokio::io::duplex(2);
+        let mut writer = FilePartWriter {
+            file_part: sender,
+            on_pull_write_ok: None,
+            remaining: 3,
+        };
+
+        assert_eq!(writer.write(b"abc").await.unwrap(), 2);
+        let mut cx = Context::from_waker(Waker::noop());
+        assert!(
+            Pin::new(&mut writer)
+                .poll_write(&mut cx, b"cde")
+                .is_pending()
+        );
+
+        let mut received = [0; 2];
+        receiver.read_exact(&mut received).await.unwrap();
+        assert_eq!(&received, b"ab");
+        assert_eq!(writer.write(b"cde").await.unwrap(), 1);
+        writer.shutdown().await.unwrap();
+
+        let mut tail = Vec::new();
+        receiver.read_to_end(&mut tail).await.unwrap();
+        assert_eq!(tail, b"c");
+    }
+
+    #[tokio::test]
+    async fn file_part_writer_accepts_no_data_for_an_empty_range() {
+        let mut writer = FilePartWriter::new(Cursor::new(b"unchanged".to_vec()), 2, 2)
+            .await
+            .unwrap();
+
+        assert_eq!(writer.write(b"x").await.unwrap(), 0);
+        assert_eq!(
+            writer.write_all(b"x").await.unwrap_err().kind(),
+            ErrorKind::WriteZero
+        );
+        assert_eq!(writer.file_part.into_inner(), b"unchanged");
+    }
+
+    #[tokio::test]
+    async fn file_part_writer_rejects_reversed_ranges_before_seeking() {
+        let mut file = Cursor::new(Vec::new());
+        file.set_position(1);
+
+        assert!(matches!(
+            FilePartWriter::new(&mut file, 4, 2).await,
+            Err(error) if error.kind() == ErrorKind::InvalidInput
+        ));
+        assert_eq!(file.position(), 1);
+    }
+}

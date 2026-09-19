@@ -1,6 +1,7 @@
 use crate::language::LanguageKey;
 use crate::route::protocol::{RouteDataType, RouteRecvHead};
 use crate::route::transfer::{resp_common_error_msg, send_msg, send_msg_with_body};
+use crate::sync::clipboard_domain::ImagePng;
 use regex::bytes::Regex;
 use std::borrow::Cow;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -113,13 +114,13 @@ pub async fn legacy_sync_text_handler(
 /// *before* the client's content overwrites the server clipboard, otherwise the
 /// response echoes back the value the client just sent.
 enum ClipboardSnapshot {
-    Image { name: String, data: Vec<u8> },
+    Image { name: String, data: ImagePng },
     Text(String),
 }
 
 /// Captures the current clipboard (image first, then text) for a sync response.
 fn capture_clipboard_snapshot() -> ClipboardSnapshot {
-    if let Some(image_data) = try_get_clipboard_image_png() {
+    if let Ok(image_data) = crate::config::CLIPBOARD.read_image_png() {
         let image_name = chrono::Local::now().format("%Y%m%d%H%M%S").to_string() + ".png";
         return ClipboardSnapshot::Image {
             name: image_name,
@@ -139,10 +140,10 @@ async fn send_clipboard_snapshot(
     match snapshot {
         ClipboardSnapshot::Image { name, data } => {
             // Save sent image to local file
-            if let Err(e) = save_image_to_file(&data, "sent").await {
+            if let Err(e) = save_image_to_file(data.bytes(), "sent").await {
                 warn!("save sent clipboard image to file failed, err: {}", e);
             }
-            send_msg_with_body(conn, &name, RouteDataType::ClipImage, &data)
+            send_msg_with_body(conn, &name, RouteDataType::ClipImage, data.bytes())
                 .await
                 .is_ok()
         }
@@ -280,38 +281,6 @@ async fn save_image_to_file(image_data: &[u8], prefix: &str) -> Result<String, S
     let path_str = file_path.to_string_lossy().to_string();
     info!("clipboard image saved to: {}", path_str);
     Ok(path_str)
-}
-
-fn try_get_clipboard_image_png() -> Option<Vec<u8>> {
-    use clipboard_rs::common::RustImage;
-
-    let raw_image = match crate::config::CLIPBOARD.read_image() {
-        Ok(img) => img,
-        Err(_) => return None,
-    };
-
-    let dyn_img: image::DynamicImage;
-    let mut cursor_buf: std::io::Cursor<Vec<u8>>;
-
-    if let Some(image1) = raw_image.image1 {
-        let img_buf = image::ImageBuffer::from_vec(
-            image1.width as u32,
-            image1.height as u32,
-            image1.bytes.into_owned(),
-        )?;
-        cursor_buf = std::io::Cursor::new(Vec::with_capacity(img_buf.len() * 4));
-        dyn_img = image::DynamicImage::ImageRgba8(img_buf);
-    } else if let Some(image2) = raw_image.image2 {
-        dyn_img = image2.get_dynamic_image().ok()?;
-        cursor_buf = std::io::Cursor::new(Vec::with_capacity(1024 * 100));
-    } else {
-        return None;
-    }
-
-    dyn_img
-        .write_to(&mut cursor_buf, image::ImageFormat::Png)
-        .ok()?;
-    Some(cursor_buf.into_inner())
 }
 
 /// return whether should continue loop(like no socket error)
