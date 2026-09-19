@@ -13,7 +13,7 @@ disable-systray-support = []
 [dependencies]
 # tray-item = "0.8.0"
 log = "0.4.34"
-aes = "0.9"
+aes = "0.9.3"
 hex = "0.4.3"
 tokio = { version = "1.53.1", features = ["full", "test-util"] }
 rand = "0.10.2"
