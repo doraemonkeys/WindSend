@@ -222,14 +222,14 @@ mod tests {
 }
 
 use aes_gcm::{
-    Aes128Gcm,
-    Aes256Gcm,
-    Key,
-    Nonce, // Import specific types and Nonce
-    aead::{AeadCore, AeadInPlace, KeyInit, consts::U12},
+    Aes128Gcm, Aes256Gcm, Nonce,
+    aead::{
+        AeadInOut, Generate, KeyInit,
+        consts::{U12, U16},
+    },
 };
 
-type Aes192Gcm = aes_gcm::AesGcm<aes_gcm::aes::Aes192, aes_gcm::aead::generic_array::typenum::U12>;
+type Aes192Gcm = aes_gcm::AesGcm<aes::Aes192, U12>;
 
 use std::fmt::Debug;
 use thiserror::Error; // Ensure Debug is imported if not already
@@ -313,20 +313,18 @@ impl AesGcmCipher {
     /// Internal helper function to perform encryption using a specific AEAD cipher instance.
     /// This abstracts the core encryption logic, making it reusable for different AES key sizes.
     /// The output format is `nonce || ciphertext || tag`.
-    fn encrypt_inner<A: AeadInPlace>(
+    fn encrypt_inner<A: AeadInOut<NonceSize = U12, TagSize = U16>>(
         &self,
         cipher: A,
         plaintext: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, AesGcmError> {
         let nonce = self.generate_nonce();
-        let nonce = aes_gcm::aead::Nonce::<A>::from_slice(nonce.as_slice());
-        // let nonce = aes_gcm::aead::Nonce::<A>::from_slice(b"123456789012");
         let mut buffer = Vec::with_capacity(plaintext.len() + nonce.len() + Self::TAG_SIZE);
         buffer.extend_from_slice(nonce.as_slice());
         buffer.extend_from_slice(plaintext);
         let tag = cipher
-            .encrypt_in_place_detached(nonce, aad, &mut buffer[nonce.len()..])
+            .encrypt_inout_detached(&nonce, aad, (&mut buffer[nonce.len()..]).into())
             .map_err(|e| AesGcmError::EncryptionFailed(e.to_string()))?;
         buffer.extend_from_slice(tag.as_slice());
         Ok(buffer)
@@ -353,17 +351,17 @@ impl AesGcmCipher {
     pub fn encrypt(&self, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, AesGcmError> {
         match self.key.len() {
             16 => self.encrypt_inner(
-                Aes128Gcm::new(Key::<Aes128Gcm>::from_slice(&self.key)),
+                Aes128Gcm::new_from_slice(&self.key).expect("validated AES-128 key length"),
                 plaintext,
                 aad,
             ),
             24 => self.encrypt_inner(
-                Aes192Gcm::new(Key::<Aes192Gcm>::from_slice(&self.key)),
+                Aes192Gcm::new_from_slice(&self.key).expect("validated AES-192 key length"),
                 plaintext,
                 aad,
             ),
             32 => self.encrypt_inner(
-                Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&self.key)),
+                Aes256Gcm::new_from_slice(&self.key).expect("validated AES-256 key length"),
                 plaintext,
                 aad,
             ),
@@ -375,7 +373,7 @@ impl AesGcmCipher {
     /// This abstracts the core decryption and authentication logic. Decryption is performed in-place
     /// on the provided buffer slice.
     /// The expected input format in the buffer is `nonce || ciphertext || tag`.
-    fn decrypt_inner<'a, A: AeadInPlace>(
+    fn decrypt_inner<'a, A: AeadInOut<NonceSize = U12, TagSize = U16>>(
         &self,
         cipher: A,
         ciphertext: &'a mut [u8],
@@ -386,11 +384,10 @@ impl AesGcmCipher {
         }
         let (nonce, ciphertext) = ciphertext.split_at_mut(Self::NONCE_SIZE);
         let (ciphertext, tag) = ciphertext.split_at_mut(ciphertext.len() - Self::TAG_SIZE);
-        // let tag = aes_gcm::Tag::<U16>::from_slice(tag);
-        let tag = aes_gcm::aead::Tag::<A>::from_slice(tag);
-        let nonce = aes_gcm::aead::Nonce::<A>::from_slice(nonce);
+        let tag = (&*tag).try_into().expect("tag was split at TAG_SIZE");
+        let nonce = (&*nonce).try_into().expect("nonce was split at NONCE_SIZE");
         cipher
-            .decrypt_in_place_detached(nonce, aad, ciphertext, tag)
+            .decrypt_inout_detached(nonce, aad, (&mut *ciphertext).into(), tag)
             .map_err(|e| AesGcmError::DecryptionFailed(e.to_string()))?;
         Ok(ciphertext)
     }
@@ -424,17 +421,17 @@ impl AesGcmCipher {
     ) -> Result<&'a mut [u8], AesGcmError> {
         match self.key.len() {
             16 => self.decrypt_inner(
-                Aes128Gcm::new(Key::<Aes128Gcm>::from_slice(&self.key)),
+                Aes128Gcm::new_from_slice(&self.key).expect("validated AES-128 key length"),
                 ciphertext,
                 aad,
             ),
             24 => self.decrypt_inner(
-                Aes192Gcm::new(Key::<Aes192Gcm>::from_slice(&self.key)),
+                Aes192Gcm::new_from_slice(&self.key).expect("validated AES-192 key length"),
                 ciphertext,
                 aad,
             ),
             32 => self.decrypt_inner(
-                Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&self.key)),
+                Aes256Gcm::new_from_slice(&self.key).expect("validated AES-256 key length"),
                 ciphertext,
                 aad,
             ),
@@ -443,8 +440,7 @@ impl AesGcmCipher {
     }
 
     pub fn generate_nonce(&self) -> Nonce<U12> {
-        use aes_gcm::aead::OsRng;
-        Aes128Gcm::generate_nonce(&mut OsRng)
+        Nonce::generate()
     }
 }
 #[cfg(test)]
@@ -542,6 +538,23 @@ mod tests2 {
         assert!(result_odd.is_err());
         // This specific error comes from hex::decode
         assert!(matches!(result_odd, Err(AesGcmError::InvalidKey(_))));
+    }
+
+    #[test]
+    fn test_decrypt_nist_vector() {
+        // A published NIST CAVS vector anchors the wire format independently of our encryptor.
+        // Source: NIST CAVS gcmEncryptExtIV128.rsp (128-bit plaintext, AAD and tag).
+        let cipher = AesGcmCipher::new_from_hex("c939cc13397c1d37de6ae0e1cb7c423c").unwrap();
+        let aad = hex::decode("24825602bd12a984e0092d3e448eda5f").unwrap();
+        let mut ciphertext = hex::decode(concat!(
+            "b3d8cc017cbb89b39e0f67e2",
+            "93fe7d9e9bfd10348a5606e5cafa7354",
+            "0032a1dc85f1c9786925a2e71d8272dd",
+        ))
+        .unwrap();
+        let plaintext = hex::decode("c3b3c41f113a31b73d9a5cd432103069").unwrap();
+
+        assert_eq!(cipher.decrypt(&mut ciphertext, &aad).unwrap(), plaintext);
     }
 
     // --- Encrypt/Decrypt Cycle Tests ---
