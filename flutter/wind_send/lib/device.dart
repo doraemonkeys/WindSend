@@ -24,6 +24,7 @@ import 'device_validators.dart' as validators;
 import 'device_crypto.dart' as crypto;
 import 'file_transfer.dart';
 import 'utils/utils.dart';
+import 'utils/shared_storage_access.dart';
 import 'utils/x509.dart';
 import 'web.dart';
 import 'db/shared_preferences/cnf.dart';
@@ -92,7 +93,7 @@ class Device {
   IFilePicker get filePicker {
     return IFilePicker.create(
       androidFilePickerPackageName: filePickerPackageName,
-      checkPermission: checkOrRequestPermission,
+      checkPermission: ensureSharedStorageAccess,
       useFastFilePicker: useFastFilePicker,
     );
   }
@@ -819,6 +820,7 @@ class Device {
       return (content, <DownloadInfo>[], <String>[]);
     }
     if (respHead.dataType == RespHead.dataTypeImage) {
+      await ensureSharedStorageAccess();
       final imageName = respHead.msg;
       String filePath = filepath.join(LocalConfig.imageSavePath, imageName);
       await Directory(LocalConfig.imageSavePath).create(recursive: true);
@@ -1071,6 +1073,7 @@ class Device {
     String prefix,
   ) async {
     try {
+      await ensureSharedStorageAccess();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final imageName = '${prefix}_$timestamp.png';
       final filePath = filepath.join(LocalConfig.imageSavePath, imageName);
@@ -1144,6 +1147,9 @@ class Device {
     int totalFileSize, {
     SendPort? progressSendPort,
   }) async {
+    // Permission prompts must finish on the UI isolate before download workers
+    // create directories or open destination files.
+    await ensureSharedStorageAccess();
     var stateStatic = await getStateStatic();
 
     // Large files should prefer direct connection to avoid relay bandwidth limits

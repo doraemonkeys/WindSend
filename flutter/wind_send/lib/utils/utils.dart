@@ -374,37 +374,6 @@ bool hasVideoExtension(String name) {
   return extList.contains(ext);
 }
 
-Future<void> checkOrRequestPermission() async {
-  if (Platform.isAndroid) {
-    await checkOrRequestAndroidPermission();
-  }
-  // if ((Platform.isAndroid || Platform.isIOS) &&
-  //     !AppSharedCnfService.isLocationPermissionDialogShown &&
-  //     AppSharedCnfService.autoSelectShareDeviceByBssid) {
-  //   try {
-  //     AppSharedCnfService.isLocationPermissionDialogShown = true;
-  //     await checkOrRequestNetworkPermission();
-  //   } catch (e) {
-  //     AppSharedCnfService.autoSelectShareDeviceByBssid = false;
-  //   }
-  // }
-}
-
-Future<void> checkOrRequestAndroidPermission() async {
-  final androidSdkInt = await readAndroidSdkInt();
-  if (androidSdkInt >= 30 &&
-      !await Permission.manageExternalStorage.request().isGranted) {
-    throw Exception('need manageExternalStorage permission');
-  }
-  if (androidSdkInt > 32) {
-    if (!await Permission.photos.request().isGranted ||
-        !await Permission.videos.request().isGranted ||
-        !await Permission.audio.request().isGranted) {
-      throw Exception('need photos, videos, audio permission');
-    }
-  }
-}
-
 Future<void> checkOrRequestNetworkPermission() async {
   if (Platform.isAndroid || Platform.isIOS) {
     // final androidInfo = await DeviceInfoPlugin().androidInfo;
